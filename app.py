@@ -43,6 +43,13 @@ def check_login():
                 if password == WEEKLY_PASSWORD:
                     st.session_state.authenticated = True
                     st.session_state.user = email
+                  # Show logout button at top
+          col1, col2 = st.columns([6,1])
+          with col2:
+               if st.button("Logout"):
+               st.session_state.authenticated = False
+               st.session_state.user = None
+               st.rerun()
                     st.rerun()
                 else:
                     st.error("Wrong Weekly Password")
