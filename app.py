@@ -3,6 +3,32 @@ from groq import Groq
 import textwrap
 import streamlit.components.v1 as components
 
+# --- CYBERSECURITY FORCE LOCK ---
+ALLOWED_EMAILS = ["hod@school.ac.ug", "teacher1@gmail.com", "you@gmail.com"]
+SCHOOL_PASSWORD = "UNEB_Physics_Term1_2026!Secure"
+
+def check_login():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if not st.session_state.authenticated:
+        st.title("🔒 UNEB Physics Bot - Restricted Access")
+        st.warning("This bot is for approved teachers only")
+        
+        email = st.text_input("School Email")
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Login"):
+            if email in ALLOWED_EMAILS and password == SCHOOL_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Access Denied. Contact Admin: 0751040731")
+        st.stop()
+
+check_login()
+# --- END FORCE LOCK ---
+
 st.set_page_config(page_title="📚 UNEB Physics Bot v18.0", page_icon="📚", layout="wide")
 
 # ========== 1. PRO SVG DIAGRAM ENGINE - ALL 20 DIAGRAMS ==========
