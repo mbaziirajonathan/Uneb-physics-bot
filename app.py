@@ -9,6 +9,7 @@ import pytz # NEW
 UG_TIME = datetime.datetime.now(pytz.timezone('Africa/Kampala')) # NEW
 WEEK_NUM = UG_TIME.isocalendar()[1] # CHANGED
 WEEKLY_PASSWORD = f"UNEB_W{WEEK_NUM}_2026_Secure!" 
+st.warning(f"DEBUG: Bot Password = {WEEKLY_PASSWORD}")
 
 # 2. ONE-TIME CODES: Use once then deleted. Add new ones here each term
 ONE_TIME_CODES = {
