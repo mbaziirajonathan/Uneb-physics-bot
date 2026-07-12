@@ -3,10 +3,11 @@ from groq import Groq
 import textwrap
 import streamlit.components.v1 as components
 import datetime
+import pytz # NEW
 
-# --- DEEP SECURITY FORCE LOCK v2.0 ---
-# 1. WEEKLY PASSWORD: Changes every Monday automatically
-WEEK_NUM = datetime.date.today().isocalendar()[1]
+# --- DEEP SECURITY FORCE LOCK v2.1 - UGANDA TIME ---
+UG_TIME = datetime.datetime.now(pytz.timezone('Africa/Kampala')) # NEW
+WEEK_NUM = UG_TIME.isocalendar()[1] # CHANGED
 WEEKLY_PASSWORD = f"UNEB_W{WEEK_NUM}_2026_Secure!" 
 
 # 2. ONE-TIME CODES: Use once then deleted. Add new ones here each term
