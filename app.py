@@ -29,12 +29,13 @@ def check_login():
         st.title("🔒 UNEB Physics Bot - Restricted Access")
         st.warning("This bot is for approved teachers only")
         
-        st.info(f"**This Week's Password:** `{WEEKLY_PASSWORD}`")
+        
         st.caption("Password changes every Monday")
         
         tab1, tab2 = st.tabs(["Weekly Password Login", "One-Time Code Login"])
         
         with tab1:
+            st.error("Weekly Password is sent to teachers every Monday on WhatsApp")
             email = st.text_input("School Email", key="email1")
             password = st.text_input("Weekly Password", type="password", key="pass1")
             if st.button("Login with Password"):
