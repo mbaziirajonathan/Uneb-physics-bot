@@ -2,10 +2,24 @@ import streamlit as st
 from groq import Groq
 import textwrap
 import streamlit.components.v1 as components
+import datetime
 
-# --- CYBERSECURITY FORCE LOCK ---
-ALLOWED_EMAILS = ["hod@school.ac.ug", "teacher1@gmail.com", "you@gmail.com"]
-SCHOOL_PASSWORD = "UNEB_Physics_Term1_2026!Secure"
+# --- DEEP SECURITY FORCE LOCK v2.0 ---
+# 1. WEEKLY PASSWORD: Changes every Monday automatically
+WEEK_NUM = datetime.date.today().isocalendar()[1]
+WEEKLY_PASSWORD = f"UNEB_W{WEEK_NUM}_2026_Secure!" 
+
+# 2. ONE-TIME CODES: Use once then deleted. Add new ones here each term
+ONE_TIME_CODES = {
+    "TEACHER01": "HOD Physics",
+    "TEACHER02": "S4 Teacher", 
+    "TEACHER03": "S3 Teacher",
+    "BACKUP01": "Admin Backup"
+}
+
+# Store used codes so they can't be reused
+if "used_codes" not in st.session_state:
+    st.session_state.used_codes = []
 
 def check_login():
     if "authenticated" not in st.session_state:
@@ -15,19 +29,41 @@ def check_login():
         st.title("🔒 UNEB Physics Bot - Restricted Access")
         st.warning("This bot is for approved teachers only")
         
-        email = st.text_input("School Email")
-        password = st.text_input("Password", type="password")
+        st.info(f"**This Week's Password:** `{WEEKLY_PASSWORD}`")
+        st.caption("Password changes every Monday")
         
-        if st.button("Login"):
-            if email in ALLOWED_EMAILS and password == SCHOOL_PASSWORD:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Access Denied. Contact Admin: 0751040731")
+        tab1, tab2 = st.tabs(["Weekly Password Login", "One-Time Code Login"])
+        
+        with tab1:
+            email = st.text_input("School Email", key="email1")
+            password = st.text_input("Weekly Password", type="password", key="pass1")
+            if st.button("Login with Password"):
+                if password == WEEKLY_PASSWORD:
+                    st.session_state.authenticated = True
+                    st.session_state.user = email
+                    st.rerun()
+                else:
+                    st.error("Wrong Weekly Password")
+        
+        with tab2:
+            code = st.text_input("One-Time Code", key="code1").upper()
+            if st.button("Login with Code"):
+                if code in ONE_TIME_CODES and code not in st.session_state.used_codes:
+                    st.session_state.used_codes.append(code) # KILL THE CODE
+                    st.session_state.authenticated = True
+                    st.session_state.user = ONE_TIME_CODES[code]
+                    st.success(f"Welcome {ONE_TIME_CODES[code]}. This code is now DEAD.")
+                    st.rerun()
+                elif code in st.session_state.used_codes:
+                    st.error("Code already used. Ask Admin for new code.")
+                else:
+                    st.error("Invalid Code")
+        
         st.stop()
 
 check_login()
-# --- END FORCE LOCK ---
+# --- END DEEP SECURITY LOCK ---
+
 
 st.set_page_config(page_title="📚 UNEB Physics Bot v18.0", page_icon="📚", layout="wide")
 
