@@ -260,7 +260,8 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-       if prompt := st.chat_input("Teacher: Ask Qn or type 'prepare lesson on Ohm's Law'"):
+
+if prompt := st.chat_input("Teacher: Ask Qn or type 'prepare lesson on Ohm's Law'"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -269,7 +270,7 @@ for message in st.session_state.messages:
         svg_code = generate_svg_diagram(prompt)
         if svg_code:
             st.markdown("**DIAGRAM:**")
-            components.html(svg_code, height=350, scrolling=True)
+            components.html(svg_code, height=400)
             st.markdown("---")
 
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -287,8 +288,7 @@ for message in st.session_state.messages:
             st.markdown(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})
         except Exception as e:
-        except Exception as e:
-    st.error(f"QC FAIL: AI Error. {e}")
+            st.error(f"QC FAIL: AI Error. {e}")
 
 # ========== SIDEBAR + FOOTER ==========
 st.sidebar.markdown("### 📚 v18.2 + Lesson Plans")
@@ -300,7 +300,7 @@ st.sidebar.code('draw dc motor')
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Included:**")
 st.sidebar.markdown("1. 3 Golden Diagrams: Motor, Generator, Transformer")
-st.sidebar.markdown("2. UNEB Qn + Marking Guide")
+ st.sidebar.markdown("2. UNEB Qn + Marking Guide")
 st.sidebar.markdown("3. Full Lesson Plans S1-S4")
 st.sidebar.markdown("---")
 st.sidebar.warning("**School Password:** `uneb2026`")
@@ -315,4 +315,3 @@ st.markdown("""
     <p style="margin: 5px 0 0 0; font-size: 10px;">AI DISCLAIMER: Have your Senior Physics Teacher review all content before exams</p>
 </div>
 """, unsafe_allow_html=True)
-    
