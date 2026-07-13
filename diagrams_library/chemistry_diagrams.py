@@ -78,3 +78,53 @@ def get_chemistry_diagram(question):
     if "pollution" in q or "environment" in q: return cd.s4_chem_env()
     
     return None
+
+    import re
+
+def calculate_chemistry(question):
+    """UNEB Chemistry calculator S1-S4. Returns formatted string or None"""
+    q = question.lower()
+    nums = [float(n) for n in re.findall(r'\d+\.?\d*', question)]
+
+    # MOLES = MASS / MR
+    if "mole" in q or "moles" in q:
+        if "mass" in q and len(nums) >= 2:
+            mass, mr = nums[0], nums[1]
+            ans = mass / mr
+            return f"**Formula**: $n = \\frac{{Mass}}{{Mr}}$\n**Working**: ${mass} / {mr} = {ans:.3f}$\n**Answer**: {ans:.3f} moles"
+        if len(nums) >= 2: # fallback if user just gives 2 numbers
+            mass, mr = nums[0], nums[1]
+            ans = mass / mr
+            return f"**Formula**: $n = \\frac{{Mass}}{{Mr}}$\n**Working**: ${mass} / {mr} = {ans:.3f}$\n**Answer**: {ans:.3f} moles"
+
+    # MOLARITY = MOLES / VOLUME
+    if "molarity" in q or "concentration" in q:
+        if len(nums) >= 2:
+            moles, vol_cm3 = nums[0], nums[1]
+            vol_dm3 = vol_cm3 / 1000
+            ans = moles / vol_dm3
+            return f"**Formula**: $C = \\frac{{n}}{{V}}$\n**Working**: ${moles} / {vol_dm3} = {ans:.2f}$\n**Answer**: {ans:.2f} mol/dm³"
+
+    # GAS LAW: P1V1 = P2V2
+    if "gas" in q or "boyle" in q or "pressure" in q:
+        if len(nums) >= 3:
+            p1, v1, p2 = nums[0], nums[1], nums[2]
+            v2 = (p1 * v1) / p2
+            return f"**Formula**: $P1V1 = P2V2$\n**Working**: ${p1} * {v1} / {p2} = {v2:.2f}$\n**Answer**: {v2:.2f} L"
+
+    # PH = -LOG[H+]
+    if "ph" in q:
+        if len(nums) >= 1:
+            h = nums[0]
+            import math
+            ph = -math.log10(h)
+            return f"**Formula**: $pH = -log[H^+]$ \n**Working**: $-log({h}) = {ph:.2f}$\n**Answer**: {ph:.2f}"
+
+    # TITRATION: C1V1 = C2V2
+    if "titration" in q:
+        if len(nums) >= 3:
+            c1, v1, v2 = nums[0], nums[1], nums[2]
+            c2 = (c1 * v1) / v2
+            return f"**Formula**: $C1V1 = C2V2$\n**Working**: ${c1} * {v1} / {v2} = {c2:.3f}$\n**Answer**: {c2:.3f} mol/dm³"
+
+    return None 
