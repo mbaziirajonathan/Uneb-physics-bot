@@ -81,3 +81,42 @@ def s4_bio_ear(): return """<svg width="260" height="220"><path d="M 60 110 Q 90
 def s4_bio_meiosis(): return """<svg width="360" height="160"><circle cx="60" cy="80" r="20" stroke="black" fill="none"/><line x1="80" y1="80" x2="110" y2="80" stroke="black"/><circle cx="130" cy="80" r="15" stroke="black" fill="none"/><circle cx="150" cy="80" r="15" stroke="black" fill="none"/><line x1="170" y1="80" x2="200" y2="80" stroke="black"/><circle cx="220" cy="65" r="10" stroke="black" fill="none"/><circle cx="220" cy="95" r="10" stroke="black" fill="none"/></svg>"""
 def s4_bio_genetics(): return """<svg width="260" height="220"><rect x="60" y="60" width="100" height="100" fill="none" stroke="black" stroke-width="2"/><line x1="110" y1="60" x2="110" y2="160" stroke="black"/><line x1="60" y1="110" x2="160" y2="110" stroke="black"/><text x="80" y="90" font-size="12">TT</text><text x="130" y="90" font-size="12">Tt</text><text x="80" y="140" font-size="12">Tt</text><text x="130" y="140" font-size="12">tt</text></svg>"""
 def s4_bio_immune(): return """<svg width="320" height="220"><circle cx="110" cy="110" r="20" fill="#F44336" stroke="black"/><path d="M 160 80 L 160 140 L 180 140 L 180 80 Z" fill="#3F51B5" stroke="black"/><line x1="160" y1="110" x2="130" y2="110" stroke="black" stroke-width="2"/><text x="100" y="150" font-size="11">Antigen</text><text x="155" y="160" font-size="11">Antibody</text></svg>"""
+
+ from . import biology_diagrams as bd
+
+def get_biology_diagram(question):
+    q = question.lower()
+    
+    # S1
+    if "animal cell" in q: return bd.s1_bio_animal_cell()
+    if "plant cell" in q: return bd.s1_bio_plant_cell()
+    if "leaf" in q: return bd.s1_bio_leaf()
+    if "hand lens" in q or "magnifying" in q: return bd.s1_bio_magnifying()
+    if "test tube" in q or "food test" in q: return bd.s1_bio_food_test()
+    if "lab coat" in q or "safety" in q: return bd.s1_bio_safety()
+    
+    # S2
+    if "heart" in q: return bd.s2_bio_heart()
+    if "respiratory" in q or "lung" in q or "trachea" in q: return bd.s2_bio_respiratory()
+    if "digestive" in q or "stomach" in q: return bd.s2_bio_digestive()
+    if "blood cell" in q or "rbc" in q: return bd.s2_bio_blood()
+    if "skeleton" in q: return bd.s2_bio_skeleton()
+    if "microscope" in q: return bd.s2_bio_microscope()
+    
+    # S3
+    if "neuron" in q or "nerve cell" in q: return bd.s3_bio_neuron()
+    if "kidney" in q: return bd.s3_bio_kidney()
+    if "photosynthesis" in q: return bd.s3_bio_photosynthesis()
+    if "dna" in q: return bd.s3_bio_dna()
+    if "food chain" in q or "ecosystem" in q: return bd.s3_bio_ecosystem()
+    if "bacteria" in q: return bd.s3_bio_bacteria()
+    
+    # S4
+    if "brain" in q: return bd.s4_bio_brain()
+    if "eye" in q: return bd.s4_bio_eye()
+    if "ear" in q: return bd.s4_bio_ear()
+    if "meiosis" in q: return bd.s4_bio_meiosis()
+    if "punnett" in q or "genetics" in q: return bd.s4_bio_genetics()
+    if "antibody" in q or "immune" in q: return bd.s4_bio_immune()
+    
+    return None
