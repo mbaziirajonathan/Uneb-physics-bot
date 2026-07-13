@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 
 SVG_SPRITE = """<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -9,10 +10,11 @@ SVG_SPRITE = """<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><de
 <symbol id="alkane" viewBox="0 0 150 60"><circle cx="20" cy="30" r="8" fill="black"/><circle cx="50" cy="30" r="8" fill="black"/><circle cx="80" cy="30" r="8" fill="black"/><circle cx="110" cy="30" r="8" fill="black"/><line x1="28" y1="30" x2="42" y2="30" stroke="black" stroke-width="3"/><line x1="58" y1="30" x2="72" y2="30" stroke="black" stroke-width="3"/><line x1="88" y1="30" x2="102" y2="30" stroke="black" stroke-width="3"/></symbol>
 </defs></svg>"""
 
-st.markdown(SVG_SPRITE, unsafe_allow_html=True)
+components.html(SVG_SPRITE, height=0)
 
 def render_svg(symbol_id):
-    st.markdown(f'<svg width="350" height="180" style="border:1px solid #ddd; background:white;"><use href="#{symbol_id}"/></svg>', unsafe_allow_html=True)
+    svg_code = f'<svg width="350" height="180" style="border:1px solid #ddd; background:white;"><use href="#{symbol_id}"/></svg>'
+    components.html(svg_code, height=190)
 
 def run(level):
     st.subheader(f"Chemistry - {level}")
@@ -23,12 +25,12 @@ def run(level):
         "S4": ["Select Topic", "Organic Chemistry", "Alkane", "Alkenes", "Alcohols", "Electrochemistry", "Nitrogen and Fertilizers", "Industrial Chemistry"]
     }
     diagram_map = {"S1": {"Bunsen Burner": "bunsen_burner"}, "S2": {"Atomic Structure": "atom", "Titration": "titration"}, "S3": {"Water Molecule": "water_molecule"}, "S4": {"Alkane": "alkane"}}
-    topic = st.selectbox("Select Chemistry Topic", topics[level], key=f"chem_{level}")
+    topic = st.selectbox("Select Chemistry Topic", topics[level], key=f"chem_{level}_{st.session_state.get('subject_select')}")
     if topic == "Select Topic": return
     if st.button("Generate Lesson", type="primary", key=f"btn_chem_{level}"):
         client = Groq(api_key=st.secrets["GROQ_API_KEY"])
         with st.spinner("AI Teaching..."):
-            res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": f"You are UNEB {level} Chemistry tutor. Use NCDC syllabus."}, {"role": "user", "content": f"Teach {topic} for {level}. Definition, Example, 1 question"}])
+            res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": f"You are UNEB {level} Chemistry tutor."}, {"role": "user", "content": f"Teach {topic} for {level}. Definition, Example, 1 question"}])
             st.markdown("### 📝 EXPLANATION"); st.markdown(res.choices[0].message.content)
     if topic in diagram_map.get(level, {}): st.markdown("### 📊 DIAGRAM"); render_svg(diagram_map[level][topic])
     else: st.info("Diagram coming soon")
