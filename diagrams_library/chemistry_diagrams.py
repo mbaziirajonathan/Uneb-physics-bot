@@ -41,3 +41,40 @@ def s4_chem_spectrometer(): return """<svg width="320" height="210"><rect x="60"
 def s4_chem_industrial(): return """<svg width="320" height="210"><rect x="60" y="90" width="200" height="60" fill="#9E9E9E"/><rect x="80" y="50" width="20" height="40" fill="#616161"/><rect x="220" y="50" width="20" height="40" fill="#616161"/></svg>"""
 def s4_chem_env(): return """<svg width="320" height="210"><circle cx="160" cy="110" r="60" fill="#B3E5FC"/><path d="M 130 80 Q 160 60 190 80" fill="#757575"/></svg>"""
 def s4_chem_research(): return """<svg width="220" height="220"><rect x="60" y="60" width="100" height="100" fill="white" stroke="black"/><circle cx="110" cy="110" r="20" fill="none" stroke="#2196F3"/></svg>"""
+
+ from . import chemistry_diagrams as cd
+
+def get_chemistry_diagram(question):
+    q = question.lower()
+    
+    # S1
+    if "bunsen" in q: return cd.s1_chem_bunsen()
+    if "beaker" in q: return cd.s1_chem_beaker()
+    if "water molecule" in q or "h2o" in q: return cd.s1_chem_water_molecule()
+    if "filtration" in q: return cd.s1_chem_filtration()
+    if "flame test" in q: return cd.s1_chem_flame_test()
+    
+    # S2
+    if "titration" in q or "burette" in q: return cd.s2_chem_titration()
+    if "co2" in q or "carbon dioxide" in q: return cd.s2_chem_co2()
+    if "electrolysis" in q: return cd.s2_chem_electrolysis()
+    if "distillation" in q: return cd.s2_chem_distillation()
+    if "ph scale" in q: return cd.s2_chem_ph()
+    if "atom" in q: return cd.s2_chem_atom()
+    
+    # S3
+    if "haber" in q or "ammonia" in q: return cd.s3_chem_haber()
+    if "voltaic cell" in q or "electrochemical cell" in q: return cd.s3_chem_cell()
+    if "organic" in q or "ethane" in q: return cd.s3_chem_organic()
+    if "chromatography" in q: return cd.s3_chem_chromatography()
+    if "periodic table" in q: return cd.s3_chem_periodic()
+    if "reaction" in q: return cd.s3_chem_reaction()
+    
+    # S4
+    if "benzene" in q: return cd.s4_chem_benzene()
+    if "polymer" in q: return cd.s4_chem_polymer()
+    if "spectrometer" in q: return cd.s4_chem_spectrometer()
+    if "industrial" in q: return cd.s4_chem_industrial()
+    if "pollution" in q or "environment" in q: return cd.s4_chem_env()
+    
+    return None
