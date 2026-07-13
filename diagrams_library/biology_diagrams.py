@@ -1,308 +1,262 @@
 import streamlit as st
 
-# ========== S1 PHYSICS: 6 DIAGRAMS ==========
-def s1_physics_circuit():
-    """S1 Physics 1: Simple Electric Circuit"""
-    return """<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
-    <line x1="50" y1="100" x2="120" y2="100" stroke="black" stroke-width="2"/>
-    <line x1="120" y1="90" x2="120" y2="110" stroke="black" stroke-width="3"/>
-    <line x1="130" y1="95" x2="130" y2="105" stroke="black" stroke-width="2"/>
-    <text x="115" y="80" font-size="12" font-family="Arial">Cell</text>
-    <line x1="130" y1="100" x2="200" y2="100" stroke="black" stroke-width="2"/>
-    <rect x="200" y="90" width="40" height="20" fill="none" stroke="black" stroke-width="2"/>
-    <text x="205" y="85" font-size="12">Bulb</text>
-    <line x1="240" y1="100" x2="310" y2="100" stroke="black" stroke-width="2"/>
-    <line x1="310" y1="100" x2="310" y2="150" stroke="black" stroke-width="2"/>
-    <line x1="310" y1="150" x2="50" y2="150" stroke="black" stroke-width="2"/>
-    <line x1="50" y1="150" x2="50" y2="100" stroke="black" stroke-width="2"/>
-    <text x="180" y="170" font-size="14" text-anchor="middle">Simple Electric Circuit</text>
+# ========== S1 BIOLOGY: 6 DIAGRAMS ==========
+def s1_bio_animal_cell():
+    """S1 Bio 1: Animal Cell"""
+    return """<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="150" cy="150" r="110" fill="none" stroke="black" stroke-width="2"/>
+    <circle cx="150" cy="150" r="35" fill="lightblue" stroke="black"/>
+    <text x="135" y="155" font-size="12">Nucleus</text>
+    <ellipse cx="90" cy="90" rx="12" ry="6" fill="orange" stroke="black"/>
+    <text x="105" y="92" font-size="10">Mitochondrion</text>
+    <circle cx="180" cy="100" r="8" fill="pink" stroke="black"/>
+    <text x="192" y="103" font-size="10">Vacuole</text>
+    <text x="100" y="270" font-size="14" text-anchor="middle">Animal Cell</text>
     </svg>"""
 
-def s1_physics_dist_time_graph():
-    """S1 Physics 2: Distance-Time Graph"""
-    return """<svg width="400" height="250">
-    <line x1="50" y1="200" x2="350" y2="200" stroke="black" stroke-width="2"/>
-    <line x1="50" y1="200" x2="50" y2="50" stroke="black" stroke-width="2"/>
-    <text x="30" y="40" font-size="12">Distance</text>
-    <text x="360" y="205" font-size="12">Time</text>
-    <line x1="50" y1="200" x2="150" y2="120" stroke="blue" stroke-width="2"/>
-    <line x1="150" y1="120" x2="250" y2="120" stroke="red" stroke-width="2"/>
-    <line x1="250" y1="120" x2="350" y2="50" stroke="green" stroke-width="2"/>
-    <text x="100" y="110" font-size="10" fill="blue">Uniform</text>
-    <text x="200" y="110" font-size="10" fill="red">Rest</text>
-    <text x="300" y="40" font-size="10" fill="green">Accelerated</text>
+def s1_bio_plant_cell():
+    """S1 Bio 2: Plant Cell"""
+    return """<svg width="300" height="300">
+    <rect x="40" y="40" width="220" height="220" fill="none" stroke="black" stroke-width="2"/>
+    <rect x="50" y="50" width="200" height="200" fill="lightgreen" stroke="black"/>
+    <circle cx="150" cy="150" r="35" fill="lightblue" stroke="black"/>
+    <text x="135" y="155" font-size="12">Nucleus</text>
+    <rect x="80" y="80" width="20" height="20" fill="green" stroke="black"/>
+    <text x="105" y="95" font-size="10">Chloroplast</text>
+    <rect x="40" y="40" width="220" height="220" fill="none" stroke="black" stroke-width="3"/>
+    <text x="150" y="280" font-size="14" text-anchor="middle">Plant Cell</text>
     </svg>"""
 
-def s1_physics_wave():
-    """S1 Physics 3: Transverse Wave"""
-    return """<svg width="400" height="150">
-    <path d="M 50 75 Q 75 25 100 75 T 150 75 T 200 75 T 250 75 T 300 75 T 350 75" fill="none" stroke="black" stroke-width="2"/>
-    <line x1="100" y1="75" x2="100" y2="25" stroke="black" stroke-dasharray="2,2"/>
-    <text x="95" y="20" font-size="12">Amplitude</text>
-    <line x1="100" y1="75" x2="200" y2="75" stroke="black"/>
-    <text x="145" y="90" font-size="12">Wavelength λ</text>
-    <text x="180" y="120" font-size="14" text-anchor="middle">Transverse Wave</text>
+def s1_bio_leaf():
+    """S1 Bio 3: Leaf External Structure"""
+    return """<svg width="250" height="300">
+    <ellipse cx="125" cy="120" rx="80" ry="90" fill="lightgreen" stroke="black" stroke-width="2"/>
+    <line x1="125" y1="30" x2="125" y2="210" stroke="black" stroke-width="2"/>
+    <line x1="125" y1="80" x2="60" y2="100" stroke="black"/>
+    <line x1="125" y1="80" x2="190" y2="100" stroke="black"/>
+    <text x="130" y="85" font-size="12">Midrib</text>
+    <text x="50" y="105" font-size="12">Vein</text>
+    <text x="125" y="270" font-size="14" text-anchor="middle">Leaf</text>
     </svg>"""
 
-def s1_physics_reflection():
-    """S1 Physics 4: Reflection on Plane Mirror"""
-    return """<svg width="400" height="200">
-    <line x1="200" y1="50" x2="200" y2="150" stroke="black" stroke-width="3"/>
-    <text x="205" y="40" font-size="12">Plane Mirror</text>
-    <line x1="100" y1="80" x2="200" y2="100" stroke="black" stroke-width="2" marker-end="url(#a1)"/>
-    <line x1="200" y1="100" x2="300" y2="120" stroke="black" stroke-width="2" marker-end="url(#a1)"/>
-    <text x="80" y="75" font-size="12">Incident Ray</text>
-    <text x="310" y="125" font-size="12">Reflected Ray</text>
-    <text x="200" y="180" font-size="14" text-anchor="middle">Law of Reflection</text>
-    <defs><marker id="a1"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
+def s1_bio_magnifying():
+    """S1 Bio 4: Magnifying Glass"""
+    return """<svg width="250" height="200">
+    <circle cx="100" cy="80" r="50" fill="none" stroke="black" stroke-width="3"/>
+    <line x1="135" y1="115" x2="180" y2="160" stroke="brown" stroke-width="8"/>
+    <text x="50" y="40" font-size="12">Lens</text>
+    <text x="185" y="175" font-size="12">Handle</text>
+    <text x="125" y="185" font-size="14">Hand Lens</text>
     </svg>"""
 
-def s1_physics_force():
-    """S1 Physics 5: Balanced Forces"""
-    return """<svg width="400" height="150">
-    <rect x="180" y="70" width="40" height="40" fill="lightgray" stroke="black"/>
-    <line x1="180" y1="90" x2="130" y2="90" stroke="red" stroke-width="3" marker-end="url(#a2)"/>
-    <line x1="220" y1="90" x2="270" y2="90" stroke="blue" stroke-width="3" marker-end="url(#a2)"/>
-    <text x="100" y="85" font-size="12">5N</text>
-    <text x="280" y="85" font-size="12">5N</text>
-    <text x="200" y="130" font-size="14" text-anchor="middle">Balanced Forces</text>
-    <defs><marker id="a2"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
-    </svg>"""
-
-def s1_physics_lever():
-    """S1 Physics 6: 1st Class Lever"""
-    return """<svg width="400" height="180">
-    <line x1="50" y1="100" x2="350" y2="100" stroke="black" stroke-width="3"/>
-    <polygon points="200,90 210,110 190,110" fill="black"/>
-    <text x="195" y="125" font-size="12">Fulcrum</text>
-    <circle cx="100" cy="100" r="8" fill="black"/>
-    <text x="90" y="85" font-size="12">Effort</text>
-    <circle cx="300" cy="100" r="8" fill="black"/>
-    <text x="295" y="85" font-size="12">Load</text>
-    <text x="200" y="150" font-size="14" text-anchor="middle">1st Class Lever</text>
-    </svg>"""
-
-# ========== S2 PHYSICS: 6 DIAGRAMS ==========
-def s2_physics_convex_lens():
-    """S2 Physics 1: Convex Lens Ray Diagram"""
-    return """<svg width="400" height="200">
-    <line x1="200" y1="50" x2="200" y2="150" stroke="black" stroke-width="2"/>
-    <path d="M 190 50 Q 200 100 190 150" fill="none" stroke="black"/>
-    <path d="M 210 50 Q 200 100 210 150" fill="none" stroke="black"/>
-    <text x="205" y="40" font-size="12">Convex Lens</text>
-    <line x1="50" y1="100" x2="350" y2="100" stroke="gray" stroke-dasharray="2,2"/>
-    <circle cx="100" cy="100" r="3" fill="red"/>
-    <circle cx="300" cy="100" r="3" fill="red"/>
-    <text x="90" y="90" font-size="12">Object</text>
-    <text x="310" y="90" font-size="12">Image</text>
-    </svg>"""
-
-def s2_physics_pulley():
-    """S2 Physics 2: Single Pulley System"""
-    return """<svg width="300" height="250">
-    <circle cx="150" cy="50" r="30" fill="none" stroke="black" stroke-width="2"/>
-    <line x1="150" y1="20" x2="150" y2="10" stroke="black" stroke-width="2"/>
-    <line x1="120" y1="50" x2="120" y2="150" stroke="black"/>
-    <line x1="180" y1="50" x2="180" y2="150" stroke="black"/>
-    <rect x="110" y="150" width="20" height="20" fill="gray"/>
-    <rect x="170" y="150" width="20" height="20" fill="gray"/>
-    <text x="140" y="30" font-size="12">Fixed Pulley</text>
-    </svg>"""
-
-def s2_physics_thermometer():
-    """S2 Physics 3: Clinical Thermometer"""
-    return """<svg width="100" height="250">
-    <rect x="40" y="50" width="20" height="150" fill="none" stroke="black" stroke-width="2"/>
-    <circle cx="50" cy="210" r="20" fill="red" stroke="black"/>
-    <rect x="45" y="70" width="10" height="130" fill="red"/>
-    <text x="65" y="80" font-size="12">°C</text>
-    <text x="20" y="220" font-size="12">Mercury</text>
-    <text x="50" y="240" font-size="14" text-anchor="middle">Thermometer</text>
-    </svg>"""
-
-def s2_physics_magnet():
-    """S2 Physics 4: Magnetic Field Lines"""
-    return """<svg width="400" height="200">
-    <rect x="100" y="90" width="60" height="20" fill="red"/>
-    <rect x="240" y="90" width="60" height="20" fill="blue"/>
-    <text x="110" y="85" font-size="12">N</text>
-    <text x="260" y="85" font-size="12">S</text>
-    <path d="M 160 100 Q 200 60 240 100" fill="none" stroke="black"/>
-    <path d="M 160 100 Q 200 140 240 100" fill="none" stroke="black"/>
-    <text x="180" y="50" font-size="14" text-anchor="middle">Magnetic Field</text>
-    </svg>"""
-
-def s2_physics_density():
-    """S2 Physics 5: Density Column"""
+def s1_bio_food_test():
+    """S1 Bio 5: Test Tube for Food Tests"""
     return """<svg width="200" height="250">
-    <rect x="50" y="50" width="100" height="150" fill="none" stroke="black" stroke-width="2"/>
-    <rect x="50" y="150" width="100" height="50" fill="blue"/>
-    <rect x="50" y="100" width="100" height="50" fill="yellow"/>
-    <rect x="50" y="50" width="100" height="50" fill="red"/>
-    <text x="10" y="75" font-size="12">Oil</text>
-    <text x="10" y="125" font-size="12">Water</text>
-    <text x="10" y="175" font-size="12">Mercury</text>
+    <path d="M 70 50 L 60 180 L 140 180 L 130 50 Z" fill="none" stroke="black" stroke-width="2"/>
+    <line x1="60" y1="180" x2="140" y2="180" stroke="black" stroke-width="2"/>
+    <rect x="80" y="90" width="40" height="30" fill="blue" opacity="0.6"/>
+    <text x="85" y="110" font-size="12" fill="white">Solution</text>
+    <text x="100" y="220" font-size="14" text-anchor="middle">Test Tube</text>
     </svg>"""
 
-def s2_physics_oscillation():
-    """S2 Physics 6: Simple Pendulum"""
-    return """<svg width="400" height="150">
-    <line x1="200" y1="50" x2="200" y2="100" stroke="black" stroke-width="2"/>
-    <circle cx="200" cy="120" r="10" fill="black"/>
-    <path d="M 150 120 Q 200 70 250 120" fill="none" stroke="black" stroke-dasharray="2,2"/>
-    <text x="190" y="140" font-size="14" text-anchor="middle">Simple Pendulum</text>
+def s1_bio_safety():
+    """S1 Bio 6: Lab Safety - Lab Coat"""
+    return """<svg width="200" height="250">
+    <path d="M 60 50 L 60 200 L 140 200 L 140 50 Q 100 30 60 50" fill="white" stroke="black" stroke-width="2"/>
+    <line x1="100" y1="50" x2="100" y2="200" stroke="black" stroke-dasharray="2,2"/>
+    <text x="100" y="30" font-size="14" text-anchor="middle">Lab Coat</text>
     </svg>"""
 
-# ========== S3 PHYSICS: 6 DIAGRAMS ==========
-def s3_physics_transformer():
-    """S3 Physics 1: Simple Transformer"""
-    return """<svg width="400" height="200">
-    <rect x="100" y="70" width="40" height="60" fill="none" stroke="black"/>
-    <rect x="260" y="70" width="40" height="60" fill="none" stroke="black"/>
-    <text x="105" y="65" font-size="12">Primary</text>
-    <text x="265" y="65" font-size="12">Secondary</text>
-    <line x1="50" y1="100" x2="100" y2="100" stroke="black"/>
-    <line x1="300" y1="100" x2="350" y2="100" stroke="black"/>
-    <text x="20" y="105" font-size="12">AC Input</text>
-    <text x="355" y="105" font-size="12">AC Output</text>
+# ========== S2 BIOLOGY: 6 DIAGRAMS ==========
+def s2_bio_heart():
+    """S2 Bio 1: Human Heart"""
+    return """<svg width="300" height="250">
+    <path d="M150 180 Q 70 130 70 90 Q 70 60 100 60 Q 120 60 150 80 Q 180 60 200 60 Q 230 60 230 90 Q 230 130 150 180" fill="red" stroke="black" stroke-width="2"/>
+    <line x1="150" y1="80" x2="150" y2="180" stroke="black" stroke-width="2"/>
+    <text x="150" y="50" font-size="14" text-anchor="middle">Human Heart</text>
+    <text x="60" y="100" font-size="12">Left</text>
+    <text x="240" y="100" font-size="12">Right</text>
     </svg>"""
 
-def s3_physics_cathode_ray():
-    """S3 Physics 2: Cathode Ray Tube"""
-    return """<svg width="400" height="200">
-    <ellipse cx="100" cy="100" rx="80" ry="40" fill="none" stroke="black" stroke-width="2"/>
-    <line x1="180" y1="100" x2="320" y2="100" stroke="black"/>
-    <rect x="320" y="80" width="30" height="40" fill="lightgreen" stroke="black"/>
-    <circle cx="40" cy="100" r="3" fill="black"/>
-    <text x="35" y="115" font-size="12">Cathode</text>
-    <text x="90" y="40" font-size="14">Cathode Ray Tube</text>
-    <text x="325" y="75" font-size="12">Screen</text>
+def s2_bio_respiratory():
+    """S2 Bio 2: Respiratory System"""
+    return """<svg width="300" height="250">
+    <line x1="150" y1="40" x2="150" y2="80" stroke="black" stroke-width="4"/>
+    <ellipse cx="110" cy="130" rx="30" ry="50" fill="pink" stroke="black"/>
+    <ellipse cx="190" cy="130" rx="30" ry="50" fill="pink" stroke="black"/>
+    <line x1="150" y1="80" x2="110" y2="100" stroke="black" stroke-width="3"/>
+    <line x1="150" y1="80" x2="190" y2="100" stroke="black" stroke-width="3"/>
+    <text x="150" y="30" font-size="12" text-anchor="middle">Trachea</text>
+    <text x="150" y="210" font-size="14" text-anchor="middle">Lungs</text>
     </svg>"""
 
-def s3_physics_radioactive():
-    """S3 Physics 3: Alpha, Beta, Gamma Rays"""
-    return """<svg width="400" height="200">
-    <rect x="50" y="50" width="300" height="100" fill="none" stroke="black"/>
-    <line x1="80" y1="50" x2="80" y2="150" stroke="red" stroke-width="2"/>
-    <line x1="120" y1="50" x2="120" y2="150" stroke="green" stroke-width="2"/>
-    <line x1="160" y1="50" x2="160" y2="150" stroke="blue" stroke-width="2"/>
-    <text x="70" y="40" font-size="12" fill="red">Alpha</text>
-    <text x="105" y="40" font-size="12" fill="green">Beta</text>
-    <text x="150" y="40" font-size="12" fill="blue">Gamma</text>
-    <text x="200" y="180" font-size="14" text-anchor="middle">Penetrating Power</text>
+def s2_bio_digestive():
+    """S2 Bio 3: Digestive System"""
+    return """<svg width="250" height="300">
+    <ellipse cx="125" cy="80" rx="40" ry="25" fill="none" stroke="black"/>
+    <path d="M 125 105 Q 90 140 100 190 Q 125 210 150 190 Q 160 140 125 105" fill="none" stroke="black"/>
+    <path d="M 150 190 Q 170 220 125 250 Q 80 220 100 190" fill="none" stroke="black"/>
+    <text x="125" y="75" font-size="12" text-anchor="middle">Stomach</text>
+    <text x="125" y="280" font-size="14" text-anchor="middle">Digestive System</text>
     </svg>"""
 
-def s3_physics_generator():
-    """S3 Physics 4: AC Generator"""
-    return """<svg width="400" height="200">
-    <circle cx="200" cy="100" r="50" fill="none" stroke="black" stroke-width="2"/>
-    <line x1="150" y1="100" x2="250" y2="100" stroke="black" stroke-width="3"/>
-    <rect x="190" y="40" width="20" height="20" fill="red"/>
-    <rect x="190" y="140" width="20" height="20" fill="blue"/>
-    <text x="185" y="35" font-size="12">N</text>
-    <text x="185" y="165" font-size="12">S</text>
-    <line x1="100" y1="100" x2="70" y2="100" stroke="black"/>
-    <line x1="300" y1="100" x2="330" y2="100" stroke="black"/>
-    <text x="60" y="105" font-size="12">Slip Rings</text>
-    <text x="200" y="180" font-size="14" text-anchor="middle">AC Generator</text>
+def s2_bio_blood():
+    """S2 Bio 4: Blood Components"""
+    return """<svg width="300" height="200">
+    <circle cx="80" cy="100" r="12" fill="red" stroke="black"/>
+    <circle cx="150" cy="100" r="15" fill="white" stroke="black"/>
+    <circle cx="220" cy="100" r="8" fill="purple" stroke="black"/>
+    <text x="65" y="130" font-size="12">RBC</text>
+    <text x="135" y="130" font-size="12">WBC</text>
+    <text x="210" y="130" font-size="12">Platelet</text>
+    <text x="150" y="170" font-size="14" text-anchor="middle">Blood Cells</text>
     </svg>"""
 
-def s3_physics_refraction():
-    """S3 Physics 5: Refraction of Light"""
-    return """<svg width="400" height="200">
-    <line x1="0" y1="100" x2="400" y2="100" stroke="black"/>
-    <text x="190" y="95" font-size="12">Air</text>
-    <text x="190" y="120" font-size="12">Water</text>
-    <line x1="100" y1="50" x2="200" y2="100" stroke="black" marker-end="url(#a3)"/>
-    <line x1="200" y1="100" x2="250" y2="150" stroke="black" marker-end="url(#a3)"/>
-    <text x="90" y="40" font-size="12">Incident</text>
-    <text x="255" y="170" font-size="12">Refracted</text>
-    <defs><marker id="a3"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
+def s2_bio_skeleton():
+    """S2 Bio 5: Human Skeleton Outline"""
+    return """<svg width="200" height="300">
+    <circle cx="100" cy="40" r="20" fill="none" stroke="black"/>
+    <line x1="100" y1="60" x2="100" y2="160" stroke="black" stroke-width="3"/>
+    <line x1="100" y1="90" x2="60" y2="120" stroke="black" stroke-width="2"/>
+    <line x1="100" y1="90" x2="140" y2="120" stroke="black" stroke-width="2"/>
+    <line x1="100" y1="160" x2="70" y2="220" stroke="black" stroke-width="2"/>
+    <line x1="100" y1="160" x2="130" y2="220" stroke="black" stroke-width="2"/>
+    <text x="100" y="270" font-size="14" text-anchor="middle">Skeleton</text>
     </svg>"""
 
-def s3_physics_solar_system():
-    """S3 Physics 6: Solar System Inner Planets"""
-    return """<svg width="400" height="200">
-    <circle cx="200" cy="100" r="20" fill="yellow"/>
-    <circle cx="260" cy="100" r="5" fill="blue"/>
-    <circle cx="310" cy="100" r="8" fill="red"/>
-    <circle cx="350" cy="100" r="6" fill="gray"/>
-    <text x="195" y="50" font-size="12">Sun</text>
-    <text x="255" y="85" font-size="12">Earth</text>
-    <text x="305" y="85" font-size="12">Mars</text>
+def s2_bio_microscope():
+    """S2 Bio 6: Simple Microscope"""
+    return """<svg width="200" height="250">
+    <rect x="80" y="200" width="40" height="20" fill="gray"/>
+    <rect x="90" y="50" width="20" height="150" fill="gray"/>
+    <circle cx="100" cy="40" r="15" fill="black"/>
+    <rect x="70" y="30" width="60" height="10" fill="black"/>
+    <text x="100" y="240" font-size="14" text-anchor="middle">Microscope</text>
     </svg>"""
 
-# ========== S4 PHYSICS: 6 DIAGRAMS - UPDATED ==========
-def s4_physics_nuclear():
-    """S4 Physics 1: Atomic Nucleus"""
-    return """<svg width="400" height="200">
-    <circle cx="200" cy="100" r="30" fill="none" stroke="black" stroke-width="2"/>
-    <circle cx="185" cy="90" r="3" fill="blue"/>
-    <circle cx="215" cy="90" r="3" fill="red"/>
-    <circle cx="190" cy="110" r="3" fill="red"/>
-    <circle cx="210" cy="110" r="3" fill="blue"/>
-    <text x="180" y="110" font-size="12">n</text>
-    <text x="210" y="110" font-size="12">p</text>
-    <text x="200" y="150" font-size="14" text-anchor="middle">Atomic Nucleus</text>
+# ========== S3 BIOLOGY: 6 DIAGRAMS ==========
+def s3_bio_neuron():
+    """S3 Bio 1: Neuron"""
+    return """<svg width="350" height="200">
+    <circle cx="80" cy="100" r="25" fill="yellow" stroke="black"/>
+    <path d="M 105 100 Q 180 80 250 100" fill="none" stroke="black" stroke-width="3"/>
+    <line x1="250" y1="100" x2="270" y2="90" stroke="black" stroke-width="2"/>
+    <line x1="250" y1="100" x2="270" y2="110" stroke="black" stroke-width="2"/>
+    <text x="70" y="105" font-size="12">Cell Body</text>
+    <text x="250" y="85" font-size="12">Axon</text>
     </svg>"""
 
-def s4_physics_diode():
-    """S4 Physics 2: Diode Circuit Symbol"""
+def s3_bio_kidney():
+    """S3 Bio 2: Kidney"""
+    return """<svg width="250" height="200">
+    <path d="M 80 50 Q 50 100 80 150 Q 125 170 170 150 Q 200 100 170 50 Q 125 30 80 50" fill="red" stroke="black"/>
+    <path d="M 125 60 Q 110 100 125 140" fill="none" stroke="black" stroke-width="2"/>
+    <text x="125" y="180" font-size="14" text-anchor="middle">Kidney</text>
+    </svg>"""
+
+def s3_bio_photosynthesis():
+    """S3 Bio 3: Photosynthesis Equation Diagram"""
+    return """<svg width="350" height="200">
+    <rect x="50" y="80" width="60" height="40" fill="lightgreen" stroke="black"/>
+    <text x="55" y="105" font-size="10">CO2 + H2O</text>
+    <line x1="110" y1="100" x2="160" y2="100" stroke="black" marker-end="url(#a)"/>
+    <rect x="160" y="80" width="60" height="40" fill="lightyellow" stroke="black"/>
+    <text x="165" y="105" font-size="10">Glucose + O2</text>
+    <text x="125" y="60" font-size="12">Sunlight</text>
+    <defs><marker id="a"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
+    </svg>"""
+
+def s3_bio_dna():
+    """S3 Bio 4: DNA Double Helix"""
+    return """<svg width="200" height="250">
+    <path d="M 80 20 Q 120 40 80 60 Q 40 80 80 100 Q 120 120 80 140 Q 40 160 80 180 Q 120 200 80 220" fill="none" stroke="blue" stroke-width="2"/>
+    <path d="M 120 20 Q 80 40 120 60 Q 160 80 120 100 Q 80 120 120 140 Q 160 160 120 180 Q 80 200 120 220" fill="none" stroke="red" stroke-width="2"/>
+    <text x="100" y="240" font-size="14" text-anchor="middle">DNA</text>
+    </svg>"""
+
+def s3_bio_ecosystem():
+    """S3 Bio 5: Food Chain"""
+    return """<svg width="350" height="150">
+    <rect x="20" y="60" width="60" height="30" fill="green"/>
+    <rect x="120" y="60" width="60" height="30" fill="orange"/>
+    <rect x="220" y="60" width="60" height="30" fill="brown"/>
+    <line x1="80" y1="75" x2="120" y2="75" stroke="black" marker-end="url(#b)"/>
+    <line x1="180" y1="75" x2="220" y2="75" stroke="black" marker-end="url(#b)"/>
+    <text x="30" y="55" font-size="12">Plant</text>
+    <text x="125" y="55" font-size="12">Rabbit</text>
+    <text x="225" y="55" font-size="12">Fox</text>
+    <defs><marker id="b"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
+    </svg>"""
+
+def s3_bio_bacteria():
+    """S3 Bio 6: Bacteria Shapes"""
     return """<svg width="300" height="150">
-    <polygon points="120,50 180,75 120,100" fill="black"/>
-    <line x1="180" y1="50" x2="180" y2="100" stroke="black" stroke-width="3"/>
-    <line x1="80" y1="75" x2="120" y2="75" stroke="black" stroke-width="2"/>
-    <line x1="180" y1="75" x2="220" y2="75" stroke="black" stroke-width="2"/>
-    <text x="110" y="110" font-size="14" text-anchor="middle">Diode</text>
+    <circle cx="60" cy="75" r="10" fill="purple"/>
+    <rect x="100" y="65" width="30" height="20" fill="purple"/>
+    <path d="M 170 75 Q 180 65 190 75 Q 180 85 170 75" fill="purple"/>
+    <text x="50" y="100" font-size="12">Coccus</text>
+    <text x="100" y="100" font-size="12">Bacillus</text>
+    <text x="170" y="100" font-size="12">Spirillum</text>
     </svg>"""
 
-def s4_physics_cro():
-    """S4 Physics 3: Cathode Ray Oscilloscope"""
-    return """<svg width="400" height="200">
-    <rect x="50" y="50" width="300" height="100" fill="black" stroke="gray" stroke-width="2"/>
-    <path d="M 60 100 Q 100 50 140 100 T 220 100 T 300 100 T 340 100" fill="none" stroke="green" stroke-width="2"/>
-    <rect x="360" y="70" width="20" height="60" fill="gray"/>
-    <text x="200" y="170" font-size="14" text-anchor="middle">CRO Waveform Display</text>
-    <text x="365" y="65" font-size="10">Controls</text>
+# ========== S4 BIOLOGY: 6 DIAGRAMS ==========
+def s4_bio_brain():
+    """S4 Bio 1: Human Brain"""
+    return """<svg width="300" height="200">
+    <ellipse cx="150" cy="100" rx="80" ry="60" fill="pink" stroke="black" stroke-width="2"/>
+    <path d="M 100 100 Q 150 70 200 100" fill="none" stroke="black"/>
+    <text x="150" y="105" font-size="14" text-anchor="middle">Brain</text>
     </svg>"""
 
-def s4_physics_solar_eclipse():
-    """S4 Physics 4: Solar Eclipse"""
-    return """<svg width="400" height="200">
-    <circle cx="80" cy="100" r="30" fill="yellow" stroke="orange" stroke-width="2"/>
-    <circle cx="200" cy="100" r="10" fill="gray" stroke="black"/>
-    <circle cx="320" cy="100" r="20" fill="blue" stroke="black"/>
-    <line x1="110" y1="100" x2="190" y2="100" stroke="black" stroke-dasharray="2,2"/>
-    <line x1="210" y1="100" x2="300" y2="100" stroke="black" stroke-dasharray="2,2"/>
-    <text x="70" y="50" font-size="12">Sun</text>
-    <text x="190" y="85" font-size="12">Moon</text>
-    <text x="315" y="70" font-size="12">Earth</text>
-    <text x="200" y="170" font-size="14" text-anchor="middle">Solar Eclipse</text>
+def s4_bio_eye():
+    """S4 Bio 2: Eye Cross Section"""
+    return """<svg width="300" height="200">
+    <circle cx="150" cy="100" r="60" fill="white" stroke="black" stroke-width="2"/>
+    <circle cx="150" cy="100" r="20" fill="black"/>
+    <circle cx="150" cy="100" r="10" fill="white"/>
+    <text x="150" y="170" font-size="14" text-anchor="middle">Eye</text>
+    <text x="155" y="105" font-size="12">Pupil</text>
     </svg>"""
 
-def s4_physics_photoelectric():
-    """S4 Physics 5: Photoelectric Effect"""
-    return """<svg width="400" height="200">
-    <rect x="100" y="80" width="60" height="40" fill="yellow" stroke="black"/>
-    <line x1="50" y1="100" x2="100" y2="100" stroke="black" marker-end="url(#a4)"/>
-    <circle cx="200" cy="100" r="5" fill="black"/>
-    <line x1="160" y1="100" x2="195" y2="100" stroke="black" stroke-dasharray="2,2"/>
-    <text x="95" y="70" font-size="12">Metal Plate</text>
-    <text x="40" y="90" font-size="12">Light</text>
-    <text x="210" y="105" font-size="12">e-</text>
-    <text x="200" y="170" font-size="14" text-anchor="middle">Photoelectric Effect</text>
-    <defs><marker id="a4"><path d="M0,0 L0,6 L9,3 z" fill="black"/></marker></defs>
+def s4_bio_ear():
+    """S4 Bio 3: Human Ear"""
+    return """<svg width="250" height="200">
+    <path d="M 50 100 Q 80 50 120 70 Q 160 90 180 100 Q 160 110 120 130 Q 80 150 50 100" fill="pink" stroke="black"/>
+    <circle cx="140" cy="100" r="10" fill="none" stroke="black"/>
+    <text x="125" y="170" font-size="14">Ear</text>
     </svg>"""
 
-def s4_physics_transformer_detail():
-    """S4 Physics 6: Step-up Transformer Coils"""
-    return """<svg width="400" height="200">
-    <rect x="120" y="60" width="160" height="80" fill="none" stroke="black"/>
-    <path d="M 130 60 Q 130 40 150 40 Q 170 40 170 60" fill="none" stroke="black"/>
-    <path d="M 130 140 Q 130 160 150 160 Q 170 160 170 140" fill="none" stroke="black"/>
-    <path d="M 230 60 Q 230 30 250 30 Q 270 30 270 60 Q 270 90 250 90 Q 230 90 230 60" fill="none" stroke="black"/>
-    <path d="M 230 140 Q 230 170 250 170 Q 270 170 270 140 Q 270 110 250 110 Q 230 110 230 140" fill="none" stroke="black"/>
-    <text x="115" y="50" font-size="12">Few Turns</text>
-    <text x="275" y="50" font-size="12">Many Turns</text>
-    <text x="200" y="180" font-size="14" text-anchor="middle">Step-up Transformer</text>
+def s4_bio_meiosis():
+    """S4 Bio 4: Meiosis Stages"""
+    return """<svg width="350" height="150">
+    <circle cx="50" cy="75" r="20" stroke="black" fill="none"/>
+    <line x1="70" y1="75" x2="100" y2="75" stroke="black"/>
+    <circle cx="120" cy="75" r="15" stroke="black" fill="none"/>
+    <circle cx="140" cy="75" r="15" stroke="black" fill="none"/>
+    <line x1="160" y1="75" x2="190" y2="75" stroke="black"/>
+    <circle cx="210" cy="60" r="10" stroke="black" fill="none"/>
+    <circle cx="210" cy="90" r="10" stroke="black" fill="none"/>
+    <text x="175" y="110" font-size="12">4 Cells</text>
+    </svg>"""
+
+def s4_bio_genetics():
+    """S4 Bio 5: Punnett Square"""
+    return """<svg width="250" height="200">
+    <rect x="50" y="50" width="100" height="100" fill="none" stroke="black" stroke-width="2"/>
+    <line x1="100" y1="50" x2="100" y2="150" stroke="black"/>
+    <line x1="50" y1="100" x2="150" y2="100" stroke="black"/>
+    <text x="70" y="80" font-size="12">TT</text>
+    <text x="120" y="80" font-size="12">Tt</text>
+    <text x="70" y="130" font-size="12">Tt</text>
+    <text x="120" y="130" font-size="12">tt</text>
+    </svg>"""
+
+def s4_bio_immune():
+    """S4 Bio 6: Antibody Binding Antigen"""
+    return """<svg width="300" height="200">
+    <circle cx="100" cy="100" r="20" fill="red" stroke="black"/>
+    <path d="M 150 70 L 150 130 L 170 130 L 170 70 Z" fill="blue" stroke="black"/>
+    <path d="M 150 100 L 120 100" stroke="black" stroke-width="2"/>
+    <text x="90" y="140" font-size="12">Antigen</text>
+    <text x="150" y="150" font-size="12">Antibody</text>
     </svg>"""
