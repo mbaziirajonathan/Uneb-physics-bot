@@ -369,8 +369,7 @@ def get_physics_diagram(question):
         return pd.s4_physics_transformer_detail()
     
     return None
-
-     import re
+import re
 
 def calculate_physics(question):
     q = question.lower()
