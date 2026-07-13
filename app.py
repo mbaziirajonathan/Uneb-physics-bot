@@ -8,7 +8,7 @@ import pytz # NEW
 # --- DEEP SECURITY FORCE LOCK v2.1 - UGANDA TIME ---
 UG_TIME = datetime.datetime.now(pytz.timezone('Africa/Kampala')) # NEW
 WEEK_NUM = UG_TIME.isocalendar()[1] # CHANGED
-WEEKLY_PASSWORD = f"UNEB_W{WEEK_NUM}_2026_Secure!" 
+WEEKLY_PASSWORD = "UNEB_TEST_2026" 
 
 # 2. ONE-TIME CODES: Use once then deleted. Add new ones here each term
 ONE_TIME_CODES = {
