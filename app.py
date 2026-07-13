@@ -11,7 +11,7 @@ def check_password():
     def password_entered():
         if st.session_state["password"] == "UNEB_TEST_2026":
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # don't store password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
@@ -25,10 +25,9 @@ def check_password():
         st.error("❌ Incorrect Password")
         st.stop()
 
-check_password() # App won't run until password is correct
+check_password()
 
 st.set_page_config(page_title="UNEB AI Tutor - S1 to S4", page_icon="📚", layout="wide")
-
 st.title("📚 UNEB AI Tutor")
 st.caption("Physics | Chemistry | Biology | S1 - S4 | Uganda NCDC Syllabus")
 
