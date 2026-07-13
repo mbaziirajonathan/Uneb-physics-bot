@@ -4,6 +4,9 @@ import textwrap
 import streamlit.components.v1 as components
 import datetime
 import pytz # NEW
+from subjects.physics import run as run_physics
+from subjects.chemistry import run as run_chemistry
+from subjects.biology import run as run_biology
 
 # --- DEEP SECURITY FORCE LOCK v2.1 - UGANDA TIME ---
 UG_TIME = datetime.datetime.now(pytz.timezone('Africa/Kampala')) # NEW
@@ -71,8 +74,44 @@ def check_login():
         st.stop()
 
 check_login()
-# --- END DEEP SECURITY LOCK ---
+# --- END DEEP SECURITY LOCK --- # --- MAIN APP CONTENT AFTER LOGIN ---
 
+if "logged_in" in st.session_state and st.session_state.logged_in:
+    
+    st.set_page_config(page_title="UNEB Science Bot v2", layout="wide")
+    st.title("🧪 UNEB Science Bot v2.0")
+    st.markdown("**NCDC 2026 Syllabus | S1 - S4 | Physics, Chemistry, Biology**")
+
+    # Sidebar
+    st.sidebar.header("Select Options")
+    subject = st.sidebar.selectbox("Choose Subject", ["Physics", "Chemistry", "Biology"])
+    level = st.sidebar.selectbox("Choose Level", ["S1", "S2", "S3", "S4"])
+
+    st.sidebar.markdown("---")
+    st.sidebar.info("Select a topic from the dropdown below to see the labeled diagram")
+
+    # Main Area
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        if subject == "Physics":
+            run_physics(level)
+        elif subject == "Chemistry":
+            run_chemistry(level)
+        elif subject == "Biology":
+            run_biology(level)
+
+    with col2:
+        st.subheader("How to use")
+        st.write("1. Choose Subject")
+        st.write("2. Choose S1-S4")
+        st.write("3. Choose Topic")
+        st.write("4. Diagram appears with labels")
+        st.markdown("---")
+        st.caption("Built for UNEB 2026")
+
+else:
+    st.warning("Please login first with your ONE_TIME_CODE")
 
 st.set_page_config(page_title="📚 UNEB Physics Bot v18.0", page_icon="📚", layout="wide")
 
