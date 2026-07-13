@@ -369,3 +369,32 @@ def get_physics_diagram(question):
         return pd.s4_physics_transformer_detail()
     
     return None
+
+     import re
+
+def calculate_physics(question):
+    q = question.lower()
+    nums = [float(n) for n in re.findall(r'\d+\.?\d*', question)]
+    
+    # SPEED = DIST/TIME
+    if "speed" in q or "velocity" in q:
+        if len(nums) >= 2:
+            d, t = nums[0], nums[1]
+            ans = d/t
+            return f"**Formula**: $v = d/t$\n**Working**: ${d} / {t} = {ans}$\n**Answer**: {ans} m/s"
+    
+    # FORCE = MA
+    if "force" in q:
+        if len(nums) >= 2:
+            m, a = nums[0], nums[1]
+            ans = m*a
+            return f"**Formula**: $F = ma$\n**Working**: ${m} * {a} = {ans}$\n**Answer**: {ans} N"
+    
+    # OHM'S LAW
+    if "current" in q or "voltage" in q or "resistance" in q:
+        if len(nums) >= 2:
+            v, r = nums[0], nums[1]
+            ans = v/r
+            return f"**Formula**: $I = V/R$\n**Working**: ${v} / {r} = {ans}$\n**Answer**: {ans} A"
+    
+    return None
