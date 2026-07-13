@@ -120,3 +120,47 @@ def get_biology_diagram(question):
     if "antibody" in q or "immune" in q: return bd.s4_bio_immune()
     
     return None
+
+import re
+
+def calculate_biology(question):
+    """UNEB Biology calculator S1-S4. Returns formatted string or None"""
+    q = question.lower()
+    nums = [float(n) for n in re.findall(r'\d+\.?\d*', question)]
+
+    # MAGNIFICATION = IMAGE SIZE / ACTUAL SIZE
+    if "magnification" in q or "mag" in q:
+        if len(nums) >= 2:
+            image, actual = nums[0], nums[1]
+            # Convert to same units if needed. Assume um to mm
+            if "um" in q and "mm" in q:
+                actual = actual / 1000
+            ans = image / actual
+            return f"**Formula**: $Mag = \\frac{{Image Size}}{{Actual Size}}$\n**Working**: ${image} / {actual} = {ans:.0f}$\n**Answer**: {ans:.0f}x"
+
+    # POPULATION DENSITY = POPULATION / AREA
+    if "density" in q or "population" in q:
+        if len(nums) >= 2:
+            pop, area = nums[0], nums[1]
+            ans = pop / area
+            return f"**Formula**: $Density = \\frac{{Population}}{{Area}}$\n**Working**: ${pop} / {area} = {ans:.2f}$\n**Answer**: {ans:.2f} per unit area"
+
+    # GENETICS RATIO - MONOHYBRID Tt x Tt
+    if "punnett" in q or "tt x tt" in q or "genetic ratio" in q:
+        return f"**Cross**: Tt x Tt\n**Punnett Square**:\n| | T | t |\n| --- | --- | --- |\n| T | TT | Tt |\n| t | Tt | tt |\n**Phenotypic Ratio**: 3 : 1 \n**Genotypic Ratio**: 1 : 2 : 1"
+
+    # ENERGY IN FOOD CHAIN - 10% LAW
+    if "energy" in q and "food chain" in q:
+        if len(nums) >= 1:
+            energy = nums[0]
+            next_level = energy * 0.1
+            return f"**10% Law**: Only 10% energy transfers\n**Working**: ${energy} * 0.1 = {next_level}$\n**Answer**: {next_level} units to next trophic level"
+
+    # RESPIRATION ATP
+    if "atp" in q or "respiration" in q:
+        if "aerobic" in q:
+            return f"**Aerobic Respiration**: 1 Glucose → 38 ATP\n**Answer**: 38 ATP"
+        if "anaerobic" in q:
+            return f"**Anaerobic Respiration**: 1 Glucose → 2 ATP\n**Answer**: 2 ATP"
+
+    return None
