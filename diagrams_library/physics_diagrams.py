@@ -306,3 +306,66 @@ def s4_physics_transformer_detail():
     <text x="275" y="50" font-size="12">Many Turns</text>
     <text x="200" y="180" font-size="14" text-anchor="middle">Step-up Transformer</text>
     </svg>"""
+     from . import physics_diagrams as pd
+
+def get_physics_diagram(question):
+    """Auto-pick SVG based on keywords. Returns SVG string or None"""
+    q = question.lower()
+    
+    # S1
+    if "circuit" in q or "bulb" in q or "cell" in q: 
+        return pd.s1_physics_circuit()
+    if "distance time" in q or "speed graph" in q: 
+        return pd.s1_physics_dist_time_graph()
+    if "wave" in q or "amplitude" in q or "wavelength" in q: 
+        return pd.s1_physics_wave()
+    if "reflection" in q or "mirror" in q or "incident ray" in q: 
+        return pd.s1_physics_reflection()
+    if "force" in q or "balanced" in q or "5n" in q: 
+        return pd.s1_physics_force()
+    if "lever" in q or "fulcrum" in q: 
+        return pd.s1_physics_lever()
+    
+    # S2
+    if "lens" in q or "convex" in q or "image" in q: 
+        return pd.s2_physics_convex_lens()
+    if "pulley" in q: 
+        return pd.s2_physics_pulley()
+    if "thermometer" in q or "temperature" in q: 
+        return pd.s2_physics_thermometer()
+    if "magnet" in q or "magnetic field" in q: 
+        return pd.s2_physics_magnet()
+    if "density" in q: 
+        return pd.s2_physics_density()
+    if "pendulum" in q or "oscillation" in q: 
+        return pd.s2_physics_oscillation()
+    
+    # S3
+    if "transformer" in q: 
+        return pd.s3_physics_transformer()
+    if "cathode ray tube" in q or "crt" in q: 
+        return pd.s3_physics_cathode_ray()
+    if "alpha" in q or "beta" in q or "gamma" in q: 
+        return pd.s3_physics_radioactive()
+    if "generator" in q or "ac generator" in q: 
+        return pd.s3_physics_generator()
+    if "refraction" in q: 
+        return pd.s3_physics_refraction()
+    if "solar system" in q or "planet" in q: 
+        return pd.s3_physics_solar_system()
+    
+    # S4
+    if "nucleus" in q or "proton neutron" in q: 
+        return pd.s4_physics_nuclear()
+    if "diode" in q: 
+        return pd.s4_physics_diode()
+    if "cro" in q or "oscilloscope" in q or "waveform" in q: 
+        return pd.s4_physics_cro()
+    if "solar eclipse" in q or "moon between sun" in q: 
+        return pd.s4_physics_solar_eclipse()
+    if "photoelectric" in q: 
+        return pd.s4_physics_photoelectric()
+    if "step up transformer" in q: 
+        return pd.s4_physics_transformer_detail()
+    
+    return None
