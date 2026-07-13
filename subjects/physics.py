@@ -1,29 +1,19 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import re
-
-# FIX: Use relative import so it works on Streamlit Cloud
-try:
-    from.physics_diagrams import get_physics_diagram, calculate_physics
-except ImportError:
-    from physics_diagrams import get_physics_diagram, calculate_physics
+from groq import Groq
+from diagrams_library.physics_diagrams import get_physics_diagram, calculate_physics
 
 def run(level):
     st.subheader(f"Physics - {level}")
 
     topics = {
-        "S1": ["Select Physics Topic", "Measurement", "Density", "Forces", "Light", "Convex Lens", "Concave Lens", "Prism", "Total Internal Reflection"],
-        "S2": ["Select Physics Topic", "Waves", "Sound Wave", "Doppler Effect"],
-        "S3": ["Select Physics Topic", "Electric Field", "Magnetic Field", "Series Circuit", "Parallel Circuit", "Transformer"],
-        "S4": ["Select Physics Topic", "Nuclear", "Photoelectric Effect"]
+        "S1": ["Select Physics Topic", "Measurement", "Density", "Forces", "Pressure", "Energy", "Light", "Convex Lens", "Concave Lens", "Prism", "Total Internal Reflection", "Simple Microscope", "Human Eye"],
+        "S2": ["Select Physics Topic", "Waves", "Sound Wave", "Standing Wave", "Doppler Effect", "Echo", "Heat", "Gas Laws"],
+        "S3": ["Select Physics Topic", "Electric Field", "Magnetic Field", "EM Wave", "Series Circuit", "Parallel Circuit", "Transformer", "Radioactivity"],
+        "S4": ["Select Physics Topic", "Nuclear", "Photoelectric Effect", "Solar Eclipse", "Electronics"]
     }
 
     topic = st.selectbox("Select Physics Topic", topics[level], key=f"physics_topic_{level}")
-
-    # ALSO check chat input
-    if "messages" in st.session_state and len(st.session_state.messages) > 0:
-        last_user_msg = st.session_state.messages[-1]["content"]
-        topic = last_user_msg # check chat for "draw convex lens"
 
     if topic == "Select Physics Topic":
         st.info("Select a topic to see diagram and explanation")
@@ -36,27 +26,25 @@ def run(level):
         svg = get_physics_diagram(topic)
         if svg:
             st.markdown("### DIAGRAM")
-            components.html(svg, height=420, scrolling=False) # <- height must be > SVG height
+            components.html(svg, height=420, scrolling=False)
             st.markdown("---")
         else:
-            st.warning(f"No diagram found for '{topic}'. Try: 'draw convex lens'")
+            st.info(f"No pre-made diagram for '{topic}'. AI will explain with text.")
 
-        # 2. AI EXPLANATION
-        prompt = f"Explain {topic} for {level} UNEB Physics. Give formula, worked example, and 1 practice question [4 marks]."
+        # 2. CALCULATOR
         calc_result = calculate_physics(topic)
-
         if calc_result:
             st.markdown("### CALCULATOR")
             st.markdown(calc_result)
             st.markdown("---")
 
+        # 3. AI EXPLANATION
         with st.spinner("Generating UNEB lesson..."):
-            from groq import Groq
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-            SYSTEM_PROMPT = f"You are a UNEB {level} Physics tutor. If diagram was shown above, refer to it. End with TEACHER GROUND NOTES and AI DISCLAIMER."
+            SYSTEM_PROMPT = f"You are a UNEB {level} Physics tutor for Uganda. Use NCDC 2026 syllabus. Explain clearly with definition, formula, worked example, and 1 practice question [4 marks]. If diagram was shown above, refer to it. End with 'TEACHER GROUND NOTES' and 'AI DISCLAIMER: Verify with UNEB teacher'."
             res = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"Explain {topic} for {level}"}],
                 max_tokens=1200,
                 temperature=0.3
             )
@@ -64,7 +52,10 @@ def run(level):
 
     with col2:
         st.markdown("### Quick Tools")
-        user_q = st.text_input("Ask Physics Qn or Calc", key=f"physics_q_{level}")
+        user_q = st.text_input("Ask Physics Qn or Calc", placeholder="calculate force 10 5", key=f"physics_q_{level}")
         if st.button("Ask", key=f"physics_btn_{level}") and user_q:
             calc = calculate_physics(user_q)
-            st.success(calc if calc else "Ask me to 'calculate force 10 5'")
+            if calc:
+                st.success(calc)
+            else:
+                st.info("Try: 'calculate speed 100 20' or 'draw convex lens'")
