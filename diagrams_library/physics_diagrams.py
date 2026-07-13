@@ -369,31 +369,336 @@ def get_physics_diagram(question):
         return pd.s4_physics_transformer_detail()
     
     return None
+
+    import re
+
+
+def get_physics_diagram(question):
+    q = question.lower()
+    
+    # S1
+    if "refraction" in q and "prism" in q:
+        return pd.s1_physics_refraction_prism()
+    if "convex lens" in q:
+        return pd.s1_physics_convex_lens()
+    if "concave lens" in q:
+        return pd.s1_physics_concave_lens()
+    if "total internal reflection" in q or "tir" in q:
+        return pd.s1_physics_tir()
+    if "rainbow" in q:
+        return pd.s1_physics_rainbow()
+    if "simple microscope" in q:
+        return pd.s1_physics_simple_microscope()
+    if "compound microscope" in q:
+        return pd.s1_physics_compound_microscope()
+    if "telescope" in q:
+        return pd.s1_physics_telescope()
+    if "eye" in q and "diagram" in q:
+        return pd.s1_physics_human_eye()
+        
+    # S2
+    if "wave" in q and "properties" in q:
+        return pd.s2_physics_wave_properties()
+    if "sound wave" in q:
+        return pd.s2_physics_sound_wave()
+    if "standing wave" in q:
+        return pd.s2_physics_standing_wave()
+    if "doppler" in q:
+        return pd.s2_physics_doppler()
+    if "echo" in q:
+        return pd.s2_physics_echo()
+        
+    # S3
+    if "electric field" in q:
+        return pd.s3_physics_electric_field()
+    if "magnetic field" in q:
+        return pd.s3_physics_magnetic_field()
+    if "em wave" in q or "electromagnetic" in q:
+        return pd.s3_physics_em_wave()
+    if "circuit" in q and "series" in q:
+        return pd.s3_physics_series_circuit()
+    if "circuit" in q and "parallel" in q:
+        return pd.s3_physics_parallel_circuit()
+    if "transformer" in q:
+        return pd.s3_physics_transformer()
+        
+    # S4
+    if "nuclear" in q or "atom" in q:
+        return pd.s4_physics_nuclear()
+    if "photoelectric" in q:
+        return pd.s4_physics_photoelectric()
+    if "step up transformer" in q:
+        return pd.s4_physics_transformer()
+    if "solar eclipse" in q:
+        return pd.s4_physics_solar_eclipse()
+        
+    return None
+
+
+    import re
+
+
+def get_physics_diagram(question):
+    q = question.lower()
+    
+    # S1
+    if "refraction" in q and "prism" in q:
+        return pd.s1_physics_refraction_prism()
+    if "convex lens" in q:
+        return pd.s1_physics_convex_lens()
+    if "concave lens" in q:
+        return pd.s1_physics_concave_lens()
+    if "total internal reflection" in q or "tir" in q:
+        return pd.s1_physics_tir()
+    if "rainbow" in q:
+        return pd.s1_physics_rainbow()
+    if "simple microscope" in q:
+        return pd.s1_physics_simple_microscope()
+    if "compound microscope" in q:
+        return pd.s1_physics_compound_microscope()
+    if "telescope" in q:
+        return pd.s1_physics_telescope()
+    if "eye" in q and "diagram" in q:
+        return pd.s1_physics_human_eye()
+        
+    # S2
+    if "wave" in q and "properties" in q:
+        return pd.s2_physics_wave_properties()
+    if "sound wave" in q:
+        return pd.s2_physics_sound_wave()
+    if "standing wave" in q:
+        return pd.s2_physics_standing_wave()
+    if "doppler" in q:
+        return pd.s2_physics_doppler()
+    if "echo" in q:
+        return pd.s2_physics_echo()
+        
+    # S3
+    if "electric field" in q:
+        return pd.s3_physics_electric_field()
+    if "magnetic field" in q:
+        return pd.s3_physics_magnetic_field()
+    if "em wave" in q or "electromagnetic" in q:
+        return pd.s3_physics_em_wave()
+    if "circuit" in q and "series" in q:
+        return pd.s3_physics_series_circuit()
+    if "circuit" in q and "parallel" in q:
+        return pd.s3_physics_parallel_circuit()
+    if "transformer" in q:
+        return pd.s3_physics_transformer()
+        
+    # S4
+    if "nuclear" in q or "atom" in q:
+        return pd.s4_physics_nuclear()
+    if "photoelectric" in q:
+        return pd.s4_physics_photoelectric()
+    if "step up transformer" in q:
+        return pd.s4_physics_transformer()
+    if "solar eclipse" in q:
+        return pd.s4_physics_solar_eclipse()
+        
+    return None 
+    
+    
 import re
 
-def calculate_physics(question):
+def get_physics_diagram(question):
     q = question.lower()
-    nums = [float(n) for n in re.findall(r'\d+\.?\d*', question)]
+    
+    # S1
+    if "refraction" in q and "prism" in q:
+        return pd.s1_physics_refraction_prism()
+    if "convex lens" in q:
+        return pd.s1_physics_convex_lens()
+    if "concave lens" in q:
+        return pd.s1_physics_concave_lens()
+    if "total internal reflection" in q or "tir" in q:
+        return pd.s1_physics_tir()
+    if "rainbow" in q:
+        return pd.s1_physics_rainbow()
+    if "simple microscope" in q:
+        return pd.s1_physics_simple_microscope()
+    if "compound microscope" in q:
+        return pd.s1_physics_compound_microscope()
+    if "telescope" in q:
+        return pd.s1_physics_telescope()
+    if "eye" in q and "diagram" in q:
+        return pd.s1_physics_human_eye()
+        
+    # S2
+    if "wave" in q and "properties" in q:
+        return pd.s2_physics_wave_properties()
+    if "sound wave" in q:
+        return pd.s2_physics_sound_wave()
+    if "standing wave" in q:
+        return pd.s2_physics_standing_wave()
+    if "doppler" in q:
+        return pd.s2_physics_doppler()
+    if "echo" in q:
+        return pd.s2_physics_echo()
+        
+    # S3
+    if "electric field" in q:
+
+import re
+
+def get_physics_diagram(question):
+    q = question.lower()
+    
+    # S1
+    if "refraction" in q and "prism" in q:
+        return pd.s1_physics_refraction_prism()
+    if "convex lens" in q:
+        return pd.s1_physics_convex_lens()
+    if "concave lens" in q:
+        return pd.s1_physics_concave_lens()
+    if "total internal reflection" in q or "tir" in q:
+        return pd.s1_physics_tir()
+    if "rainbow" in q:
+        return pd.s1_physics_rainbow()
+    if "simple microscope" in q:
+        return pd.s1_physics_simple_microscope()
+    if "compound microscope" in q:
+        return pd.s1_physics_compound_microscope()
+    if "telescope" in q:
+        return pd.s1_physics_telescope()
+    if "eye" in q and "diagram" in q:
+        return pd.s1_physics_human_eye()
+        
+    # S2
+    if "wave" in q and "properties" in q:
+        return pd.s2_physics_wave_properties()
+    if "sound wave" in q:
+        return pd.s2_physics_sound_wave()
+    if "standing wave" in q:
+        return pd.s2_physics_standing_wave()
+    if "doppler" in q:
+        return pd.s2_physics_doppler()
+    if "echo" in q:
+        return pd.s2_physics_echo()
+        
+     # S3
+    if "electric field" in q:
+        return pd.s3_physics_electric_field()
+    if "magnetic field" in q:
+        return pd.s3_physics_magnetic_field()
+    if "em wave" in q or "electromagnetic" in q:
+        return pd.s3_physics_em_wave()
+    if "circuit" in q and "series" in q:
+        return pd.s3_physics_series_circuit()
+    if "circuit" in q and "parallel" in q:
+        return pd.s3_physics_parallel_circuit()
+    if "transformer" in q:
+        return pd.s3_physics_transformer()
+        
+    # S4
+    if "nuclear" in q or "atom" in q:
+        return pd.s4_physics_nuclear()
+    if "photoelectric" in q:
+        return pd.s4_physics_photoelectric()
+    if "step up transformer" in q:
+        return pd.s4_physics_transformer()
+    if "solar eclipse" in q:
+        return pd.s4_physics_solar_eclipse()
+        
+    return None # <- This closes the old get_physics_diagram function
+
+
+import re # <- NEW CODE STARTS HERE. 0 SPACES
+
+def get_physics_diagram(question): # <- NEW ROUTER. 0 SPACES
+    q = question.lower()
+    
+    # S1
+    if "refraction" in q and "prism" in q:
+        return pd.s1_physics_refraction_prism()
+    if "convex lens" in q:
+        return pd.s1_physics_convex_lens()
+    if "concave lens" in q:
+        return pd.s1_physics_concave_lens()
+    if "total internal reflection" in q or "tir" in q:
+        return pd.s1_physics_tir()
+    if "rainbow" in q:
+        return pd.s1_physics_rainbow()
+    if "simple microscope" in q:
+        return pd.s1_physics_simple_microscope()
+    if "compound microscope" in q:
+        return pd.s1_physics_compound_microscope()
+    if "telescope" in q:
+        return pd.s1_physics_telescope()
+    if "eye" in q and "diagram" in q:
+        return pd.s1_physics_human_eye()
+        
+    # S2
+    if "wave" in q and "properties" in q:
+        return pd.s2_physics_wave_properties()
+    if "sound wave" in q:
+        return pd.s2_physics_sound_wave()
+    if "standing wave" in q:
+        return pd.s2_physics_standing_wave()
+    if "doppler" in q:
+        return pd.s2_physics_doppler()
+    if "echo" in q:
+        return pd.s2_physics_echo()
+        
+    # S3
+    if "electric field" in q:
+        return pd.s3_physics_electric_field()
+    if "magnetic field" in q:
+        return pd.s3_physics_magnetic_field()
+    if "em wave" in q or "electromagnetic" in q:
+        return pd.s3_physics_em_wave()
+    if "circuit" in q and "series" in q:
+        return pd.s3_physics_series_circuit()
+    if "circuit" in q and "parallel" in q:
+        return pd.s3_physics_parallel_circuit()
+    if "transformer" in q:
+        return pd.s3_physics_transformer()
+        
+    # S4
+    if "nuclear" in q or "atom" in q:
+        return pd.s4_physics_nuclear()
+    if "photoelectric" in q:
+        return pd.s4_physics_photoelectric()
+    if "step up transformer" in q:
+        return pd.s4_physics_transformer()
+    if "solar eclipse" in q:
+        return pd.s4_physics_solar_eclipse()
+        
+    return None
+
+
+def calculate_physics(question): # <- 0 SPACES
+    q = question.lower()
+    nums = [float(n) for n in re.findall(r"[-+]?\d*\.?\d+", question)]
     
     # SPEED = DIST/TIME
     if "speed" in q or "velocity" in q:
         if len(nums) >= 2:
             d, t = nums[0], nums[1]
-            ans = d/t
-            return f"**Formula**: $v = d/t$\n**Working**: ${d} / {t} = {ans}$\n**Answer**: {ans} m/s"
+            ans = d / t
+            return f"**Formula**: $v = d/t$\n**Answer**: {ans} m/s"
     
     # FORCE = MA
     if "force" in q:
         if len(nums) >= 2:
             m, a = nums[0], nums[1]
-            ans = m*a
-            return f"**Formula**: $F = ma$\n**Working**: ${m} * {a} = {ans}$\n**Answer**: {ans} N"
+            ans = m * a
+            return f"**Formula**: $F = ma$\n**Answer**: {ans} N"
     
     # OHM'S LAW
     if "current" in q or "voltage" in q or "resistance" in q:
         if len(nums) >= 2:
-            v, r = nums[0], nums[1]
-            ans = v/r
-            return f"**Formula**: $I = V/R$\n**Working**: ${v} / {r} = {ans}$\n**Answer**: {ans} A"
+            if "voltage" in q and "current" in q:
+                v, i = nums[0], nums[1]
+                r = v / i
+                return f"**Formula**: $R = V/I$\n**Answer**: {r} Ω"
     
+    # WORK
+    if "work" in q:
+        if len(nums) >= 2:
+            f, d = nums[0], nums[1]
+            w = f * d
+            return f"**Formula**: $W = Fd$\n**Answer**: {w} J"
+            
     return None
