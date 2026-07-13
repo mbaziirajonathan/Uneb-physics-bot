@@ -1,39 +1,53 @@
 import streamlit as st
-from diagrams_library.biology_diagrams import *
+import streamlit.components.v1 as components
+from groq import Groq
+from diagrams_library.biology_diagrams import get_biology_diagram, calculate_biology
 
 def run(level):
-    st.header(f"Biology - {level}")
+    st.subheader(f"Biology - {level}")
 
-    syllabus = {
-        "S1": ["Plant Cell", "Animal Cell", "Microscope", "Leaf", "Root Hair", "Food Tests"],
-        "S2": ["Amoeba", "Paramecium", "Spirogyra", "Heart", "Circulation", "Respiration"],
-        "S3": ["Digestion", "Nephron", "Flower", "Pollination", "DNA", "Mitosis"],
-        "S4": ["Brain", "Eye", "Ear", "Skeleton", "Photosynthesis", "Genetics"]
+    topics = {
+        "S1": ["Select Biology Topic", "Animal Cell", "Plant Cell", "Leaf", "Hand Lens", "Microscope", "Photosynthesis"],
+        "S2": ["Select Biology Topic", "Heart", "Respiratory System", "Digestive System", "Circulatory System"],
+        "S3": ["Select Biology Topic", "Neuron", "Kidney", "Photosynthesis", "DNA", "Enzymes"],
+        "S4": ["Select Biology Topic", "Brain", "Eye", "Meiosis", "Genetics", "Ecology"]
     }
 
-    topic = st.selectbox("Select Biology Topic", syllabus[level])
+    topic = st.selectbox("Select Biology Topic", topics[level], key=f"bio_topic_{level}")
 
-    if topic == "Plant Cell": draw_plant_cell()
-    elif topic == "Animal Cell": draw_animal_cell()
-    elif topic == "Microscope": draw_light_microscope()
-    elif topic == "Leaf": draw_leaf_cross_section()
-    elif topic == "Root Hair": draw_root_hair_cell()
-    elif topic == "Food Tests": draw_food_tests()
-    elif topic == "Amoeba": draw_amoeba()
-    elif topic == "Paramecium": draw_paramecium()
-    elif topic == "Spirogyra": draw_spirogyra()
-    elif topic == "Heart": draw_human_heart()
-    elif topic == "Circulation": draw_blood_circulation()
-    elif topic == "Respiration": draw_respiratory_system()
-    elif topic == "Digestion": draw_digestive_system()
-    elif topic == "Nephron": draw_nephron()
-    elif topic == "Flower": draw_flower_parts()
-    elif topic == "Pollination": draw_pollination()
-    elif topic == "DNA": draw_dna_double_helix()
-    elif topic == "Mitosis": draw_mitosis()
-    elif topic == "Brain": draw_human_brain()
-    elif topic == "Eye": draw_human_eye()
-    elif topic == "Ear": draw_human_ear()
-    elif topic == "Skeleton": draw_human_skeleton()
-    elif topic == "Photosynthesis": draw_photosynthesis()
-    elif topic == "Genetics": draw_genetics_punnett()
+    if topic == "Select Biology Topic":
+        st.info("Select a topic to see diagram and explanation")
+        return
+
+    col1, col2 = st.columns([2,1])
+
+    with col1:
+        svg = get_biology_diagram(topic)
+        if svg:
+            st.markdown("### DIAGRAM")
+            components.html(svg, height=420, scrolling=False)
+            st.markdown("---")
+
+        calc_result = calculate_biology(topic)
+        if calc_result:
+            st.markdown("### CALCULATOR")
+            st.markdown(calc_result)
+            st.markdown("---")
+
+        with st.spinner("Generating UNEB lesson..."):
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            SYSTEM_PROMPT = f"You are a UNEB {level} Biology tutor for Uganda. Use NCDC 2026 syllabus. Explain clearly with function, structure, and 1 practice question [4 marks]. If diagram shown above, label parts. End with TEACHER GROUND NOTES and AI DISCLAIMER."
+            res = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": f"Explain {topic} for {level}"}],
+                max_tokens=1200,
+                temperature=0.3
+            )
+            st.markdown(res.choices[0].message.content)
+
+    with col2:
+        st.markdown("### Quick Tools")
+        user_q = st.text_input("Ask Biology Qn", placeholder="function of mitochondria", key=f"bio_q_{level}")
+        if st.button("Ask", key=f"bio_btn_{level}") and user_q:
+            calc = calculate_biology(user_q)
+            st.success(calc if calc else "Ask me about any topic")
