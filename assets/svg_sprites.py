@@ -12,8 +12,13 @@ SVG_SPRITE = """<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><de
 </defs></svg>"""
 
 def load_svg_sprite():
-    components.html(SVG_SPRITE, height=0)
+    # Load the sprite sheet once at app start. height=0 hides it
+    components.html(SVG_SPRITE, height=0, scrolling=False)
 
 def render_svg(symbol_id):
+    # Renders one diagram from the sprite
+    if symbol_id is None:
+        st.info("No diagram available for this topic.")
+        return
     svg_code = f'<svg width="350" height="180" style="border:1px solid #ddd; background:white;"><use href="#{symbol_id}"/></svg>'
-    components.html(svg_code, height=190)
+    components.html(svg_code, height=190, scrolling=False)
