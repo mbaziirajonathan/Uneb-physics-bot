@@ -1,16 +1,19 @@
-import streamlit as st # FIX 1: Removed duplicate pd import
+import streamlit as st
 import pytz
 from datetime import datetime
-from groq import Groq 
-from assets.svg_sprites import load_svg_sprite
+from groq import Groq
+from assets.svg_sprites import load_svg_sprite, render_svg # FIX: import render_svg
 from subjects import biology, chemistry, physics
 
 # Page Config
 st.set_page_config(page_title="Uganda AI Tutor", page_icon="🇺🇬", layout="wide")
 
+# Load ALL SVG Sprites ONCE when app starts
+load_svg_sprite()
+
 # Secrets Configuration
 try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"]) #.get() hides errors. Use [] to fail fast
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except KeyError:
     st.error("🔑 GROQ_API_KEY not found in Secrets. Add it in Advanced Settings.")
     st.stop()
@@ -27,7 +30,7 @@ if not st.session_state.authenticated:
         if submit_button:
             if password == "UNEB_TEST_2026":
                 st.session_state.authenticated = True
-                st.rerun() # FIX 2: Removed st.invalidate_pages()
+                st.rerun()
             else:
                 st.error("❌ Incorrect password.")
     st.stop()
@@ -61,9 +64,7 @@ content = current_module.get_content(level, topic)
 st.markdown(content["text"])
 
 if content.get("diagram"):
-    svg_html = load_svg_sprite(content["diagram"])
-    if svg_html:
-        st.markdown(svg_html, unsafe_allow_html=True)
+    render_svg(content["diagram"]) # FIX: Use render_svg to draw
 
 # AI Chat Section
 st.divider()
@@ -79,15 +80,14 @@ with st.form("chat_input_form", clear_on_submit=True):
 
 if submit_q and user_q:
     st.session_state.messages.append({"role": "user", "content": user_q})
-    
+
     system_prompt = {
-        "role": "system", 
-        "content": f"You are an expert Ugandan UNEB secondary school teacher. Student is studying {subject} at {level} level, topic '{topic}'. Answer clearly, aligned with Uganda National Curriculum. No hallucinations."
+        "role": "system",
+        "content": f"You are an expert Ugandan UNEB secondary school teacher. Student is studying {subject} at {level} level, topic '{topic}'. Answer clearly, aligned with Uganda National Curriculum. Use examples and diagrams when helpful. No hallucinations."
     }
-    
-    # FIX 3: Send full history + system prompt to AI
+
     messages_for_api = [system_prompt] + st.session_state.messages
-    
+
     with st.spinner("Analyzing..."):
         try:
             chat_completion = client.chat.completions.create(
@@ -96,6 +96,6 @@ if submit_q and user_q:
             )
             ai_response = chat_completion.choices[0].message.content
             st.session_state.messages.append({"role": "assistant", "content": ai_response})
-            st.rerun() # Rerun to display new message
+            st.rerun()
         except Exception as e:
             st.error(f"AI Error: {e}")
