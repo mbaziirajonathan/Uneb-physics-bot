@@ -1,17 +1,76 @@
-SYLLABUS = {
-    "S1": ["Introduction to Chemistry", "Matter", "Atoms and Molecules", "Chemical Symbols", "Laboratory Apparatus"],
-    "S2": ["Air and Combustion", "Water", "Acids, Bases and Salts", "Chemical Reactions", "Atomic Structure"],
-    "S3": ["The Periodic Table", "Chemical Bonding", "Mole Concept", "Energy Changes", "Rates of Reaction"],
-    "S4": ["Organic Chemistry", "Electrochemistry", "Metals", "Non-Metals", "Chemical Equations"]
-}
+CHEMISTRY_CONTENT = {
+    "S1": {
+        "Introduction to Chemistry": {
+            "content": """**Chemistry** is the study of matter and its properties, composition and reactions.
 
-CONTENT = {
-    ("S1", "Atoms and Molecules"): {"text": "## Atoms and Molecules\nAn atom is the smallest particle of an element. Molecules are 2+ atoms bonded together.", "diagram": "atom"},
-    ("S3", "Chemical Bonding"): {"text": "## Chemical Bonding\nTypes: Ionic, Covalent, Metallic bonding. Determines properties of compounds.", "diagram": "chemical_bond"},
-    ("S4", "Organic Chemistry"): {"text": "## Organic Chemistry\nStudy of carbon compounds. Includes alkanes, alkenes, alcohols.", "diagram": None},
-}
-def get_topics(level):
-    return SYLLABUS.get(level, [])
+**Branches**:
+1. **Physical Chemistry** - energy and rates
+2. **Organic Chemistry** - carbon compounds  
+3. **Inorganic Chemistry** - metals and non-metals
 
-def get_content(level, topic):
-    return CONTENT.get((level, topic), {"text": f"## {topic}\nContent for {topic} is coming soon. Ask the AI below for an explanation.", "diagram": None})
+**Laboratory Rules**: Safety first, No eating, Wear lab coat""",
+            "diagram": None
+        },
+        "Structure of an Atom": {
+            "content": """**Atom** is the smallest particle of an element that can take part in a chemical reaction.
+
+**Sub-atomic particles**:
+1. **Protons** - + charge, in nucleus, mass = 1
+2. **Neutrons** - no charge, in nucleus, mass = 1  
+3. **Electrons** - charge, in shells, mass = negligible
+
+**Atomic number Z** = number of protons
+**Mass number A** = protons + neutrons""",
+            "diagram": "atom"  # <-- Changed from old canvas to SVG
+        },
+        "Elements, Compounds and Mixtures": {
+            "content": """**Element**: Only one type of atom. e.g. O2, Fe
+**Compound**: 2 or more elements chemically joined. e.g. H2O, NaCl
+**Mixture**: 2 or more substances physically mixed. e.g. Air, Salt + Water""",
+            "diagram": None
+        }
+    },
+
+    "S2": {
+        "Chemical Bonding": {
+            "content": """**Chemical bond** is the force that holds atoms together.
+
+**Types**:
+1. **Ionic** - transfer of electrons. Metal + Non-metal
+2. **Covalent** - sharing of electrons. Non-metal + Non-metal  
+3. **Metallic** - sea of delocalized electrons""",
+            "diagram": None
+        },
+        "Acids, Bases and Salts": {
+            "content": """**Acid**: Proton donor. Turns blue litmus red. pH < 7
+**Base**: Proton acceptor. Turns red litmus blue. pH > 7
+**Salt**: Product of acid + base reaction
+
+**Reaction**: Acid + Base -> Salt + Water""",
+            "diagram": None
+        }
+    },
+
+    "S3": {
+        "Chemical Reactions": {
+            "content": """**Types of reactions**:
+1. **Combustion** 2. **Neutralization** 3. **Precipitation**
+4. **Redox** 5. **Decomposition**
+
+**Rate of reaction** depends on: Concentration, Temperature, Surface area, Catalyst""",
+            "diagram": None
+        }
+    },
+
+    "S4": {
+        "Organic Chemistry": {
+            "content": """**Organic Chemistry** is chemistry of carbon compounds.
+
+**Homologous series**: Alkanes, Alkenes, Alcohols, Carboxylic acids
+**Functional groups**: -OH, -COOH, -CHO
+
+**Naming**: Use IUPAC rules""",
+            "diagram": None
+        }
+    }
+}
