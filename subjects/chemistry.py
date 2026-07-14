@@ -1,22 +1,17 @@
-import streamlit as st
-from groq import Groq
-from assets.svg_sprites import render_svg
+SYLLABUS = {
+    "S1": ["Introduction to Chemistry", "Matter", "Atoms and Molecules", "Chemical Symbols", "Laboratory Apparatus"],
+    "S2": ["Air and Combustion", "Water", "Acids, Bases and Salts", "Chemical Reactions", "Atomic Structure"],
+    "S3": ["The Periodic Table", "Chemical Bonding", "Mole Concept", "Energy Changes", "Rates of Reaction"],
+    "S4": ["Organic Chemistry", "Electrochemistry", "Metals", "Non-Metals", "Chemical Equations"]
+}
 
-def run(level):
-    st.subheader(f"Chemistry - {level}")
-    topics = {
-        "S1": ["Select Topic", "Lab Apparatus", "States of Matter", "Mixtures", "Elements"],
-        "S2": ["Select Topic", "Atomic Structure", "The Periodic Table", "Titration", "Water"],
-        "S3": ["Select Topic", "Chemical Bonding", "Rates of Reaction", "Extraction of Metals"],
-        "S4": ["Select Topic", "Organic Chemistry", "Alkane", "Electrochemistry", "Industrial Chemistry"]
-    }
-    diagram_map = {"S2": {"Atomic Structure": "atom"}}
+CONTENT = {
+    ("S1", "Atoms and Molecules"): {"text": "## Atoms and Molecules\nAn atom is the smallest particle of an element. Molecules are 2+ atoms bonded together.", "diagram": "atom"},
+    ("S3", "Chemical Bonding"): {"text": "## Chemical Bonding\nTypes: Ionic, Covalent, Metallic bonding. Determines properties of compounds.", "diagram": "chemical_bond"},
+    ("S4", "Organic Chemistry"): {"text": "## Organic Chemistry\nStudy of carbon compounds. Includes alkanes, alkenes, alcohols.", "diagram": None},
+}
+def get_topics(level):
+    return SYLLABUS.get(level, [])
 
-    topic = st.selectbox("Select Chemistry Topic", topics[level], key=f"chem_{level}")
-    if topic == "Select Topic": return
-    if st.button("Generate Lesson", type="primary", key=f"btn_chem_{level}"):
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        with st.spinner("AI Teaching..."):
-            res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": f"You are UNEB {level} Chemistry tutor."}, {"role": "user", "content": f"Teach {topic} for {level}. Definition, Example, 1 question"}])
-            st.markdown("### 📝 EXPLANATION"); st.markdown(res.choices[0].message.content)
-    if topic in diagram_map.get(level, {}): st.markdown("### 📊 DIAGRAM"); render_svg(diagram_map[level][topic])
+def get_content(level, topic):
+    return CONTENT.get((level, topic), {"text": f"## {topic}\nContent for {topic} is coming soon. Ask the AI below for an explanation.", "diagram": None})
