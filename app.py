@@ -1,265 +1,158 @@
 import streamlit as st
-import os
-import io
-import json
-import pytz
-import speech_recognition as sr
+import os, io, json, re, pytz, numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.express as px
 from datetime import datetime
-from pathlib import Path
 from groq import Groq, GroqError
-from typing import Dict, Any
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
+st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
+
+PRACTICAL_TOPICS = {
+    "Physics": ["Simple Pendulum - Finding g", "Principle of Moments", "Hooke's Law", "Density and Upthrust", "Converging Lens - Focal Length", "Glass Block - Refractive Index", "Ohm's Law - V vs I", "Resistance vs Length"],
+    "Chemistry": ["Acid-Base Titration", "Back Titration - Purity", "Heat of Neutralization", "Rates of Reaction", "Qualitative Analysis - Cations", "Qualitative Analysis - Anions", "Gas Tests", "Enthalpy Change"],
+    "Biology": ["Food Tests", "Osmosis in Potato", "Photosynthesis Rate", "Respiration in Seeds", "Microscopy - Cells", "Ecological Sampling", "Transpiration - Potometer", "Enzyme Activity"]
+}
+
 UNEB_CURRICULUM_MAP = {
-    "Physics": {
-        "S1": {"Introduction to Physics": {}, "Measurement": {}, "Force": {}, "Work Energy Power": {}, "Pressure": {}},
-        "S2": {"Electroscope": {}, "Current Electricity": {}, "Refraction": {}, "Heat": {}, "Waves": {}},
-        "S3": {"Hookes Law": {}, "Specific Heat Capacity": {}, "Magnetism": {}, "Wave Motion": {}, "Radioactivity": {}},
-        "S4": {"Transformers": {}, "X-Ray Production": {}, "Electronics": {}, "Nuclear Physics": {}, "Astrophysics": {}}
-    },
-    "Chemistry": {
-        "S1": {"Structure of an Atom": {}, "Periodic Table": {}, "Chemical Bonding": {}, "Acids Bases Salts": {}, "Air and Combustion": {}},
-        "S2": {"Water and Hydrogen": {}, "Oxygen": {}, "Carbon and its Compounds": {}, "Fertilizers": {}, "Metals": {}},
-        "S3": {"Rates of Reaction": {}, "Energy Changes": {}, "Chemical Equilibrium": {}, "Acids and Bases": {}, "Organic Chemistry": {}},
-        "S4": {"Electrochemistry": {}, "Nitrogen and Compounds": {}, "Sulphur and Compounds": {}, "Industrial Chemistry": {}, "Polymers": {}}
-    },
-    "Biology": {
-        "S1": {"Plant Cell": {}, "Ecosystem": {}, "Classification": {}, "Nutrition in Plants": {}, "Nutrition in Animals": {}},
-        "S2": {"Circulatory System": {}, "Photosynthesis": {}, "Respiration": {}, "Excretion": {}, "Reproduction in Plants": {}},
-        "S3": {"DNA": {}, "Cell Division": {}, "Genetics": {}, "Evolution": {}, "Ecology": {}},
-        "S4": {"Human Reproduction": {}, "Nervous System": {}, "Homeostasis": {}, "Immunity": {}, "Biotechnology": {}}
-    }
+    "Physics": {"S1": ["Measurement", "Force"], "S2": ["Current Electricity", "Refraction", "Waves"], "S3": ["Hookes Law", "Specific Heat Capacity", "Magnetism"], "S4": ["Transformers", "Electronics", "Nuclear Physics"]},
+    "Chemistry": {"S1": ["Structure of an Atom", "Chemical Bonding"], "S2": ["Water and Hydrogen", "Metals"], "S3": ["Rates of Reaction", "Organic Chemistry"], "S4": ["Electrochemistry", "Industrial Chemistry"]},
+    "Biology": {"S1": ["Plant Cell", "Ecosystem"], "S2": ["Circulatory System", "Photosynthesis"], "S3": ["DNA", "Genetics"], "S4": ["Nervous System", "Immunity"]}
 }
 
-DIAGRAM_FILES = {
-    ("Physics", "S1", "Measurement"): "assets/vernier.png",
-    ("Physics", "S1", "Force"): "assets/spring_balance.png",
-    ("Physics", "S2", "Current Electricity"): "assets/simple_circuit.png",
-    ("Physics", "S2", "Electroscope"): "assets/electroscope.png",
-    ("Physics", "S2", "Refraction"): "assets/refraction.png",
-    ("Physics", "S2", "Waves"): "assets/cro.png",
-    ("Physics", "S3", "Hookes Law"): "assets/hookes_law.png",
-    ("Physics", "S3", "Specific Heat Capacity"): "assets/colorimeter.png",
-    ("Physics", "S4", "Transformers"): "assets/ac_transformer.png",
-    ("Physics", "S4", "X-Ray Production"): "assets/xray_tube.png",
-    ("Chemistry", "S1", "Structure of an Atom"): "assets/atom.png",
-    ("Chemistry", "S1", "Chemical Bonding"): "assets/covalent_water.png",
-    ("Chemistry", "S2", "Water and Hydrogen"): "assets/filtration.png",
-    ("Chemistry", "S2", "Metals"): "assets/fractional_distillation.png",
-    ("Biology", "S1", "Plant Cell"): "assets/plant_cell.png",
-    ("Biology", "S1", "Ecosystem"): "assets/leaf.png",
-    ("Biology", "S2", "Circulatory System"): "assets/heart.png",
-    ("Biology", "S2", "Photosynthesis"): "assets/photosynthesis.png",
-    ("Biology", "S2", "Excretion"): "assets/nephron.png",
-    ("Biology", "S3", "DNA"): "assets/dna.png",
-    ("Biology", "S4", "Nervous System"): "assets/neurone.png",
-}
+DIAGRAM_FILES = {("Physics","S1","Measurement"): "assets/vernier.png", ("Physics","S2","Current Electricity"): "assets/simple_circuit.png", ("Physics","S3","Hookes Law"): "assets/hookes_law.png", ("Physics","S4","Transformers"): "assets/ac_transformer.png", ("Biology","S1","Plant Cell"): "assets/plant_cell.png", ("Biology","S2","Photosynthesis"): "assets/photosynthesis.png", ("Biology","S4","Nervous System"): "assets/neurone.png"}
 
-PAST_PAPERS = {
-    "Current Electricity": "2019 P2 Q3: State Ohm's Law. Calculate current when V=12V, R=4Ω",
-    "Plant Cell": "2022 P1 Q1: Name the organelle where photosynthesis occurs.",
-    "DNA": "2021 P2 Q5: Describe the structure of DNA double helix.",
-    "Nervous System": "2020 P1 Q4: State the function of a neurone."
-}
-
-class DiagramManager:
-    @staticmethod
-    def render(subject, level, topic):
-        key = (subject, level, topic)
-        if key in DIAGRAM_FILES:
-            image_path = DIAGRAM_FILES[key]
-            if os.path.exists(image_path):
-                st.markdown('<div style="display:flex; justify-content:center; padding:10px; background:#f0f2f6; border-radius:10px;">', unsafe_allow_html=True)
-                st.image(image_path, use_column_width=True, caption=f"{topic} Diagram")
-                st.markdown('</div>', unsafe_allow_html=True)
-                return image_path
-            else:
-                st.error(f"Image not found: {image_path}")
-                return None
-        else:
-            st.info("No diagram available for this topic yet")
-            return None
-
-def create_pdf(topic, subject, level, diagram_path):
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    p.setFont("Helvetica-Bold", 18)
-    p.drawString(40, height - 50, f"UNEB 2026: {subject} {level}")
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(40, height - 75, f"Topic: {topic}")
-    p.setFont("Helvetica", 10)
-    y = height - 110
-    p.drawString(40, y, "Key Notes:")
-    y -= 20
-    notes = st.session_state.get(f"notes_{subject}_{level}_{topic}", f"1. Definition of {topic}\n2. Key concepts in UNEB {level}\n3. Examples and applications\n4. Diagrams and formulas")
-    for line in notes.split('\n'):
-        if y < 100:
-            p.showPage()
-            y = height - 50
-        p.drawString(50, y, f"• {line[:85]}")
-        y -= 15
-    if diagram_path and os.path.exists(diagram_path):
-        try:
-            p.showPage()
-            p.setFont("Helvetica-Bold", 14)
-            p.drawString(40, height - 50, f"Diagram: {topic}")
-            p.drawImage(diagram_path, 40, height - 350, width=500, height=250, preserveAspectRatio=True, mask='auto')
-        except: pass
-    p.save()
-    buffer.seek(0)
-    return buffer
-
-QUIZ_BANK = {
-    "Plant Cell": "What organelle is responsible for photosynthesis?",
-    "Current Electricity": "State Ohm's Law and write the formula.",
-    "Structure of an Atom": "Name the 3 sub-atomic particles and their charges.",
-    "Nervous System": "What is the function of a neurone?",
-    "DNA": "What does DNA stand for and what is its role?"
-}
-
-def save_progress(subject, level, topic):
-    if "progress" not in st.session_state: st.session_state.progress = []
-    key = f"{subject}_{level}_{topic}"
-    if key not in st.session_state.progress:
-        st.session_state.progress.append(key)
-
-def load_voice():
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("Listening... Speak now")
-        audio = r.listen(source, timeout=5)
+@st.cache_resource
+def get_client():
     try:
-        text = r.recognize_google(audio)
-        return text
+        return Groq(api_key=st.secrets["GROQ_API_KEY"])
+    except:
+        st.error("🚨 GROQ_API_KEY missing in secrets. Add it to.streamlit/secrets.toml"); st.stop()
+
+def calc_gradient(df, x, y):
+    try:
+        slope, intercept = np.polyfit(df[x], df[y], 1)
+        return f"**Gradient = {slope:.3f}** | Equation: y = {slope:.3f}x + {intercept:.3f}"
     except: return ""
 
-try:
-    import subjects.physics as physics
-    import subjects.chemistry as chemistry
-    import subjects.biology as biology
-    SUBJECT_MODULES = {"Physics": physics, "Chemistry": chemistry, "Biology": biology}
-except ImportError:
-    SUBJECT_MODULES = {}
+def render_graph(df, x, y, title):
+    st.subheader("📈 Auto-Generated Graph")
+    fig = px.scatter(df, x=x, y=y, title=title, trendline="ols", template="plotly_white")
+    fig.update_traces(marker=dict(size=9), line=dict(width=2))
+    fig.update_layout(xaxis_title=x, yaxis_title=y, height=380)
+    st.plotly_chart(fig, use_container_width=True)
 
-st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="wide", initial_sidebar_state="expanded")
+    gradient_text = calc_gradient(df, x, y)
+    if gradient_text: st.info(gradient_text + " - Use this in calculations")
 
-def init_session_state():
-    if "logged_in" not in st.session_state: st.session_state.logged_in = False
-    if "messages" not in st.session_state: st.session_state.messages = []
-    if "current_topic" not in st.session_state: st.session_state.current_topic = None
-    if "show_quiz" not in st.session_state: st.session_state.show_quiz = False
-    if "progress" not in st.session_state: st.session_state.progress = []
+    buf = io.BytesIO()
+    plt.figure(figsize=(6,4)); plt.scatter(df[x], df[y]);
+    z = np.polyfit(df[x], df[y], 1); p = np.poly1d(z)
+    plt.plot(df[x],p(df[x]),"r--",alpha=0.8)
+    plt.title(title); plt.xlabel(x); plt.ylabel(y); plt.grid(True)
+    plt.savefig(buf, format="png", dpi=150); buf.seek(0)
+    st.download_button("📥 Download Graph PNG", buf, f"{title}.png", "image/png")
 
-def render_auth_gate():
-    st.title("🛡️ UNEB AI Tutor - Secure Access")
-    with st.form("login_form"):
-        pwd = st.text_input("Enter Access Token", type="password")
-        submitted = st.form_submit_button("Login")
-        if submitted:
-            if pwd == "UNEB_TEST_2026":
-                st.session_state.logged_in = True; st.rerun()
-            else: st.error("Invalid token. Access denied.")
-    st.stop()
-
-def get_groq_client() -> Groq:
+def generate_practical(client, subject, level, topic):
+    prompt = f"""You are a UNEB examiner for {subject} {level} Uganda 2026. Generate a complete practical report for: {topic}.
+    Format strictly:
+    1. AIM
+    2. HYPOTHESIS
+    3. VARIABLES: Independent, Dependent, 3 Controlled
+    4. APPARATUS
+    5. PROCEDURE
+    6. SAFETY PRECAUTIONS
+    7. DATA TABLE
+    8. GRAPH GUIDE: State what to plot on X and Y axis
+    9. CONCLUSION
+    At the end include realistic mock data in this exact JSON: ```json {{"x_label": "X", "y_label": "Y", "data": [[1,2],[2,4],[3,6],[4,8],[5,10],[6,12]]}} ```
+    Use competency-based curriculum language. Be precise. 6 data points."""
     try:
-        api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
-        if not api_key: raise ValueError("API Key missing.")
-        return Groq(api_key=api_key)
-    except Exception as e:
-        st.error("🚨 Integration Error: Groq API Key not configured properly in Streamlit secrets.")
-        st.stop()
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=2000)
+        return res.choices[0].message.content
+    except GroqError as e: return f"AI Error: {e}"
 
-def generate_ai_response(client: Groq, subject: str, level: str, topic: str, user_prompt: str):
-    system_prompt = f"You are an expert UNEB examiner and tutor for {subject} {level}. The current topic is: {topic}. Strictly align your answers with the Ugandan Lower Secondary Curriculum 2026. Use clear, direct language. Use bullet points for readability. Never use ASCII art."
-    messages_payload = [{"role": "system", "content": system_prompt}] + st.session_state.messages
-    try:
-        response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages_payload, temperature=0.3, max_tokens=1024)
-        return response.choices[0].message.content
-    except GroqError as e:
-        return f"⚠️ Connection Error to AI Engine: {str(e)}"
+def generate_prediction(client, subject, paper):
+    prompts = {
+        "P1": f"You are UNEB Head of Examinations 2026. Generate 40 MCQ for {subject} Paper 1. Mix S1-S4. 4 options A-D. Syllabus 2026. Mark answers at end.",
+        "P2": f"You are UNEB Head 2026. Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include 2 calculations, 1 diagram question. 10 marks each. Provide marking guide.",
+        "P3": f"You are UNEB Head 2026. Generate 3 Practical scenarios for {subject} Paper 3. Competency-based. Include apparatus and method."
+    }
+    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], temperature=0.7, max_tokens=1600)
+    return res.choices[0].message.content
+
+def create_pdf(topic, subject, level, notes):
+    buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); w,h = A4
+    p.setFont("Helvetica-Bold",16); p.drawString(40,h-50,f"UNEB 2026: {subject} {level}"); p.drawString(40,h-75,f"Topic: {topic}")
+    p.setFont("Helvetica",10); y=h-110; p.drawString(40,y,"Key Notes:"); y-=20
+    for line in notes.split('\n'):
+        if y<100: p.showPage(); y=h-50
+        p.drawString(50,y,f"• {line[:90]}"); y-=15
+    p.save(); buffer.seek(0); return buffer
 
 def main():
-    init_session_state()
-    if not st.session_state.logged_in: render_auth_gate()
-    client = get_groq_client()
-    st.sidebar.title("📚 UNEB Navigation")
+    client = get_client()
+    st.sidebar.title("📚 UNEB AI Tutor 2026")
+    mode = st.sidebar.radio("Mode", ["📖 Learn Theory", "🧪 Practicals Lab", "🔮 Predict Papers"])
     subject = st.sidebar.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
-    level = st.sidebar.selectbox("Class Level", list(UNEB_CURRICULUM_MAP[subject].keys()))
-    topics_list = list(UNEB_CURRICULUM_MAP[subject][level].keys())
-    if not topics_list:
-        st.sidebar.warning("No topics mapped for this level yet."); st.stop()
-    topic = st.sidebar.selectbox("Topic", topics_list)
-    save_progress(subject, level, topic)
-    if st.session_state.current_topic!= f"{subject}_{level}_{topic}":
-        st.session_state.messages = []; st.session_state.show_quiz = False; st.session_state.current_topic = f"{subject}_{level}_{topic}"
-    tz = pytz.timezone("Africa/Kampala")
-    st.sidebar.divider()
-    st.sidebar.metric("Topics Completed", len(st.session_state.progress))
-    st.sidebar.caption(f"📍 Kampala Time: {datetime.now(tz).strftime('%A, %H:%M %p')}")
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False; st.rerun()
-    st.title(f"{subject} {level}: {topic}")
-    col_text, col_visual = st.columns([1.2, 1])
-    with col_text:
-        st.subheader("📖 Topic Overview")
-        if subject in SUBJECT_MODULES:
-            try:
-                content = SUBJECT_MODULES[subject].get_content(level, topic)
-                st.markdown(content.get("text", "No text overview provided in module."))
-            except Exception:
-                st.info("Ask the AI Tutor below for an overview of this topic.")
-    with col_visual:
-        st.subheader("🔬 Interactive Diagram")
-        diagram_path = DiagramManager.render(subject, level, topic)
-    cache_key = f"notes_{subject}_{level}_{topic}"
-    if cache_key not in st.session_state:
-        with st.spinner("Generating UNEB notes for PDF..."):
-            prompt = f"Give 6 bullet point UNEB {level} notes for {subject} topic: {topic}. Be concise, exam-focused, Ugandan syllabus 2026."
-            response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=300)
-            st.session_state[cache_key] = response.choices[0].message.content
-    st.divider()
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        pdf_buffer = create_pdf(topic, subject, level, diagram_path)
-        st.download_button(label="📄 Download PDF", data=pdf_buffer, file_name=f"UNEB_{subject}_{level}_{topic}.pdf", mime="application/pdf", use_container_width=True)
-    with col2:
-        if st.button("🧠 Quiz Mode", use_container_width=True):
-            st.session_state.show_quiz = not st.session_state.show_quiz
-    with col3:
-        if st.button("🎤 Voice Ask", use_container_width=True):
-            voice_text = load_voice()
-            if voice_text: st.session_state.voice_prompt = voice_text; st.rerun()
-    if topic in PAST_PAPERS:
-        with st.expander("📜 Past Paper Question"):
-            st.write(PAST_PAPERS[topic])
-    if st.session_state.show_quiz:
-        st.markdown("---")
-        st.subheader(f"Quiz: {topic}")
-        question = QUIZ_BANK.get(topic, f"Explain 2 key points about {topic} as required by UNEB {level}")
-        st.write(f"**Q1:** {question}")
-        user_answer = st.text_area("Your Answer:", key=f"quiz_{topic}")
-        if st.button("Check with AI"):
-            with st.spinner("AI is marking..."):
-                prompt = f"You are a UNEB examiner for {subject} {level}. Mark this student answer out of 10. Topic: {topic}. Question: {question}. Student Answer: {user_answer}. Give score, 2 feedback points, and 1 improvement tip."
-                response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=250)
-                st.success(response.choices[0].message.content)
-    st.divider()
-    st.subheader("🤖 Ask the UNEB AI Tutor")
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
-    prompt_input = st.chat_input("E.g., Explain how this diagram works...") or st.session_state.get("voice_prompt", "")
-    if prompt_input:
-        if "voice_prompt" in st.session_state: del st.session_state.voice_prompt
-        st.session_state.messages.append({"role": "user", "content": prompt_input})
-        with st.chat_message("user"): st.markdown(prompt_input)
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing UNEB syllabus..."):
-                answer = generate_ai_response(client, subject, level, topic, prompt_input)
-                st.markdown(answer)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+    level = st.sidebar.selectbox("Class Level", ["S1","S2","S3","S4"])
+    tz = pytz.timezone("Africa/Kampala"); st.sidebar.divider(); st.sidebar.caption(f"Kampala: {datetime.now(tz).strftime('%A %H:%M %p')}")
 
-if __name__ == "__main__":
-    main()
+    if mode == "📖 Learn Theory":
+        st.title(f"Theory: {subject} {level}")
+        topic = st.sidebar.selectbox("Topic", UNEB_CURRICULUM_MAP[subject][level])
+        col1,col2 = st.columns([1.2,1])
+        with col1:
+            if st.button("Generate UNEB Notes", use_container_width=True):
+                with st.spinner("Generating notes..."):
+                    prompt = f"Give 6 concise UNEB {level} exam notes for {subject} topic: {topic}. Ugandan syllabus 2026. Exam focused."
+                    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=400)
+                    st.session_state.notes = res.choices[0].message.content
+            if "notes" in st.session_state:
+                st.markdown(st.session_state.notes)
+                pdf = create_pdf(topic,subject,level,st.session_state.notes);
+                st.download_button("📄 Download PDF",pdf,f"UNEB_{subject}_{level}_{topic}.pdf", use_container_width=True)
+        with col2:
+            key = (subject,level,topic)
+            if key in DIAGRAM_FILES and os.path.exists(DIAGRAM_FILES[key]):
+                st.image(DIAGRAM_FILES[key], caption=topic, use_column_width=True)
+            else: st.info("No diagram for this topic yet")
+
+    elif mode == "🧪 Practicals Lab":
+        st.title(f"🧪 Practicals Lab: {subject} {level}")
+        st.warning("Master these 8 topics. They repeat every year in UNEB.")
+        topic = st.sidebar.selectbox("Select Practical", PRACTICAL_TOPICS[subject])
+        if st.button(f"Generate Full Report: {topic}", use_container_width=True):
+            with st.spinner("AI Examiner writing full UNEB report..."):
+                report = generate_practical(client,subject,level,topic)
+                match = re.search(r'```json(.*?)```', report, re.DOTALL)
+                if match:
+                    try:
+                        data = json.loads(match.group(1));
+                        df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]])
+                        st.dataframe(df, use_container_width=True);
+                        render_graph(df,data["x_label"],data["y_label"],topic)
+                    except Exception as e:
+                        st.warning(f"Could not parse data table: {e}")
+                st.markdown(report.replace(match.group(0),"") if match else report)
+
+    elif mode == "🔮 Predict Papers":
+        st.title(f"🔮 UNEB 2026 Prediction: {subject}")
+        st.info("AI predicted based on UNEB trends 2016-2023. For revision only.")
+        c1,c2,c3 = st.columns(3)
+        with c1:
+            if st.button("Generate P1 MCQ", use_container_width=True):
+                with st.spinner("..."): st.session_state.p1 = generate_prediction(client,subject,"P1")
+            if "p1" in st.session_state: st.text_area("Paper 1", st.session_state.p1, height=400)
+        with c2:
+            if st.button("Generate P2 Theory", use_container_width=True):
+                with st.spinner("..."): st.session_state.p2 = generate_prediction(client,subject,"P2")
+            if "p2" in st.session_state: st.text_area("Paper 2", st.session_state.p2, height=400)
+        with c3:
+            if st.button("Generate P3 Practical", use_container_width=True):
+                with st.spinner("..."): st.session_state.p3 = generate_prediction(client,subject,"P3")
+            if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
+
+if __name__ == "__main__": main()
