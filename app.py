@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, pytz, numpy as np
+import os, io, json, re, ast, pytz, numpy as np, tempfile
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -7,6 +7,38 @@ from datetime import datetime
 from groq import Groq, GroqError
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from PIL import Image
+import base64
+from streamlit_mic_recorder import mic_recorder
+from gTTS import gTTS
+
+# ============ PASSWORD GATE ============
+APP_PASSWORD = "UNEB_TEST_2026"
+
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == APP_PASSWORD:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.title("🔒 UNEB AI Tutor 2026 - Login")
+        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
+        st.caption("Contact admin for access")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.title("🔒 UNEB AI Tutor 2026 - Login")
+        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
+        st.error("😞 Password incorrect")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+# ============ END PASSWORD GATE ============
 
 st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
 
@@ -31,6 +63,16 @@ def get_client():
     except:
         st.error("🚨 GROQ_API_KEY missing in secrets. Add it to.streamlit/secrets.toml"); st.stop()
 
+def safe_json_extract(text):
+    if not text: return None, None
+    match = re.search(r'```json(.*?)```', text, re.DOTALL)
+    if not match: return None, None
+    json_str = match.group(1).strip()
+    try: return json.loads(json_str), match.group(0)
+    except:
+        try: return ast.literal_eval(json_str), match.group(0)
+        except: return None, match.group(0)
+
 def calc_gradient(df, x, y):
     try:
         slope, intercept = np.polyfit(df[x], df[y], 1)
@@ -39,21 +81,29 @@ def calc_gradient(df, x, y):
 
 def render_graph(df, x, y, title):
     st.subheader("📈 Auto-Generated Graph")
-    fig = px.scatter(df, x=x, y=y, title=title, trendline="ols", template="plotly_white")
-    fig.update_traces(marker=dict(size=9), line=dict(width=2))
-    fig.update_layout(xaxis_title=x, yaxis_title=y, height=380)
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        df[x] = pd.to_numeric(df[x], errors='coerce')
+        df[y] = pd.to_numeric(df[y], errors='coerce')
+        df = df.dropna()
+        if len(df) < 2: st.warning("Not enough valid data points to plot."); return
 
-    gradient_text = calc_gradient(df, x, y)
-    if gradient_text: st.info(gradient_text + " - Use this in calculations")
+        fig = px.scatter(df, x=x, y=y, title=title, trendline="ols", template="plotly_white")
+        fig.update_traces(marker=dict(size=9), line=dict(width=2))
+        fig.update_layout(xaxis_title=x, yaxis_title=y, height=380)
+        st.plotly_chart(fig, use_container_width=True)
 
-    buf = io.BytesIO()
-    plt.figure(figsize=(6,4)); plt.scatter(df[x], df[y]);
-    z = np.polyfit(df[x], df[y], 1); p = np.poly1d(z)
-    plt.plot(df[x],p(df[x]),"r--",alpha=0.8)
-    plt.title(title); plt.xlabel(x); plt.ylabel(y); plt.grid(True)
-    plt.savefig(buf, format="png", dpi=150); buf.seek(0)
-    st.download_button("📥 Download Graph PNG", buf, f"{title}.png", "image/png")
+        gradient_text = calc_gradient(df, x, y)
+        if gradient_text: st.info(gradient_text + " - Use this in calculations")
+
+        buf = io.BytesIO()
+        plt.figure(figsize=(6,4)); plt.scatter(df[x], df[y])
+        z = np.polyfit(df[x], df[y], 1); p = np.poly1d(z)
+        plt.plot(df[x],p(df[x]),"r--",alpha=0.8)
+        plt.title(title); plt.xlabel(x); plt.ylabel(y); plt.grid(True)
+        plt.savefig(buf, format="png", dpi=150); buf.seek(0)
+        st.download_button("📥 Download Graph PNG", buf, f"{title}.png", "image/png")
+    except Exception as e:
+        st.error(f"Graph failed: {e}")
 
 def generate_practical(client, subject, level, topic):
     prompt = f"""You are a UNEB examiner for {subject} {level} Uganda 2026. Generate a complete practical report for: {topic}.
@@ -73,6 +123,58 @@ def generate_practical(client, subject, level, topic):
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=2000)
         return res.choices[0].message.content
     except GroqError as e: return f"AI Error: {e}"
+
+def describe_and_draw_graph(client, prompt):
+    sys_prompt = "You are a UNEB Physics/Chemistry/Biology examiner Uganda 2026. Student describes a graph. Return ONLY realistic data for that experiment. No fake numbers."
+    user_prompt = f"Describe and generate data for this graph: {prompt}. Return format: ```json {{\"x_label\": \"X axis\", \"y_label\": \"Y axis\", \"data\": [[x1,y1],[x2,y2],[x3,y3],[x4,y4],[x5,y5],[x6,y6]]}} ``` Then give 3 UNEB marking points to explain the graph."
+    try:
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":sys_prompt},{"role":"user","content":user_prompt}], temperature=0.3, max_tokens=1200)
+        return res.choices[0].message.content
+    except GroqError as e: return f"AI Error: {e}"
+
+def describe_uploaded_graph(client, image_bytes):
+    b64 = base64.b64encode(image_bytes).decode()
+    sys_prompt = "You are a UNEB examiner. Analyze this student graph image. Describe what the graph shows, identify axes, trend, and give 3 UNEB marking points. Be precise."
+    user_prompt = f"Describe this graph image and tell me what experiment it likely represents for UNEB Uganda 2026."
+    try:
+        res = client.chat.completions.create(
+            model="llama-3.2-11b-vision-preview",
+            messages=[
+                {"role":"system","content":sys_prompt},
+                {"role":"user","content":[
+                    {"type":"text","text":user_prompt},
+                    {"type":"image_url","image_url":{"url":f"data:image/png;base64,{b64}"}}
+                ]}
+            ],
+            temperature=0.3, max_tokens=800
+        )
+        return res.choices[0].message.content
+    except GroqError as e: return f"AI Vision Error: {e}"
+
+def voice_chat(client, audio_bytes):
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
+        with open(tmp_path, "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                file=audio_file, model="whisper-large-v3"
+            )
+        user_text = transcription.text
+
+        llm_prompt = f"You are a UNEB {st.session_state.subject} tutor for {st.session_state.level} Uganda 2026. Answer concisely in 4 sentences max. Question: {user_text}"
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":llm_prompt}], temperature=0.5, max_tokens=300)
+        answer_text = res.choices[0].message.content
+
+        tts = gTTS(text=answer_text, lang='en')
+        audio_buf = io.BytesIO()
+        tts.write_to_fp(audio_buf)
+        audio_buf.seek(0)
+
+        return user_text, answer_text, audio_buf
+    except Exception as e:
+        return "", f"Voice Error: {e}", None
 
 def generate_prediction(client, subject, paper):
     prompts = {
@@ -95,9 +197,11 @@ def create_pdf(topic, subject, level, notes):
 def main():
     client = get_client()
     st.sidebar.title("📚 UNEB AI Tutor 2026")
-    mode = st.sidebar.radio("Mode", ["📖 Learn Theory", "🧪 Practicals Lab", "🔮 Predict Papers"])
+    mode = st.sidebar.radio("Mode", ["📖 Learn Theory", "🧪 Practicals Lab", "📈 Graph Describer", "🎙️ Voice Chat", "🔮 Predict Papers"])
     subject = st.sidebar.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
     level = st.sidebar.selectbox("Class Level", ["S1","S2","S3","S4"])
+    st.session_state.subject = subject
+    st.session_state.level = level
     tz = pytz.timezone("Africa/Kampala"); st.sidebar.divider(); st.sidebar.caption(f"Kampala: {datetime.now(tz).strftime('%A %H:%M %p')}")
 
     if mode == "📖 Learn Theory":
@@ -112,7 +216,7 @@ def main():
                     st.session_state.notes = res.choices[0].message.content
             if "notes" in st.session_state:
                 st.markdown(st.session_state.notes)
-                pdf = create_pdf(topic,subject,level,st.session_state.notes);
+                pdf = create_pdf(topic,subject,level,st.session_state.notes)
                 st.download_button("📄 Download PDF",pdf,f"UNEB_{subject}_{level}_{topic}.pdf", use_container_width=True)
         with col2:
             key = (subject,level,topic)
@@ -127,16 +231,71 @@ def main():
         if st.button(f"Generate Full Report: {topic}", use_container_width=True):
             with st.spinner("AI Examiner writing full UNEB report..."):
                 report = generate_practical(client,subject,level,topic)
-                match = re.search(r'```json(.*?)```', report, re.DOTALL)
-                if match:
+                data, json_block = safe_json_extract(report)
+                if data and "data" in data:
                     try:
-                        data = json.loads(match.group(1));
                         df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]])
-                        st.dataframe(df, use_container_width=True);
+                        st.dataframe(df, use_container_width=True)
                         render_graph(df,data["x_label"],data["y_label"],topic)
                     except Exception as e:
                         st.warning(f"Could not parse data table: {e}")
-                st.markdown(report.replace(match.group(0),"") if match else report)
+                else:
+                    st.warning("AI did not return valid data table.")
+                st.markdown(report.replace(json_block,"") if json_block else report)
+
+    elif mode == "📈 Graph Describer":
+        st.title("📈 Graph Describer & Drawer")
+        tab1, tab2 = st.tabs(["✍️ Describe Graph", "🖼️ Upload Graph Image"])
+
+        with tab1:
+            st.write("Ask for any graph. Examples: `Velocity-Time graph for free fall`, `I-V curve for diode`, `Cooling curve for water`")
+            user_graph = st.text_area("Describe the graph you need:", height=100, key="desc_text")
+            if st.button("Generate & Draw Graph", use_container_width=True, key="btn_desc"):
+                if not user_graph.strip(): st.warning("Please describe a graph first.")
+                else:
+                    with st.spinner("AI drawing graph..."):
+                        result = describe_and_draw_graph(client, user_graph)
+                        data, json_block = safe_json_extract(result)
+                        if data and "data" in data:
+                            try:
+                                df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]])
+                                st.dataframe(df, use_container_width=True)
+                                render_graph(df, data["x_label"], data["y_label"], user_graph)
+                            except Exception as e:
+                                st.error(f"Failed to draw: {e}")
+                        else:
+                            st.warning("AI did not return valid data. Try being more specific.")
+                        st.markdown("### Explanation")
+                        st.markdown(result.replace(json_block,"") if json_block else result)
+
+        with tab2:
+            st.write("Upload a photo/screenshot of any graph from textbook or past paper")
+            uploaded_file = st.file_uploader("Choose an image", type=["png","jpg","jpeg"], key="img_upload")
+            if uploaded_file:
+                image = Image.open(uploaded_file)
+                st.image(image, caption="Uploaded Graph", use_column_width=True)
+                if st.button("Analyze Graph", use_container_width=True, key="btn_analyze"):
+                    with st.spinner("AI analyzing image..."):
+                        image_bytes = uploaded_file.getvalue()
+                        result = describe_uploaded_graph(client, image_bytes)
+                        st.markdown("### AI Analysis")
+                        st.markdown(result)
+
+    elif mode == "🎙️ Voice Chat":
+        st.title("🎙️ Voice Chat Tutor")
+        st.write(f"Talk to the AI about {subject} {level}. Hold the mic and ask any question.")
+        audio = mic_recorder(start_prompt="🎤 Hold to Record", stop_prompt="⏹️ Stop", key='recorder')
+
+        if audio:
+            st.audio(audio['bytes'])
+            with st.spinner("Listening and thinking..."):
+                user_q, ai_a, ai_audio = voice_chat(client, audio['bytes'])
+
+            if user_q:
+                st.markdown(f"**You:** {user_q}")
+                st.markdown(f"**AI Tutor:** {ai_a}")
+                if ai_audio:
+                    st.audio(ai_audio, format="audio/mp3")
 
     elif mode == "🔮 Predict Papers":
         st.title(f"🔮 UNEB 2026 Prediction: {subject}")
