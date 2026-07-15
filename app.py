@@ -30,9 +30,7 @@ UNEB_CURRICULUM_MAP = {
     }
 }
 
-# ALL DIAGRAMS MAPPED - PREVIOUS + NEW FROM YOUR SCREENSHOT
 DIAGRAM_FILES = {
-    # PHYSICS - 10 DIAGRAMS
     ("Physics", "S1", "Measurement"): "assets/vernier.png",
     ("Physics", "S1", "Force"): "assets/spring_balance.png",
     ("Physics", "S2", "Current Electricity"): "assets/simple_circuit.png",
@@ -43,14 +41,10 @@ DIAGRAM_FILES = {
     ("Physics", "S3", "Specific Heat Capacity"): "assets/colorimeter.png",
     ("Physics", "S4", "Transformers"): "assets/ac_transformer.png",
     ("Physics", "S4", "X-Ray Production"): "assets/xray_tube.png",
-
-    # CHEMISTRY - 4 DIAGRAMS
     ("Chemistry", "S1", "Structure of an Atom"): "assets/atom.png",
     ("Chemistry", "S1", "Chemical Bonding"): "assets/covalent_water.png",
     ("Chemistry", "S2", "Water and Hydrogen"): "assets/filtration.png",
     ("Chemistry", "S2", "Metals"): "assets/fractional_distillation.png",
-
-    # BIOLOGY - 7 DIAGRAMS
     ("Biology", "S1", "Plant Cell"): "assets/plant_cell.png",
     ("Biology", "S1", "Ecosystem"): "assets/leaf.png",
     ("Biology", "S2", "Circulatory System"): "assets/heart.png",
@@ -70,7 +64,7 @@ class DiagramManager:
                 st.markdown('<div style="display:flex; justify-content:center; padding:10px; background:#f0f2f6; border-radius:10px;">', unsafe_allow_html=True)
                 st.image(image_path, use_column_width=True, caption=f"{topic} Diagram")
                 st.markdown('</div>', unsafe_allow_html=True)
-                return image_path # RETURN PATH FOR PDF
+                return image_path
             else:
                 st.error(f"Image not found: {image_path}")
                 return None
@@ -78,32 +72,36 @@ class DiagramManager:
             st.info("No diagram available for this topic yet")
             return None
 
-# NEW: PDF GENERATOR
-def create_pdf(topic, notes, diagram_path):
+def create_pdf(topic, subject, level, diagram_path):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-
     p.setFont("Helvetica-Bold", 18)
-    p.drawString(40, height - 50, f"UNEB 2026: {topic}")
-
+    p.drawString(40, height - 50, f"UNEB 2026: {subject} {level}")
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(40, height - 75, f"Topic: {topic}")
     p.setFont("Helvetica", 10)
-    text = p.beginText(40, height - 80)
+    y = height - 110
+    p.drawString(40, y, "Key Notes:")
+    y -= 20
+    notes = st.session_state.get(f"notes_{subject}_{level}_{topic}", f"1. Definition of {topic}\n2. Key concepts in UNEB {level}\n3. Examples and applications\n4. Diagrams and formulas")
     for line in notes.split('\n'):
-        text.textLine(line[:90]) # prevent overflow
-    p.drawText(text)
-
+        if y < 100:
+            p.showPage()
+            y = height - 50
+        p.drawString(50, y, f"• {line[:85]}")
+        y -= 15
     if diagram_path and os.path.exists(diagram_path):
         try:
-            p.drawImage(diagram_path, 40, height - 400, width=500, height=250, preserveAspectRatio=True, mask='auto')
+            p.showPage()
+            p.setFont("Helvetica-Bold", 14)
+            p.drawString(40, height - 50, f"Diagram: {topic}")
+            p.drawImage(diagram_path, 40, height - 350, width=500, height=250, preserveAspectRatio=True, mask='auto')
         except: pass
-
-    p.showPage()
     p.save()
     buffer.seek(0)
     return buffer
 
-# NEW: QUIZ BANK
 QUIZ_BANK = {
     "Plant Cell": "What organelle is responsible for photosynthesis?",
     "Current Electricity": "State Ohm's Law and write the formula.",
@@ -183,51 +181,37 @@ def main():
         if subject in SUBJECT_MODULES:
             try:
                 content = SUBJECT_MODULES[subject].get_content(level, topic)
-                notes_text = content.get("text", f"Key points about {topic} in UNEB {level}")
-                st.markdown(notes_text)
+                st.markdown(content.get("text", "No text overview provided in module."))
             except Exception:
-                notes_text = f"Ask the AI Tutor below for an overview of {topic}."
-                st.info(notes_text)
-        else:
-            notes_text = f"Ask the AI Tutor below for a detailed explanation of {topic}."
-            st.info(notes_text)
+                st.info("Ask the AI Tutor below for an overview of this topic.")
     with col_visual:
         st.subheader("🔬 Interactive Diagram")
-        diagram_path = DiagramManager.render(subject, level, topic) # NOW RETURNS PATH
-
-    # NEW: PDF + QUIZ BUTTONS
+        diagram_path = DiagramManager.render(subject, level, topic)
+    cache_key = f"notes_{subject}_{level}_{topic}"
+    if cache_key not in st.session_state:
+        with st.spinner("Generating UNEB notes for PDF..."):
+            prompt = f"Give 6 bullet point UNEB {level} notes for {subject} topic: {topic}. Be concise, exam-focused, Ugandan syllabus 2026."
+            response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=300)
+            st.session_state[cache_key] = response.choices[0].message.content
     st.divider()
     col_pdf, col_quiz = st.columns(2)
     with col_pdf:
-        pdf_buffer = create_pdf(topic, notes_text, diagram_path)
-        st.download_button(
-            label="📄 Download PDF Notes",
-            data=pdf_buffer,
-            file_name=f"UNEB_{subject}_{topic}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        pdf_buffer = create_pdf(topic, subject, level, diagram_path)
+        st.download_button(label="📄 Download Full PDF Notes", data=pdf_buffer, file_name=f"UNEB_{subject}_{level}_{topic}.pdf", mime="application/pdf", use_container_width=True)
     with col_quiz:
         if st.button("🧠 Test Me - Quiz Mode", use_container_width=True):
             st.session_state.show_quiz = not st.session_state.show_quiz
-
     if st.session_state.show_quiz:
         st.markdown("---")
         st.subheader(f"Quiz: {topic}")
         question = QUIZ_BANK.get(topic, f"Explain 2 key points about {topic} as required by UNEB {level}")
         st.write(f"**Q1:** {question}")
         user_answer = st.text_area("Your Answer:", key=f"quiz_{topic}")
-
         if st.button("Check with AI"):
             with st.spinner("AI is marking..."):
                 prompt = f"You are a UNEB examiner for {subject} {level}. Mark this student answer out of 10. Topic: {topic}. Question: {question}. Student Answer: {user_answer}. Give score, 2 feedback points, and 1 improvement tip. Be strict but encouraging."
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=250
-                )
+                response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=250)
                 st.success(response.choices[0].message.content)
-
     st.divider()
     st.subheader("🤖 Ask the UNEB AI Tutor")
     for msg in st.session_state.messages:
