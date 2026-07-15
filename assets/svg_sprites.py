@@ -3,15 +3,14 @@ import streamlit.components.v1 as components
 from typing import Optional, Dict
 
 # ==========================================
-# 1. SVG ASSET DEFINITIONS
+# 1. SVG ASSET DEFINITIONS - ADVANCED UNEB SPRITES
 # ==========================================
-# All diagrams strictly follow a standard 800x325 viewBox for consistent 
-# rendering and detailed, UNEB-style labeling.
-SVG_SPRITE_PAYLOAD = """
+# Standard 800x325 viewBox for consistent UNEB-style labeling
+SVG_SPRITES = """
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
     <defs>
         <!-- Shared Advanced Diagram Markers -->
-        <marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/>
         </marker>
         <pattern id="coil" width="20" height="15" patternUnits="userSpaceOnUse">
@@ -22,8 +21,6 @@ SVG_SPRITE_PAYLOAD = """
         </pattern>
 
         <!-- ================= BIOLOGY ASSETS (7 Diagrams) ================= -->
-        
-        <!-- 1. Animal Cell -->
         <symbol id="animal_cell" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">1. GENERALIZED ANIMAL CELL</text>
             <ellipse cx="300" cy="180" rx="160" ry="120" fill="#fdfbf7" stroke="#333" stroke-width="3"/>
@@ -35,19 +32,18 @@ SVG_SPRITE_PAYLOAD = """
             <path d="M185 240 Q195 230 200 240 T215 240" fill="none" stroke="#333" stroke-width="1.5" transform="rotate(-45 200 240)"/>
             <circle cx="360" cy="230" r="15" fill="#fff" stroke="#333" stroke-width="1"/>
             <circle cx="180" cy="140" r="10" fill="#fff" stroke="#333" stroke-width="1"/>
-            <line x1="390" y1="75" x2="550" y2="75" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="560" y="80" font-size="12">Cell Membrane</text>
-            <line x1="350" y1="120" x2="550" y2="120" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="560" y="125" font-size="12">Cytoplasm</text>
-            <line x1="315" y1="170" x2="550" y2="170" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="560" y="175" font-size="12">Nucleus (with Nucleolus)</text>
-            <line x1="415" y1="155" x2="550" y2="215" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="560" y="220" font-size="12">Mitochondrion</text>
-            <line x1="375" y1="235" x2="550" y2="265" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="560" y="270" font-size="12">Small Vacuole</text>
+            <line x1="390" y1="75" x2="550" y2="75" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="560" y="80" font-size="14">Cell Membrane</text>
+            <line x1="350" y1="120" x2="550" y2="120" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="560" y="125" font-size="14">Cytoplasm</text>
+            <line x1="315" y1="170" x2="550" y2="170" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="560" y="175" font-size="14">Nucleus (with Nucleolus)</text>
+            <line x1="415" y1="155" x2="550" y2="215" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="560" y="220" font-size="14">Mitochondrion</text>
+            <line x1="375" y1="235" x2="550" y2="265" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="560" y="270" font-size="14">Small Vacuole</text>
         </symbol>
 
-        <!-- 2. Plant Cell -->
         <symbol id="plant_cell" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">2. GENERALIZED PLANT CELL</text>
             <rect x="150" y="70" width="280" height="220" fill="#e8f5e9" stroke="#2e7d32" stroke-width="6" rx="10"/>
@@ -57,19 +53,18 @@ SVG_SPRITE_PAYLOAD = """
             <circle cx="375" cy="225" r="10" fill="#66b3ff"/>
             <ellipse cx="200" cy="250" rx="20" ry="10" fill="#81c784" stroke="#2e7d32" stroke-width="1.5"/>
             <ellipse cx="380" cy="110" rx="20" ry="10" fill="#81c784" stroke="#2e7d32" stroke-width="1.5"/>
-            <line x1="150" y1="80" x2="520" y2="80" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="530" y="85" font-size="12">Cellulose Cell Wall</text>
-            <line x1="156" y1="120" x2="520" y2="120" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="530" y="125" font-size="12">Cell Membrane</text>
-            <line x1="270" y1="160" x2="520" y2="160" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="530" y="165" font-size="12">Large Central Vacuole</text>
-            <line x1="410" y1="230" x2="520" y2="230" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="530" y="235" font-size="12">Nucleus</text>
-            <line x1="400" y1="110" x2="520" y2="195" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="530" y="200" font-size="12">Chloroplast</text>
+            <line x1="150" y1="80" x2="520" y2="80" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="530" y="85" font-size="14">Cellulose Cell Wall</text>
+            <line x1="156" y1="120" x2="520" y2="120" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="530" y="125" font-size="14">Cell Membrane</text>
+            <line x1="270" y1="160" x2="520" y2="160" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="530" y="165" font-size="14">Large Central Vacuole</text>
+            <line x1="410" y1="230" x2="520" y2="230" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="530" y="235" font-size="14">Nucleus</text>
+            <line x1="400" y1="110" x2="520" y2="195" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="530" y="200" font-size="14">Chloroplast</text>
         </symbol>
 
-        <!-- 3. Heart Structure -->
         <symbol id="heart" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">3. INTERNAL STRUCTURE OF THE MAMMALIAN HEART</text>
             <path d="M300 120 C250 120 220 180 300 280 C380 180 350 120 300 120" fill="none" stroke="#000" stroke-width="3"/>
@@ -84,29 +79,28 @@ SVG_SPRITE_PAYLOAD = """
             <path d="M340 140 V90" stroke="#c62828" stroke-width="15"/>
             <path d="M290 140 C290 80 370 80 370 120" stroke="#c62828" fill="none" stroke-width="12"/>
             <path d="M310 140 C310 100 230 100 230 130" stroke="#1565c0" fill="none" stroke-width="12"/>
-            <line x1="380" y1="90" x2="480" y2="90" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="490" y="95" font-size="12">Aorta</text>
-            <line x1="350" y1="120" x2="480" y2="120" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="490" y="125" font-size="12">Pulmonary Vein</text>
-            <line x1="350" y1="170" x2="480" y2="170" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="490" y="175" font-size="12">Left Atrium</text>
-            <line x1="330" y1="195" x2="480" y2="210" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="490" y="215" font-size="12">Bicuspid Valve</text>
-            <line x1="330" y1="240" x2="480" y2="240" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="490" y="245" font-size="12">Left Ventricle (Thick Wall)</text>
-            <line x1="260" y1="110" x2="150" y2="90" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="140" y="95" font-size="12" text-anchor="end">Vena Cava</text>
-            <line x1="225" y1="125" x2="150" y2="130" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="140" y="135" font-size="12" text-anchor="end">Pulmonary Artery</text>
-            <line x1="260" y1="170" x2="150" y2="170" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="140" y="175" font-size="12" text-anchor="end">Right Atrium</text>
-            <line x1="270" y1="195" x2="150" y2="210" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="140" y="215" font-size="12" text-anchor="end">Tricuspid Valve</text>
-            <line x1="260" y1="240" x2="150" y2="240" stroke="#000" stroke-width="1" marker-start="url(#arr)"/>
-            <text x="140" y="245" font-size="12" text-anchor="end">Right Ventricle</text>
+            <line x1="380" y1="90" x2="480" y2="90" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="490" y="95" font-size="14">Aorta</text>
+            <line x1="350" y1="120" x2="480" y2="120" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="490" y="125" font-size="14">Pulmonary Vein</text>
+            <line x1="350" y1="170" x2="480" y2="170" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="490" y="175" font-size="14">Left Atrium</text>
+            <line x1="330" y1="195" x2="480" y2="210" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="490" y="215" font-size="14">Bicuspid Valve</text>
+            <line x1="330" y1="240" x2="480" y2="240" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="490" y="245" font-size="14">Left Ventricle (Thick Wall)</text>
+            <line x1="260" y1="110" x2="150" y2="90" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="140" y="95" font-size="14" text-anchor="end">Vena Cava</text>
+            <line x1="225" y1="125" x2="150" y2="130" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="140" y="135" font-size="14" text-anchor="end">Pulmonary Artery</text>
+            <line x1="260" y1="170" x2="150" y2="170" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="140" y="175" font-size="14" text-anchor="end">Right Atrium</text>
+            <line x1="270" y1="195" x2="150" y2="210" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="140" y="215" font-size="14" text-anchor="end">Tricuspid Valve</text>
+            <line x1="260" y1="240" x2="150" y2="240" stroke="#000" stroke-width="1" marker-end="url(#arr)"/>
+            <text x="140" y="245" font-size="14" text-anchor="end">Right Ventricle</text>
         </symbol>
 
-        <!-- 4. Transverse Section of a Leaf -->
         <symbol id="leaf_ts" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">4. TRANSVERSE SECTION OF A DICOTYLEDONOUS LEAF</text>
             <rect x="200" y="80" width="200" height="15" fill="#e0f2f1" stroke="#00695c"/>
@@ -123,40 +117,38 @@ SVG_SPRITE_PAYLOAD = """
             <rect x="200" y="250" width="80" height="25" fill="#b2dfdb" stroke="#00695c"/>
             <rect x="320" y="250" width="80" height="25" fill="#b2dfdb" stroke="#00695c"/>
             <path d="M 280 275 C 290 250 310 250 320 275" fill="none" stroke="#2e7d32" stroke-width="3"/>
-            <line x1="300" y1="87" x2="450" y2="87" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="90" font-size="12">Waxy Cuticle</text>
-            <line x1="400" y1="107" x2="450" y2="107" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="110" font-size="12">Upper Epidermis</text>
-            <line x1="370" y1="150" x2="450" y2="150" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="153" font-size="12">Palisade Mesophyll</text>
-            <line x1="375" y1="205" x2="450" y2="205" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="208" font-size="12">Spongy Mesophyll Layer</text>
-            <line x1="400" y1="262" x2="450" y2="262" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="265" font-size="12">Lower Epidermis</text>
-            <line x1="300" y1="265" x2="450" y2="295" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="300" font-size="12">Stoma (Guard Cells)</text>
+            <line x1="300" y1="87" x2="450" y2="87" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="90" font-size="14">Waxy Cuticle</text>
+            <line x1="400" y1="107" x2="450" y2="107" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="110" font-size="14">Upper Epidermis</text>
+            <line x1="370" y1="150" x2="450" y2="150" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="153" font-size="14">Palisade Mesophyll</text>
+            <line x1="375" y1="205" x2="450" y2="205" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="208" font-size="14">Spongy Mesophyll Layer</text>
+            <line x1="400" y1="262" x2="450" y2="262" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="265" font-size="14">Lower Epidermis</text>
+            <line x1="300" y1="265" x2="450" y2="295" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="300" font-size="14">Stoma (Guard Cells)</text>
         </symbol>
 
-        <!-- 5. Kidney Nephron -->
         <symbol id="nephron" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">5. STRUCTURE OF A NEPHRON (KIDNEY TUBULE)</text>
             <path d="M 120 120 C 150 70 200 70 220 120 C 230 140 210 160 190 140 C 170 120 150 120 140 140" fill="none" stroke="#b71c1c" stroke-width="8"/>
             <path d="M 170 130 C 140 80 250 80 250 150 V 170 C 250 200 270 200 270 170 V 150 C 270 100 330 100 330 150 V 260 C 330 290 370 290 370 260 V 150 C 370 110 420 110 420 150 H 460 V 280" fill="none" stroke="#fbc02d" stroke-width="12"/>
-            <line x1="180" y1="100" x2="280" y2="70" stroke="#000" marker-start="url(#arr)"/>
-            <text x="290" y="75" font-size="12">Glomerulus (Capillary Knot)</text>
-            <line x1="210" y1="120" x2="280" y2="105" stroke="#000" marker-start="url(#arr)"/>
-            <text x="290" y="110" font-size="12">Bowman's Capsule</text>
-            <line x1="260" y1="180" x2="160" y2="180" stroke="#000" marker-start="url(#arr)"/>
-            <text x="150" y="185" font-size="12" text-anchor="end">Proximal Convoluted Tubule</text>
-            <line x1="350" y1="280" x2="450" y2="280" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="285" font-size="12">Loop of Henle</text>
-            <line x1="400" y1="120" x2="480" y2="100" stroke="#000" marker-start="url(#arr)"/>
-            <text x="490" y="105" font-size="12">Distal Convoluted Tubule</text>
-            <line x1="460" y1="200" x2="520" y2="200" stroke="#000" marker-start="url(#arr)"/>
-            <text x="530" y="205" font-size="12">Collecting Duct</text>
+            <line x1="180" y1="100" x2="280" y2="70" stroke="#000" marker-end="url(#arr)"/>
+            <text x="290" y="75" font-size="14">Glomerulus (Capillary Knot)</text>
+            <line x1="210" y1="120" x2="280" y2="105" stroke="#000" marker-end="url(#arr)"/>
+            <text x="290" y="110" font-size="14">Bowman's Capsule</text>
+            <line x1="260" y1="180" x2="160" y2="180" stroke="#000" marker-end="url(#arr)"/>
+            <text x="150" y="185" font-size="14" text-anchor="end">Proximal Convoluted Tubule</text>
+            <line x1="350" y1="280" x2="450" y2="280" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="285" font-size="14">Loop of Henle</text>
+            <line x1="400" y1="120" x2="480" y2="100" stroke="#000" marker-end="url(#arr)"/>
+            <text x="490" y="105" font-size="14">Distal Convoluted Tubule</text>
+            <line x1="460" y1="200" x2="520" y2="200" stroke="#000" marker-end="url(#arr)"/>
+            <text x="530" y="205" font-size="14">Collecting Duct</text>
         </symbol>
 
-        <!-- 6. Motor Neurone -->
         <symbol id="neurone" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">6. STRUCTURE OF A MOTOR NEURONE</text>
             <circle cx="150" cy="160" r="40" fill="#e1bee7" stroke="#4a148c" stroke-width="2"/>
@@ -168,19 +160,18 @@ SVG_SPRITE_PAYLOAD = """
             <rect x="360" y="152" width="60" height="16" fill="#fff9c4" stroke="#fbc02d" stroke-width="2" rx="4"/>
             <rect x="430" y="152" width="60" height="16" fill="#fff9c4" stroke="#fbc02d" stroke-width="2" rx="4"/>
             <path d="M 500 160 L 550 120 M 500 160 L 560 160 M 500 160 L 550 200" stroke="#4a148c" stroke-width="3"/>
-            <line x1="150" y1="160" x2="220" y2="80" stroke="#000" marker-start="url(#arr)"/>
-            <text x="230" y="75" font-size="12">Cell Body (Soma) & Nucleus</text>
-            <line x1="90" y1="140" x2="220" y2="110" stroke="#000" marker-start="url(#arr)"/>
-            <text x="230" y="115" font-size="12">Dendrites</text>
-            <line x1="250" y1="152" x2="250" y2="100" stroke="#000" marker-start="url(#arr)"/>
-            <text x="240" y="95" font-size="12" text-anchor="middle">Myelin Sheath</text>
-            <line x1="355" y1="160" x2="355" y2="220" stroke="#000" marker-start="url(#arr)"/>
-            <text x="355" y="235" font-size="12" text-anchor="middle">Node of Ranvier</text>
-            <line x1="550" y1="160" x2="620" y2="160" stroke="#000" marker-start="url(#arr)"/>
-            <text x="630" y="165" font-size="12">Motor End Plates (To Effector)</text>
+            <line x1="150" y1="160" x2="220" y2="80" stroke="#000" marker-end="url(#arr)"/>
+            <text x="230" y="75" font-size="14">Cell Body (Soma) & Nucleus</text>
+            <line x1="90" y1="140" x2="220" y2="110" stroke="#000" marker-end="url(#arr)"/>
+            <text x="230" y="115" font-size="14">Dendrites</text>
+            <line x1="250" y1="152" x2="250" y2="100" stroke="#000" marker-end="url(#arr)"/>
+            <text x="240" y="95" font-size="14" text-anchor="middle">Myelin Sheath</text>
+            <line x1="355" y1="160" x2="355" y2="220" stroke="#000" marker-end="url(#arr)"/>
+            <text x="355" y="235" font-size="14" text-anchor="middle">Node of Ranvier</text>
+            <line x1="550" y1="160" x2="620" y2="160" stroke="#000" marker-end="url(#arr)"/>
+            <text x="630" y="165" font-size="14">Motor End Plates (To Effector)</text>
         </symbol>
 
-        <!-- 7. Alveolus (Gas Exchange) -->
         <symbol id="alveolus" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">7. GASEOUS EXCHANGE AT THE ALVEOLUS</text>
             <path d="M 350 70 V 120 C 300 120 250 170 250 220 C 250 270 320 310 400 310 C 480 310 550 270 550 220 C 550 170 500 120 450 120 V 70" fill="#e3f2fd" stroke="#1565c0" stroke-width="3"/>
@@ -190,22 +181,20 @@ SVG_SPRITE_PAYLOAD = """
             <circle cx="400" cy="295" r="5" fill="#ffcdd2" stroke="#c62828" stroke-width="2"/>
             <circle cx="450" cy="290" r="5" fill="#ffcdd2" stroke="#c62828" stroke-width="2"/>
             <path d="M 370 200 L 370 270" stroke="#000" stroke-width="2" marker-end="url(#arr)" stroke-dasharray="4"/>
-            <text x="360" y="240" font-size="12" text-anchor="end">O2</text>
+            <text x="360" y="240" font-size="14" text-anchor="end">O2</text>
             <path d="M 430 270 L 430 200" stroke="#000" stroke-width="2" marker-end="url(#arr)" stroke-dasharray="4"/>
-            <text x="440" y="240" font-size="12">CO2</text>
-            <line x1="450" y1="90" x2="520" y2="90" stroke="#000" marker-start="url(#arr)"/>
-            <text x="530" y="95" font-size="12">Bronchiole</text>
-            <line x1="550" y1="210" x2="620" y2="210" stroke="#000" marker-start="url(#arr)"/>
-            <text x="630" y="215" font-size="12">Thin Alveolar Wall (One Cell Thick)</text>
-            <line x1="565" y1="260" x2="620" y2="260" stroke="#000" marker-start="url(#arr)"/>
-            <text x="630" y="265" font-size="12">Blood Capillary Network</text>
-            <line x1="400" y1="295" x2="400" y2="320" stroke="#000" marker-start="url(#arr)"/>
-            <text x="400" y="335" font-size="12" text-anchor="middle">Red Blood Cell</text>
+            <text x="440" y="240" font-size="14">CO2</text>
+            <line x1="450" y1="90" x2="520" y2="90" stroke="#000" marker-end="url(#arr)"/>
+            <text x="530" y="95" font-size="14">Bronchiole</text>
+            <line x1="550" y1="210" x2="620" y2="210" stroke="#000" marker-end="url(#arr)"/>
+            <text x="630" y="215" font-size="14">Thin Alveolar Wall (One Cell Thick)</text>
+            <line x1="565" y1="260" x2="620" y2="260" stroke="#000" marker-end="url(#arr)"/>
+            <text x="630" y="265" font-size="14">Blood Capillary Network</text>
+            <line x1="400" y1="295" x2="400" y2="320" stroke="#000" marker-end="url(#arr)"/>
+            <text x="400" y="335" font-size="14" text-anchor="middle">Red Blood Cell</text>
         </symbol>
 
         <!-- ================= CHEMISTRY ASSETS (7 Diagrams) ================= -->
-        
-        <!-- 1. Atomic Structure (Carbon) -->
         <symbol id="atom" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">1. ATOMIC STRUCTURE (CARBON BOHR MODEL)</text>
             <circle cx="300" cy="180" r="18" fill="#d32f2f" stroke="#000" stroke-width="1"/>
@@ -218,17 +207,16 @@ SVG_SPRITE_PAYLOAD = """
             <circle cx="300" cy="280" r="6" fill="#1976d2" stroke="#000" stroke-width="1"/>
             <circle cx="200" cy="180" r="6" fill="#1976d2" stroke="#000" stroke-width="1"/>
             <circle cx="400" cy="180" r="6" fill="#1976d2" stroke="#000" stroke-width="1"/>
-            <line x1="318" y1="180" x2="480" y2="130" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="490" y="130" font-size="12">Nucleus (6 Protons, 6 Neutrons)</text>
-            <line x1="340" y1="145" x2="480" y2="170" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="490" y="175" font-size="12">First Electron Shell (K = 2e⁻)</text>
-            <line x1="380" y1="230" x2="480" y2="210" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="490" y="215" font-size="12">Second Electron Shell (L = 4e⁻)</text>
-            <line x1="400" y1="174" x2="480" y2="250" stroke="#000" stroke-width="1.5" marker-start="url(#arr)"/>
-            <text x="490" y="255" font-size="12">Valence Electron (Negative Charge)</text>
+            <line x1="318" y1="180" x2="480" y2="130" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="490" y="130" font-size="14">Nucleus (6 Protons, 6 Neutrons)</text>
+            <line x1="340" y1="145" x2="480" y2="170" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="490" y="175" font-size="14">First Electron Shell (K = 2e⁻)</text>
+            <line x1="380" y1="230" x2="480" y2="210" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="490" y="215" font-size="14">Second Electron Shell (L = 4e⁻)</text>
+            <line x1="400" y1="174" x2="480" y2="250" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="490" y="255" font-size="14">Valence Electron (Negative Charge)</text>
         </symbol>
 
-        <!-- 2. Filtration Setup -->
         <symbol id="filtration" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">2. SIMPLE FILTRATION APPARATUS</text>
             <path d="M 260 270 H 340 V 200 H 260 Z" fill="none" stroke="#444" stroke-width="2"/>
@@ -237,17 +225,16 @@ SVG_SPRITE_PAYLOAD = """
             <path d="M 280 120 L 300 180 L 320 120 Z" fill="none" stroke="#000" stroke-width="2"/>
             <path d="M 285 120 L 300 170 L 315 120" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
             <rect x="295" y="180" width="10" height="30" fill="none" stroke="#000" stroke-width="2"/>
-            <line x1="310" y1="140" x2="420" y2="120" stroke="#000" marker-start="url(#arr)"/>
-            <text x="430" y="125" font-size="12">Filter Paper (with Residue)</text>
-            <line x1="320" y1="160" x2="420" y2="160" stroke="#000" marker-start="url(#arr)"/>
-            <text x="430" y="165" font-size="12">Filter Funnel</text>
-            <line x1="340" y1="230" x2="420" y2="230" stroke="#000" marker-start="url(#arr)"/>
-            <text x="430" y="235" font-size="12">Beaker</text>
-            <line x1="300" y1="260" x2="420" y2="260" stroke="#000" marker-start="url(#arr)"/>
-            <text x="430" y="265" font-size="12">Filtrate (Clear Liquid)</text>
+            <line x1="310" y1="140" x2="420" y2="120" stroke="#000" marker-end="url(#arr)"/>
+            <text x="430" y="125" font-size="14">Filter Paper (with Residue)</text>
+            <line x1="320" y1="160" x2="420" y2="160" stroke="#000" marker-end="url(#arr)"/>
+            <text x="430" y="165" font-size="14">Filter Funnel</text>
+            <line x1="340" y1="230" x2="420" y2="230" stroke="#000" marker-end="url(#arr)"/>
+            <text x="430" y="235" font-size="14">Beaker</text>
+            <line x1="300" y1="260" x2="420" y2="260" stroke="#000" marker-end="url(#arr)"/>
+            <text x="430" y="265" font-size="14">Filtrate (Clear Liquid)</text>
         </symbol>
 
-        <!-- 3. Paper Chromatography -->
         <symbol id="chromatography" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">3. ASCENDING PAPER CHROMATOGRAPHY</text>
             <path d="M 250 250 H 350 V 100 H 250 Z" fill="none" stroke="#444" stroke-width="3"/>
@@ -258,19 +245,18 @@ SVG_SPRITE_PAYLOAD = """
             <circle cx="300" cy="180" r="3" fill="#d32f2f"/>
             <circle cx="300" cy="140" r="3" fill="#1976d2"/>
             <circle cx="300" cy="110" r="3" fill="#388e3c"/>
-            <line x1="320" y1="80" x2="440" y2="80" stroke="#000" marker-start="url(#arr)"/>
-            <text x="450" y="85" font-size="12">Glass Rod / Support</text>
-            <line x1="310" y1="125" x2="440" y2="125" stroke="#000" marker-start="url(#arr)"/>
-            <text x="450" y="130" font-size="12">Chromatography Paper</text>
-            <line x1="305" y1="180" x2="440" y2="170" stroke="#000" marker-start="url(#arr)"/>
-            <text x="450" y="175" font-size="12">Separated Components (Dyes)</text>
-            <line x1="300" y1="200" x2="440" y2="200" stroke="#000" marker-start="url(#arr)"/>
-            <text x="450" y="205" font-size="12">Origin (Pencil Line)</text>
-            <line x1="340" y1="230" x2="440" y2="230" stroke="#000" marker-start="url(#arr)"/>
-            <text x="450" y="235" font-size="12">Solvent (Mobile Phase)</text>
+            <line x1="320" y1="80" x2="440" y2="80" stroke="#000" marker-end="url(#arr)"/>
+            <text x="450" y="85" font-size="14">Glass Rod / Support</text>
+            <line x1="310" y1="125" x2="440" y2="125" stroke="#000" marker-end="url(#arr)"/>
+            <text x="450" y="130" font-size="14">Chromatography Paper</text>
+            <line x1="305" y1="180" x2="440" y2="170" stroke="#000" marker-end="url(#arr)"/>
+            <text x="450" y="175" font-size="14">Separated Components (Dyes)</text>
+            <line x1="300" y1="200" x2="440" y2="200" stroke="#000" marker-end="url(#arr)"/>
+            <text x="450" y="205" font-size="14">Origin (Pencil Line)</text>
+            <line x1="340" y1="230" x2="440" y2="230" stroke="#000" marker-end="url(#arr)"/>
+            <text x="450" y="235" font-size="14">Solvent (Mobile Phase)</text>
         </symbol>
 
-        <!-- 4. Acid-Base Titration Setup -->
         <symbol id="titration" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">4. ACID-BASE TITRATION APPARATUS</text>
             <path d="M 280 270 H 350 M 315 270 V 70 H 330" fill="none" stroke="#444" stroke-width="5"/>
@@ -281,17 +267,16 @@ SVG_SPRITE_PAYLOAD = """
             <rect x="251" y="100" width="8" height="110" fill="#fce4ec"/>
             <path d="M 230 260 H 280 L 285 270 H 225 Z" fill="#e8eaf6"/>
             <path d="M 260 140 H 315" fill="none" stroke="#444" stroke-width="3"/>
-            <line x1="260" y1="120" x2="400" y2="100" stroke="#000" marker-start="url(#arr)"/>
-            <text x="410" y="105" font-size="12">Burette containing Titrant (Acid)</text>
-            <line x1="265" y1="222" x2="400" y2="200" stroke="#000" marker-start="url(#arr)"/>
-            <text x="410" y="205" font-size="12">Tap / Stopcock</text>
-            <line x1="270" y1="250" x2="400" y2="250" stroke="#000" marker-start="url(#arr)"/>
-            <text x="410" y="255" font-size="12">Conical Flask containing Analyte & Indicator</text>
-            <line x1="315" y1="170" x2="400" y2="170" stroke="#000" marker-start="url(#arr)"/>
-            <text x="410" y="175" font-size="12">Retort Stand and Clamp</text>
+            <line x1="260" y1="120" x2="400" y2="100" stroke="#000" marker-end="url(#arr)"/>
+            <text x="410" y="105" font-size="14">Burette containing Titrant (Acid)</text>
+            <line x1="265" y1="222" x2="400" y2="200" stroke="#000" marker-end="url(#arr)"/>
+            <text x="410" y="205" font-size="14">Tap / Stopcock</text>
+            <line x1="270" y1="250" x2="400" y2="250" stroke="#000" marker-end="url(#arr)"/>
+            <text x="410" y="255" font-size="14">Conical Flask containing Analyte & Indicator</text>
+            <line x1="315" y1="170" x2="400" y2="170" stroke="#000" marker-end="url(#arr)"/>
+            <text x="410" y="175" font-size="14">Retort Stand and Clamp</text>
         </symbol>
-
-        <!-- 5. Lab Preparation of Oxygen -->
+             
         <symbol id="gas_prep" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">5. LAB PREPARATION OF OXYGEN GAS (H2O2 + MnO2)</text>
             <path d="M 170 240 H 230 V 160 H 170 Z" fill="none" stroke="#000" stroke-width="2"/>
@@ -306,21 +291,20 @@ SVG_SPRITE_PAYLOAD = """
             <rect x="360" y="130" width="30" height="120" fill="none" stroke="#000" stroke-width="2"/>
             <rect x="362" y="180" width="26" height="70" fill="#e3f2fd"/>
             <circle cx="375" cy="160" r="2" fill="#000"/><circle cx="370" cy="150" r="2" fill="#000"/><circle cx="380" cy="140" r="2" fill="#000"/>
-            <line x1="185" y1="80" x2="110" y2="80" stroke="#000" marker-start="url(#arr)"/>
-            <text x="100" y="85" font-size="12" text-anchor="end">Thistle Funnel (Adds H2O2)</text>
-            <line x1="200" y1="235" x2="110" y2="235" stroke="#000" marker-start="url(#arr)"/>
-            <text x="100" y="240" font-size="12" text-anchor="end">Manganese(IV) Oxide Catalyst</text>
-            <line x1="280" y1="100" x2="280" y2="70" stroke="#000" marker-start="url(#arr)"/>
-            <text x="280" y="60" font-size="12" text-anchor="middle">Delivery Tube</text>
-            <line x1="375" y1="150" x2="450" y2="150" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="155" font-size="12">Oxygen Gas (O2)</text>
-            <line x1="390" y1="210" x2="450" y2="210" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="215" font-size="12">Inverted Gas Jar</text>
-            <line x1="420" y1="260" x2="450" y2="260" stroke="#000" marker-start="url(#arr)"/>
-            <text x="460" y="265" font-size="12">Water Trough</text>
+            <line x1="185" y1="80" x2="110" y2="80" stroke="#000" marker-end="url(#arr)"/>
+            <text x="100" y="85" font-size="14" text-anchor="end">Thistle Funnel (Adds H2O2)</text>
+            <line x1="200" y1="235" x2="110" y2="235" stroke="#000" marker-end="url(#arr)"/>
+            <text x="100" y="240" font-size="14" text-anchor="end">Manganese(IV) Oxide Catalyst</text>
+            <line x1="280" y1="100" x2="280" y2="70" stroke="#000" marker-end="url(#arr)"/>
+            <text x="280" y="60" font-size="14" text-anchor="middle">Delivery Tube</text>
+            <line x1="375" y1="150" x2="450" y2="150" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="155" font-size="14">Oxygen Gas (O2)</text>
+            <line x1="390" y1="210" x2="450" y2="210" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="215" font-size="14">Inverted Gas Jar</text>
+            <line x1="420" y1="260" x2="450" y2="260" stroke="#000" marker-end="url(#arr)"/>
+            <text x="460" y="265" font-size="14">Water Trough</text>
         </symbol>
 
-        <!-- 6. Fractional Distillation -->
         <symbol id="fractional_distillation" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">6. FRACTIONAL DISTILLATION</text>
             <circle cx="200" cy="230" r="30" fill="none" stroke="#000" stroke-width="2"/>
@@ -332,19 +316,18 @@ SVG_SPRITE_PAYLOAD = """
             <path d="M 210 100 L 320 150" fill="none" stroke="#000" stroke-width="4"/>
             <path d="M 230 110 L 300 145" fill="none" stroke="#1976d2" stroke-width="12" opacity="0.3"/>
             <rect x="310" y="160" width="30" height="50" fill="none" stroke="#000" stroke-width="2"/>
-            <line x1="170" y1="230" x2="100" y2="230" stroke="#000" marker-start="url(#arr)"/>
-            <text x="90" y="235" font-size="12" text-anchor="end">Round Bottom Flask (Mixture)</text>
-            <line x1="190" y1="130" x2="100" y2="130" stroke="#000" marker-start="url(#arr)"/>
-            <text x="90" y="135" font-size="12" text-anchor="end">Fractionating Column (Glass Beads)</text>
-            <line x1="200" y1="65" x2="280" y2="65" stroke="#000" marker-start="url(#arr)"/>
-            <text x="290" y="70" font-size="12">Thermometer</text>
-            <line x1="265" y1="125" x2="350" y2="110" stroke="#000" marker-start="url(#arr)"/>
-            <text x="360" y="115" font-size="12">Liebig Condenser</text>
-            <line x1="340" y1="185" x2="400" y2="185" stroke="#000" marker-start="url(#arr)"/>
-            <text x="410" y="190" font-size="12">Distillate (Pure Fraction)</text>
+            <line x1="170" y1="230" x2="100" y2="230" stroke="#000" marker-end="url(#arr)"/>
+            <text x="90" y="235" font-size="14" text-anchor="end">Round Bottom Flask (Mixture)</text>
+            <line x1="190" y1="130" x2="100" y2="130" stroke="#000" marker-end="url(#arr)"/>
+            <text x="90" y="135" font-size="14" text-anchor="end">Fractionating Column (Glass Beads)</text>
+            <line x1="200" y1="65" x2="280" y2="65" stroke="#000" marker-end="url(#arr)"/>
+            <text x="290" y="70" font-size="14">Thermometer</text>
+            <line x1="265" y1="125" x2="350" y2="110" stroke="#000" marker-end="url(#arr)"/>
+            <text x="360" y="115" font-size="14">Liebig Condenser</text>
+            <line x1="340" y1="185" x2="400" y2="185" stroke="#000" marker-end="url(#arr)"/>
+            <text x="410" y="190" font-size="14">Distillate (Pure Fraction)</text>
         </symbol>
 
-        <!-- 7. Covalent Bonding (Water) -->
         <symbol id="covalent_water" viewBox="0 0 800 325">
             <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">7. COVALENT BONDING IN WATER (H2O DOT AND CROSS)</text>
             <circle cx="400" cy="180" r="60" fill="none" stroke="#d32f2f" stroke-width="2"/>
@@ -359,12 +342,12 @@ SVG_SPRITE_PAYLOAD = """
             <text x="350" y="152" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">x</text>
             <circle cx="440" cy="145" r="3" fill="#000"/>
             <text x="450" y="152" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">x</text>
-            <line x1="420" y1="220" x2="520" y2="250" stroke="#000" marker-start="url(#arr)"/>
-            <text x="530" y="255" font-size="12">Oxygen Outer Shell (6 Electrons)</text>
-            <line x1="360" y1="140" x2="250" y2="100" stroke="#000" marker-start="url(#arr)"/>
-            <text x="240" y="95" font-size="12" text-anchor="end">Shared Pair (Single Covalent Bond)</text>
-            <line x1="470" y1="100" x2="520" y2="80" stroke="#000" marker-start="url(#arr)"/>
-            <text x="530" y="85" font-size="12">Hydrogen Shell (1 Electron)</text>
+            <line x1="420" y1="220" x2="520" y2="250" stroke="#000" marker-end="url(#arr)"/>
+            <text x="530" y="255" font-size="14">Oxygen Outer Shell (6 Electrons)</text>
+            <line x1="360" y1="140" x2="250" y2="100" stroke="#000" marker-end="url(#arr)"/>
+            <text x="240" y="95" font-size="14" text-anchor="end">Shared Pair (Single Covalent Bond)</text>
+            <line x1="470" y1="100" x2="520" y2="80" stroke="#000" marker-end="url(#arr)"/>
+            <text x="530" y="85" font-size="14">Hydrogen Shell (1 Electron)</text>
         </symbol>
     </defs>
 </svg>
@@ -373,7 +356,6 @@ SVG_SPRITE_PAYLOAD = """
 # ==========================================
 # 2. UNEB CURRICULUM MAPPING (S1 - S4)
 # ==========================================
-# Acts as a queryable database for the LLM Dialogue Manager
 UNEB_CURRICULUM_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
     "Biology": {
         "S1": {
@@ -411,23 +393,22 @@ UNEB_CURRICULUM_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
     }
 }
 
-
 # ==========================================
 # 3. CHATBOT DIAGRAM MANAGER CLASS
 # ==========================================
 class DiagramManager:
     """
-    Handles the initialization, querying, and rendering of SVG diagrams 
+    Handles the initialization, querying, and rendering of SVG diagrams
     based on the UNEB S1-S4 Competence-Based Curriculum.
     """
 
     @staticmethod
     def initialize_sprites() -> None:
         """
-        Injects the hidden SVG sprites into the Streamlit DOM. 
+        Injects the hidden SVG sprites into the Streamlit DOM.
         Must be called once at the top of the app layout.
         """
-        components.html(SVG_SPRITE_PAYLOAD, height=0, scrolling=False)
+        components.html(SVG_SPRITES, height=0, scrolling=False)
 
     @classmethod
     def get_symbol_by_curriculum(cls, subject: str, level: str, topic: str) -> Optional[str]:
@@ -448,7 +429,7 @@ class DiagramManager:
         if not symbol_id:
             st.warning("⚠️ No diagram is currently available for this specific UNEB topic.")
             return
-            
+
         svg_code = f"""
         <svg width="100%" height="350" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top: 10px;">
             <use href="#{symbol_id}"/>
@@ -456,30 +437,26 @@ class DiagramManager:
         """
         components.html(svg_code, height=370, scrolling=False)
 
-
 # ==========================================
 # 4. EXAMPLE USAGE / TESTING
 # ==========================================
 if __name__ == "__main__":
     st.set_page_config(page_title="UNEB AI Tutor - Diagram Asset Test", layout="wide")
-    
-    # 1. Initialize sprites (Invisible DOM injection)
+
     DiagramManager.initialize_sprites()
-    
+
     st.title("UNEB S1-S4 Asset Manager")
     st.markdown("Select a subject, class, and topic below to render standard curriculum schematics.")
-    
-    # 2. Simulate Chatbot LLM Logic retrieving a requested topic
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         subject_choice = st.selectbox("Subject", options=list(UNEB_CURRICULUM_MAP.keys()))
     with col2:
         level_choice = st.selectbox("Class Level", options=list(UNEB_CURRICULUM_MAP[subject_choice].keys()))
     with col3:
         topic_choice = st.selectbox("Topic", options=list(UNEB_CURRICULUM_MAP[subject_choice][level_choice].keys()))
-    
-    # 3. Render the diagram in the UI
+
     st.write(f"### Visual for: **{topic_choice}**")
     symbol_to_render = DiagramManager.get_symbol_by_curriculum(subject_choice, level_choice, topic_choice)
     DiagramManager.render(symbol_to_render)
