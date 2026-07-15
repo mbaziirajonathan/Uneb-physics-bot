@@ -10,14 +10,12 @@ from reportlab.lib.pagesizes import A4
 from PIL import Image
 import base64
 from streamlit_mic_recorder import mic_recorder
-from gTTS import gTTS
+from gtts import gTTS
 
 # ============ PASSWORD GATE ============
-APP_PASSWORD = "UNEB_TEST_2026"
-
 def check_password():
     def password_entered():
-        if st.session_state["password"] == APP_PASSWORD:
+        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
