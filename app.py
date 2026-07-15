@@ -1,9 +1,13 @@
 import streamlit as st
 import os
+import io
 import pytz
 from datetime import datetime
+from pathlib import Path
 from groq import Groq, GroqError
 from typing import Dict, Any
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 
 UNEB_CURRICULUM_MAP = {
     "Physics": {
@@ -32,12 +36,12 @@ DIAGRAM_FILES = {
     ("Physics", "S1", "Measurement"): "assets/vernier.png",
     ("Physics", "S1", "Force"): "assets/spring_balance.png",
     ("Physics", "S2", "Current Electricity"): "assets/simple_circuit.png",
-    ("Physics", "S2", "Electroscope"): "assets/electroscope.png", 
-    ("Physics", "S2", "Refraction"): "assets/refraction.png", 
+    ("Physics", "S2", "Electroscope"): "assets/electroscope.png",
+    ("Physics", "S2", "Refraction"): "assets/refraction.png",
     ("Physics", "S2", "Waves"): "assets/cro.png",
-    ("Physics", "S3", "Hookes Law"): "assets/hookes_law.png", 
+    ("Physics", "S3", "Hookes Law"): "assets/hookes_law.png",
     ("Physics", "S3", "Specific Heat Capacity"): "assets/colorimeter.png",
-    ("Physics", "S4", "Transformers"): "assets/ac_transformer.png", 
+    ("Physics", "S4", "Transformers"): "assets/ac_transformer.png",
     ("Physics", "S4", "X-Ray Production"): "assets/xray_tube.png",
 
     # CHEMISTRY - 4 DIAGRAMS
@@ -47,9 +51,9 @@ DIAGRAM_FILES = {
     ("Chemistry", "S2", "Metals"): "assets/fractional_distillation.png",
 
     # BIOLOGY - 7 DIAGRAMS
-    ("Biology", "S1", "Plant Cell"): "assets/plant_cell.png", 
+    ("Biology", "S1", "Plant Cell"): "assets/plant_cell.png",
     ("Biology", "S1", "Ecosystem"): "assets/leaf.png",
-    ("Biology", "S2", "Circulatory System"): "assets/heart.png", 
+    ("Biology", "S2", "Circulatory System"): "assets/heart.png",
     ("Biology", "S2", "Photosynthesis"): "assets/photosynthesis.png",
     ("Biology", "S2", "Excretion"): "assets/nephron.png",
     ("Biology", "S3", "DNA"): "assets/dna.png",
@@ -66,10 +70,47 @@ class DiagramManager:
                 st.markdown('<div style="display:flex; justify-content:center; padding:10px; background:#f0f2f6; border-radius:10px;">', unsafe_allow_html=True)
                 st.image(image_path, use_column_width=True, caption=f"{topic} Diagram")
                 st.markdown('</div>', unsafe_allow_html=True)
+                return image_path # RETURN PATH FOR PDF
             else:
                 st.error(f"Image not found: {image_path}")
+                return None
         else:
             st.info("No diagram available for this topic yet")
+            return None
+
+# NEW: PDF GENERATOR
+def create_pdf(topic, notes, diagram_path):
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    p.setFont("Helvetica-Bold", 18)
+    p.drawString(40, height - 50, f"UNEB 2026: {topic}")
+
+    p.setFont("Helvetica", 10)
+    text = p.beginText(40, height - 80)
+    for line in notes.split('\n'):
+        text.textLine(line[:90]) # prevent overflow
+    p.drawText(text)
+
+    if diagram_path and os.path.exists(diagram_path):
+        try:
+            p.drawImage(diagram_path, 40, height - 400, width=500, height=250, preserveAspectRatio=True, mask='auto')
+        except: pass
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return buffer
+
+# NEW: QUIZ BANK
+QUIZ_BANK = {
+    "Plant Cell": "What organelle is responsible for photosynthesis?",
+    "Current Electricity": "State Ohm's Law and write the formula.",
+    "Structure of an Atom": "Name the 3 sub-atomic particles and their charges.",
+    "Nervous System": "What is the function of a neurone?",
+    "DNA": "What does DNA stand for and what is its role?"
+}
 
 try:
     import subjects.physics as physics
@@ -86,6 +127,7 @@ def init_session_state():
     if "logged_in" not in st.session_state: st.session_state.logged_in = False
     if "messages" not in st.session_state: st.session_state.messages = []
     if "current_topic" not in st.session_state: st.session_state.current_topic = None
+    if "show_quiz" not in st.session_state: st.session_state.show_quiz = False
 
 def render_auth_gate():
     st.title("🛡️ UNEB AI Tutor - Secure Access")
@@ -128,7 +170,7 @@ def main():
         st.sidebar.warning("No topics mapped for this level yet."); st.stop()
     topic = st.sidebar.selectbox("Topic", topics_list)
     if st.session_state.current_topic!= f"{subject}_{level}_{topic}":
-        st.session_state.messages = []; st.session_state.current_topic = f"{subject}_{level}_{topic}"
+        st.session_state.messages = []; st.session_state.show_quiz = False; st.session_state.current_topic = f"{subject}_{level}_{topic}"
     tz = pytz.timezone("Africa/Kampala")
     st.sidebar.divider()
     st.sidebar.caption(f"📍 Kampala Time: {datetime.now(tz).strftime('%A, %H:%M %p')}")
@@ -141,14 +183,51 @@ def main():
         if subject in SUBJECT_MODULES:
             try:
                 content = SUBJECT_MODULES[subject].get_content(level, topic)
-                st.markdown(content.get("text", "No text overview provided in module."))
+                notes_text = content.get("text", f"Key points about {topic} in UNEB {level}")
+                st.markdown(notes_text)
             except Exception:
-                st.info("Ask the AI Tutor below for an overview of this topic.")
+                notes_text = f"Ask the AI Tutor below for an overview of {topic}."
+                st.info(notes_text)
         else:
-            st.info("Ask the AI Tutor below for a detailed explanation of this topic.")
+            notes_text = f"Ask the AI Tutor below for a detailed explanation of {topic}."
+            st.info(notes_text)
     with col_visual:
         st.subheader("🔬 Interactive Diagram")
-        DiagramManager.render(subject, level, topic) # NOW LOADS ALL 28 PNGs
+        diagram_path = DiagramManager.render(subject, level, topic) # NOW RETURNS PATH
+
+    # NEW: PDF + QUIZ BUTTONS
+    st.divider()
+    col_pdf, col_quiz = st.columns(2)
+    with col_pdf:
+        pdf_buffer = create_pdf(topic, notes_text, diagram_path)
+        st.download_button(
+            label="📄 Download PDF Notes",
+            data=pdf_buffer,
+            file_name=f"UNEB_{subject}_{topic}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    with col_quiz:
+        if st.button("🧠 Test Me - Quiz Mode", use_container_width=True):
+            st.session_state.show_quiz = not st.session_state.show_quiz
+
+    if st.session_state.show_quiz:
+        st.markdown("---")
+        st.subheader(f"Quiz: {topic}")
+        question = QUIZ_BANK.get(topic, f"Explain 2 key points about {topic} as required by UNEB {level}")
+        st.write(f"**Q1:** {question}")
+        user_answer = st.text_area("Your Answer:", key=f"quiz_{topic}")
+
+        if st.button("Check with AI"):
+            with st.spinner("AI is marking..."):
+                prompt = f"You are a UNEB examiner for {subject} {level}. Mark this student answer out of 10. Topic: {topic}. Question: {question}. Student Answer: {user_answer}. Give score, 2 feedback points, and 1 improvement tip. Be strict but encouraging."
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=250
+                )
+                st.success(response.choices[0].message.content)
+
     st.divider()
     st.subheader("🤖 Ask the UNEB AI Tutor")
     for msg in st.session_state.messages:
