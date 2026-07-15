@@ -28,12 +28,12 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.title("🔒 UNEB AI Tutor 2026 - Login")
+        st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
         st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
         st.caption("Contact admin for access")
         return False
     elif not st.session_state["password_correct"]:
-        st.title("🔒 UNEB AI Tutor 2026 - Login")
+        st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
         st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
         st.error("😞 Password incorrect")
         return False
@@ -44,7 +44,7 @@ if not check_password():
     st.stop()
 # ============ END PASSWORD GATE ============
 
-st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
 
 # FULL NCDC 2026 SYLLABUS - S1 TO S4
 PRACTICAL_TOPICS = {
@@ -152,7 +152,7 @@ def generate_practical(client, subject, level, topic):
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=2000)
         return res.choices[0].message.content
-    except GroqError as e: return f"AI Error: {e}"
+    except GroqError as e: return f"System Error: {e}"
 
 def describe_and_draw_graph(client, prompt):
     sys_prompt = "You are a UNEB Physics/Chemistry/Biology examiner Uganda 2026. Student describes a graph. Return ONLY realistic data for that experiment. No fake numbers."
@@ -160,7 +160,7 @@ def describe_and_draw_graph(client, prompt):
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":sys_prompt},{"role":"user","content":user_prompt}], temperature=0.3, max_tokens=1200)
         return res.choices[0].message.content
-    except GroqError as e: return f"AI Error: {e}"
+    except GroqError as e: return f"System Error: {e}"
 
 def describe_uploaded_graph(client, image_bytes):
     b64 = base64.b64encode(image_bytes).decode()
@@ -179,7 +179,7 @@ def describe_uploaded_graph(client, image_bytes):
             temperature=0.3, max_tokens=800
         )
         return res.choices[0].message.content
-    except GroqError as e: return f"AI Vision Error: {e}"
+    except GroqError as e: return f"Vision System Error: {e}"
 
 def voice_chat(client, audio_bytes):
     try:
@@ -226,7 +226,7 @@ def create_pdf(topic, subject, level, notes):
 
 def main():
     client = get_client()
-    st.sidebar.title("📚 UNEB AI Tutor 2026")
+    st.sidebar.title("📚 DIGITAL UNEB TUTOR 2026")
     mode = st.sidebar.radio("Mode", ["📖 Learn Theory", "🧪 Practicals Lab", "📈 Graph Describer", "🎙️ Voice Chat", "🔮 Predict Papers"])
     subject = st.sidebar.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
     level = st.sidebar.selectbox("Class Level", ["S1","S2","S3","S4"])
@@ -249,7 +249,7 @@ def main():
             st.divider()
             st.subheader("❓ Ask about this topic")
             user_question = st.text_input("Ask any question:", key="ask_box")
-            if st.button("Ask AI", key="ask_btn"):
+            if st.button("Ask Tutor", key="ask_btn"):
                 if user_question:
                     with st.spinner("Thinking..."):
                         prompt = f"You are a UNEB {subject} tutor for {level} NCDC 2026. Answer this student question clearly: {user_question}"
@@ -272,7 +272,7 @@ def main():
         st.warning("Master these 8 topics. They repeat every year in UNEB.")
         topic = st.sidebar.selectbox("Select Practical", PRACTICAL_TOPICS[subject])
         if st.button(f"Generate Full Report: {topic}", use_container_width=True):
-            with st.spinner("AI Examiner writing full UNEB report..."):
+            with st.spinner("System generating full UNEB report..."):
                 report = generate_practical(client,subject,level,topic)
                 data, json_block = safe_json_extract(report)
                 if data and "data" in data:
@@ -283,7 +283,7 @@ def main():
                     except Exception as e:
                         st.warning(f"Could not parse data table: {e}")
                 else:
-                    st.warning("AI did not return valid data table.")
+                    st.warning("System did not return valid data table.")
                 st.markdown(report.replace(json_block,"") if json_block else report)
 
     elif mode == "📈 Graph Describer":
@@ -296,7 +296,7 @@ def main():
             if st.button("Generate & Draw Graph", use_container_width=True, key="btn_desc"):
                 if not user_graph.strip(): st.warning("Please describe a graph first.")
                 else:
-                    with st.spinner("AI drawing graph..."):
+                    with st.spinner("Generating graph..."):
                         result = describe_and_draw_graph(client, user_graph)
                         data, json_block = safe_json_extract(result)
                         if data and "data" in data:
@@ -307,7 +307,7 @@ def main():
                             except Exception as e:
                                 st.error(f"Failed to draw: {e}")
                         else:
-                            st.warning("AI did not return valid data. Try being more specific.")
+                            st.warning("System did not return valid data. Try being more specific.")
                         st.markdown("### Explanation")
                         st.markdown(result.replace(json_block,"") if json_block else result)
 
@@ -318,31 +318,31 @@ def main():
                 image = Image.open(uploaded_file)
                 st.image(image, caption="Uploaded Graph", use_column_width=True)
                 if st.button("Analyze Graph", use_container_width=True, key="btn_analyze"):
-                    with st.spinner("AI analyzing image..."):
+                    with st.spinner("Analyzing image..."):
                         image_bytes = uploaded_file.getvalue()
                         result = describe_uploaded_graph(client, image_bytes)
-                        st.markdown("### AI Analysis")
+                        st.markdown("### Analysis")
                         st.markdown(result)
 
     elif mode == "🎙️ Voice Chat":
         st.title("🎙️ Voice Chat Tutor")
-        st.write(f"Talk to the AI about {subject} {level}. Hold the mic and ask any question.")
+        st.write(f"Talk to the tutor about {subject} {level}. Hold the mic and ask any question.")
         audio = mic_recorder(start_prompt="🎤 Hold to Record", stop_prompt="⏹️ Stop", key='recorder')
 
         if audio:
             st.audio(audio['bytes'])
-            with st.spinner("Listening and thinking..."):
-                user_q, ai_a, ai_audio = voice_chat(client, audio['bytes'])
+            with st.spinner("Listening and processing..."):
+                user_q, tutor_a, tutor_audio = voice_chat(client, audio['bytes'])
 
             if user_q:
                 st.markdown(f"**You:** {user_q}")
-                st.markdown(f"**AI Tutor:** {ai_a}")
-                if ai_audio:
-                    st.audio(ai_audio, format="audio/mp3")
+                st.markdown(f"**Digital Tutor:** {tutor_a}")
+                if tutor_audio:
+                    st.audio(tutor_audio, format="audio/mp3")
 
     elif mode == "🔮 Predict Papers":
         st.title(f"🔮 UNEB 2026 Prediction: {subject}")
-        st.info("AI predicted based on UNEB trends 2016-2023 + NCDC 2026. Includes Astrophysics.")
+        st.info("Predictions based on UNEB trends 2016-2023 + NCDC 2026. Includes Astrophysics.")
         c1,c2,c3 = st.columns(3)
         with c1:
             if st.button("Generate P1 MCQ", use_container_width=True):
