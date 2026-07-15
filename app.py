@@ -15,7 +15,13 @@ from gtts import gTTS
 # ============ PASSWORD GATE ============
 def check_password():
     def password_entered():
-        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+        try:
+            correct_pw = st.secrets.get("APP_PASSWORD", "")
+        except:
+            st.error("APP_PASSWORD not found in secrets")
+            st.stop()
+
+        if st.session_state["password"] == correct_pw:
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
@@ -40,26 +46,52 @@ if not check_password():
 
 st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
 
+# FULL NCDC 2026 SYLLABUS - S1 TO S4
 PRACTICAL_TOPICS = {
     "Physics": ["Simple Pendulum - Finding g", "Principle of Moments", "Hooke's Law", "Density and Upthrust", "Converging Lens - Focal Length", "Glass Block - Refractive Index", "Ohm's Law - V vs I", "Resistance vs Length"],
     "Chemistry": ["Acid-Base Titration", "Back Titration - Purity", "Heat of Neutralization", "Rates of Reaction", "Qualitative Analysis - Cations", "Qualitative Analysis - Anions", "Gas Tests", "Enthalpy Change"],
     "Biology": ["Food Tests", "Osmosis in Potato", "Photosynthesis Rate", "Respiration in Seeds", "Microscopy - Cells", "Ecological Sampling", "Transpiration - Potometer", "Enzyme Activity"]
 }
 
+# UPDATED TO FULL NCDC 2026 CURRICULUM + ASTROPHYSICS S4
 UNEB_CURRICULUM_MAP = {
-    "Physics": {"S1": ["Measurement", "Force"], "S2": ["Current Electricity", "Refraction", "Waves"], "S3": ["Hookes Law", "Specific Heat Capacity", "Magnetism"], "S4": ["Transformers", "Electronics", "Nuclear Physics"]},
-    "Chemistry": {"S1": ["Structure of an Atom", "Chemical Bonding"], "S2": ["Water and Hydrogen", "Metals"], "S3": ["Rates of Reaction", "Organic Chemistry"], "S4": ["Electrochemistry", "Industrial Chemistry"]},
-    "Biology": {"S1": ["Plant Cell", "Ecosystem"], "S2": ["Circulatory System", "Photosynthesis"], "S3": ["DNA", "Genetics"], "S4": ["Nervous System", "Immunity"]}
+    "Physics": {
+        "S1": ["Introduction to Physics", "Measurement", "Force", "Work, Energy and Power", "Pressure"],
+        "S2": ["Current Electricity", "Light: Reflection", "Light: Refraction", "Waves", "Heat"],
+        "S3": ["Hookes Law and Elasticity", "Specific Heat Capacity", "Magnetism", "Electrostatics", "Sound"],
+        "S4": ["Transformers", "Electronics", "Nuclear Physics", "A.C Theory", "Cathode Rays and X-Rays", "Astrophysics"]
+    },
+    "Chemistry": {
+        "S1": ["Introduction to Chemistry", "Structure of an Atom", "Chemical Bonding", "Periodic Table", "Chemical Formulas"],
+        "S2": ["Water and Hydrogen", "Oxygen and Oxides", "Acids, Bases and Salts", "Metals", "Air and Combustion"],
+        "S3": ["Rates of Reaction", "Energy Changes", "Organic Chemistry Intro", "Chemical Equations", "Mole Concept"],
+        "S4": ["Electrochemistry", "Industrial Chemistry", "Organic Chemistry II", "Equilibrium", "Nuclear Chemistry"]
+    },
+    "Biology": {
+        "S1": ["Introduction to Biology", "Plant Cell and Animal Cell", "Ecosystem", "Characteristics of Living Things", "Nutrition in Plants"],
+        "S2": ["Circulatory System", "Photosynthesis", "Respiration", "Excretion", "Human Digestive System"],
+        "S3": ["DNA and RNA", "Genetics", "Cell Division", "Ecology", "Reproduction in Plants"],
+        "S4": ["Nervous System", "Immunity", "Human Reproductive System", "Evolution", "Environmental Conservation"]
+    }
 }
 
-DIAGRAM_FILES = {("Physics","S1","Measurement"): "assets/vernier.png", ("Physics","S2","Current Electricity"): "assets/simple_circuit.png", ("Physics","S3","Hookes Law"): "assets/hookes_law.png", ("Physics","S4","Transformers"): "assets/ac_transformer.png", ("Biology","S1","Plant Cell"): "assets/plant_cell.png", ("Biology","S2","Photosynthesis"): "assets/photosynthesis.png", ("Biology","S4","Nervous System"): "assets/neurone.png"}
+DIAGRAM_FILES = {
+    ("Physics","S1","Measurement"): "assets/vernier.png",
+    ("Physics","S2","Current Electricity"): "assets/simple_circuit.png",
+    ("Physics","S3","Hookes Law and Elasticity"): "assets/hookes_law.png",
+    ("Physics","S4","Transformers"): "assets/ac_transformer.png",
+    ("Physics","S4","Astrophysics"): "assets/solar_system.png",
+    ("Biology","S1","Plant Cell and Animal Cell"): "assets/plant_cell.png",
+    ("Biology","S2","Photosynthesis"): "assets/photosynthesis.png",
+    ("Biology","S4","Nervous System"): "assets/neurone.png"
+}
 
 @st.cache_resource
 def get_client():
     try:
         return Groq(api_key=st.secrets["GROQ_API_KEY"])
     except:
-        st.error("🚨 GROQ_API_KEY missing in secrets. Add it to.streamlit/secrets.toml"); st.stop()
+        st.error("🚨 GROQ_API_KEY missing in secrets. Add it to Streamlit Cloud Settings > Secrets"); st.stop()
 
 def safe_json_extract(text):
     if not text: return None, None
@@ -104,7 +136,7 @@ def render_graph(df, x, y, title):
         st.error(f"Graph failed: {e}")
 
 def generate_practical(client, subject, level, topic):
-    prompt = f"""You are a UNEB examiner for {subject} {level} Uganda 2026. Generate a complete practical report for: {topic}.
+    prompt = f"""You are a UNEB examiner for {subject} {level} Uganda NCDC 2026. Generate a complete practical report for: {topic}.
     Format strictly:
     1. AIM
     2. HYPOTHESIS
@@ -161,7 +193,7 @@ def voice_chat(client, audio_bytes):
             )
         user_text = transcription.text
 
-        llm_prompt = f"You are a UNEB {st.session_state.subject} tutor for {st.session_state.level} Uganda 2026. Answer concisely in 4 sentences max. Question: {user_text}"
+        llm_prompt = f"You are a UNEB {st.session_state.subject} tutor for {st.session_state.level} Uganda NCDC 2026. Answer concisely in 4 sentences max. Question: {user_text}"
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":llm_prompt}], temperature=0.5, max_tokens=300)
         answer_text = res.choices[0].message.content
 
@@ -176,9 +208,9 @@ def voice_chat(client, audio_bytes):
 
 def generate_prediction(client, subject, paper):
     prompts = {
-        "P1": f"You are UNEB Head of Examinations 2026. Generate 40 MCQ for {subject} Paper 1. Mix S1-S4. 4 options A-D. Syllabus 2026. Mark answers at end.",
-        "P2": f"You are UNEB Head 2026. Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include 2 calculations, 1 diagram question. 10 marks each. Provide marking guide.",
-        "P3": f"You are UNEB Head 2026. Generate 3 Practical scenarios for {subject} Paper 3. Competency-based. Include apparatus and method."
+        "P1": f"You are UNEB Head of Examinations 2026. Generate 40 MCQ for {subject} Paper 1. Mix S1-S4. Include Astrophysics for Physics. 4 options A-D. NCDC Syllabus 2026. Mark answers at end.",
+        "P2": f"You are UNEB Head 2026. Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include Astrophysics for Physics. Include 2 calculations, 1 diagram question. 10 marks each. Provide marking guide.",
+        "P3": f"You are UNEB Head 2026. Generate 3 Practical scenarios for {subject} Paper 3. Competency-based NCDC 2026. Include apparatus and method."
     }
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], temperature=0.7, max_tokens=1600)
     return res.choices[0].message.content
@@ -209,10 +241,23 @@ def main():
         with col1:
             if st.button("Generate UNEB Notes", use_container_width=True):
                 with st.spinner("Generating notes..."):
-                    prompt = f"Give 6 concise UNEB {level} exam notes for {subject} topic: {topic}. Ugandan syllabus 2026. Exam focused."
+                    prompt = f"Give 6 concise UNEB {level} exam notes for {subject} topic: {topic}. NCDC Uganda syllabus 2026. Competency based. Exam focused."
                     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=400)
                     st.session_state.notes = res.choices[0].message.content
+
+            # ASK BOX
+            st.divider()
+            st.subheader("❓ Ask about this topic")
+            user_question = st.text_input("Ask any question:", key="ask_box")
+            if st.button("Ask AI", key="ask_btn"):
+                if user_question:
+                    with st.spinner("Thinking..."):
+                        prompt = f"You are a UNEB {subject} tutor for {level} NCDC 2026. Answer this student question clearly: {user_question}"
+                        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=300)
+                        st.success(res.choices[0].message.content)
+
             if "notes" in st.session_state:
+                st.markdown("### Key Notes")
                 st.markdown(st.session_state.notes)
                 pdf = create_pdf(topic,subject,level,st.session_state.notes)
                 st.download_button("📄 Download PDF",pdf,f"UNEB_{subject}_{level}_{topic}.pdf", use_container_width=True)
@@ -246,7 +291,7 @@ def main():
         tab1, tab2 = st.tabs(["✍️ Describe Graph", "🖼️ Upload Graph Image"])
 
         with tab1:
-            st.write("Ask for any graph. Examples: `Velocity-Time graph for free fall`, `I-V curve for diode`, `Cooling curve for water`")
+            st.write("Ask for any graph. Examples: `Velocity-Time graph for free fall`, `I-V curve for diode`, `Cooling curve for water`, `HR Diagram for Astrophysics`")
             user_graph = st.text_area("Describe the graph you need:", height=100, key="desc_text")
             if st.button("Generate & Draw Graph", use_container_width=True, key="btn_desc"):
                 if not user_graph.strip(): st.warning("Please describe a graph first.")
@@ -297,7 +342,7 @@ def main():
 
     elif mode == "🔮 Predict Papers":
         st.title(f"🔮 UNEB 2026 Prediction: {subject}")
-        st.info("AI predicted based on UNEB trends 2016-2023. For revision only.")
+        st.info("AI predicted based on UNEB trends 2016-2023 + NCDC 2026. Includes Astrophysics.")
         c1,c2,c3 = st.columns(3)
         with c1:
             if st.button("Generate P1 MCQ", use_container_width=True):
