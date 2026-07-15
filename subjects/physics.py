@@ -4,127 +4,83 @@ from typing import Dict, List, Any
 # UNEB PHYSICS SYLLABUS DATABASE (S1-S4 CBC)
 # ==========================================
 PHYSICS_CONTENT: Dict[tuple[str, str], Dict[str, Any]] = {
-    # SENIOR 1
-    ("S1", "Introduction to Measurements"): {
-        "text": """### Measurements in Physics
-Physics relies heavily on accurate measurements of physical quantities.
-
-**Fundamental Quantities & SI Units:**
-*   **Length:** Metre (m) - measured using rulers or Vernier calipers.
-*   **Mass:** Kilogram (kg) - measured using a beam balance.
-*   **Time:** Second (s) - measured using a stopwatch.
-*   **Temperature:** Kelvin (K) - measured using a thermometer.
-
-**Volume and Density:**
-*   Density = Mass / Volume.
-*   Measured in $kg/m^3$ or $g/cm^3$.
-""",
-        "diagram": "vernier_caliper"
-    },
-    ("S1", "States of Matter and Particulate Nature"): {
-        "text": """### States of Matter
-Matter exists in three primary states: Solid, Liquid, and Gas.
-
-**Kinetic Theory of Matter:**
-*   **Solids:** Particles are tightly packed in a regular lattice and vibrate in fixed positions. High density, fixed shape.
-*   **Liquids:** Particles are close but can slide past each other. Fixed volume, takes the shape of the container.
-*   **Gases:** Particles are far apart and move randomly at high speeds. Low density, highly compressible.
-""",
-        "diagram": "states_of_matter"
-    },
-
     # SENIOR 2
-    ("S2", "Mechanics: Forces and Motion"): {
-        "text": """### Forces and Motion
-A force is a push or pull that alters an object's state of rest or uniform motion.
+    ("S2", "Electroscope"): {
+        "text": """### Electroscope
+An instrument used to detect electric charge and to determine its type.
 
-**Newton's Laws of Motion:**
-1.  **Inertia:** An object remains at rest or in uniform motion unless acted upon by a net external force.
-2.  **Acceleration:** Force = Mass × Acceleration ($F = ma$).
-3.  **Action/Reaction:** For every action, there is an equal and opposite reaction.
-
-**Types of Forces:** Friction, Gravity, Tension, Upthrust.
+**How it works:**
+* Like charges repel. The gold leaves diverge when charged.
+* Used to test for presence and type of charge.
 """,
-        "diagram": "forces_on_block"
+        "diagram": "assets/electroscope.png"
     },
-    ("S2", "Optics: Reflection and Refraction"): {
-        "text": """### Light and Optics
-Light travels in straight lines but changes direction when encountering boundaries.
+    ("S2", "Refraction"): {
+        "text": """### Refraction of Light
+The bending of light as it passes from one medium to another of different optical density.
 
-**Reflection:**
-*   The bouncing back of light from a surface.
-*   Angle of Incidence = Angle of Reflection.
-
-**Refraction:**
-*   The bending of light as it passes from one optical medium to another (e.g., air to glass) due to a change in speed.
-*   Governed by Snell's Law.
+**Laws of Refraction:**
+* The incident ray, refracted ray and normal all lie in the same plane.
+* $n = \\frac{\\sin i}{\\sin r}$
 """,
-        "diagram": "refraction"
+        "diagram": "assets/refraction.png"
+    },
+    ("S2", "Waves"): {
+        "text": """### Wave Motion
+A wave is a disturbance that transfers energy from one point to another without transfer of matter.
+
+**Wave Types:**
+* **Transverse:** Vibration perpendicular to wave motion. e.g. light.
+* **Longitudinal:** Vibration parallel to wave motion. e.g. sound.
+""",
+        "diagram": "assets/wave.png"
     },
 
     # SENIOR 3
-    ("S3", "Work, Energy, and Power"): {
-        "text": """### Work, Energy, and Power
-**Work Done:**
-*   Work is done when a force moves an object through a distance in the direction of the force.
-*   $Work = Force \\times Distance$. Unit: Joules (J).
-
-**Energy:**
-*   The capacity to do work.
-*   **Potential Energy (PE):** $PE = mgh$ (Energy due to position).
-*   **Kinetic Energy (KE):** $KE = \\frac{1}{2}mv^2$ (Energy due to motion).
-
-**Power:**
-*   The rate of doing work. $Power = \\frac{Work}{Time}$. Unit: Watts (W).
+    ("S3", "Hookes Law"): {
+        "text": """### Hooke's Law
+States that extension of a spring is directly proportional to the applied force, provided elastic limit is not exceeded.
+$$F = ke$$
+Where k = spring constant, e = extension.
 """,
-        "diagram": "pendulum_energy"
+        "diagram": "assets/hookes_law.png"
     },
-    ("S3", "Current Electricity"): {
-        "text": """### Current Electricity
-The continuous flow of electric charge (electrons) through a conductor.
-
-**Key Terms:**
-*   **Voltage (V):** The potential difference pushing electrons. Measured in Volts.
-*   **Current (I):** The rate of flow of charge. Measured in Amperes.
-*   **Resistance (R):** Opposition to current flow. Measured in Ohms ($\\Omega$).
-
-**Ohm's Law:** 
-*   $V = I \\times R$.
+    ("S3", "Specific Heat Capacity"): {
+        "text": """### Specific Heat Capacity
+The amount of heat required to raise the temperature of 1kg of a substance by 1°C.
+$$Q = mc\\theta$$
 """,
-        "diagram": "circuit_diagram"
+        "diagram": "assets/specific_heat.png"
     },
 
     # SENIOR 4
-    ("S4", "Electromagnetism and Induction"): {
-        "text": """### Electromagnetism
-A magnetic field is created around any conductor carrying an electric current.
+    ("S4", "Transformers"): {
+        "text": """### Transformers
+A device used to step up or step down AC voltage.
 
-**Electromagnetic Induction (Faraday's Law):**
-*   An electromotive force (EMF) is induced in a circuit when the magnetic flux linking the circuit changes.
-*   **Applications:** Step-up and Step-down Transformers, AC Generators.
+**Principle:** Electromagnetic Induction.
+$$\\frac{V_p}{V_s} = \\frac{N_p}{N_s}$$
 """,
-        "diagram": "transformer"
+        "diagram": "assets/ac_transformer.png"
     },
-    ("S4", "Modern Physics: Cathode Rays and X-Rays"): {
-        "text": """### Modern Physics
-**Cathode Rays:**
-*   Streams of fast-moving electrons emitted from a heated cathode in a vacuum tube.
-*   Deflected by both electric and magnetic fields.
+    ("S4", "X-Ray Production"): {
+        "text": """### X-Ray Production
+X-rays are produced when fast moving electrons are suddenly stopped by a metal target.
 
-**X-Rays:**
-*   High-energy electromagnetic radiation produced when fast-moving electrons strike a heavy metal target (like Tungsten).
-*   Highly penetrating; used in medical imaging.
+**X-Ray Tube:** Contains cathode and anode in a vacuum tube.
 """,
-        "diagram": "xray_tube"
-    }
+        "diagram": "assets/xray_tube.png"
+    },
 }
 
 def get_topics(level: str) -> List[str]:
+    """Extracts curriculum-mapped topics for a specific class level."""
     return [topic for (lvl, topic) in PHYSICS_CONTENT.keys() if lvl == level]
 
 def get_content(level: str, topic: str) -> Dict[str, Any]:
+    """Retrieves detailed content and diagram path."""
     default_response = {
-        "text": f"### {topic}\nCurriculum modules loading. Ask the AI Tutor for the detailed formulation.", 
+        "text": f"### {topic}\nDetailed UNEB notes are being generated. Please prompt the AI Assistant below for a complete breakdown.",
         "diagram": None
     }
     return PHYSICS_CONTENT.get((level, topic), default_response)
