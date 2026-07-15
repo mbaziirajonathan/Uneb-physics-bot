@@ -18,7 +18,7 @@ Cells are the microscopic building blocks of all living organisms.
 A community of living organisms interacting with their physical environment.
 **Components:** Producers, Consumers, Decomposers. **Energy flow:** Sun -> Producer -> Consumer.
 """,
-        "diagram": "assets/ecosystem.png"
+        "diagram": "assets/leaf.png"
     },
     ("S1", "Classification"): {
         "text": """### Classification of Living Organisms
@@ -48,7 +48,7 @@ Heterotrophic nutrition. Types: Holozoic, Parasitic, Saprophytic.
 Transport system in animals. **Components:** Heart, Blood, Blood vessels.
 **Functions:** Transport of nutrients, gases, waste.
 """,
-        "diagram": "assets/circulatory.png"
+        "diagram": "assets/heart.png"
     },
     ("S2", "Photosynthesis"): {
         "text": """### Photosynthesis
@@ -69,7 +69,7 @@ Breakdown of glucose to release energy.
 Removal of metabolic waste. 
 **Organs:** Kidneys, Skin, Lungs, Liver. **Kidney function:** Osmoregulation.
 """,
-        "diagram": None
+        "diagram": "assets/nephron.png"
     },
     ("S2", "Reproduction in Plants"): {
         "text": """### Reproduction in Plants
@@ -86,70 +86,23 @@ Deoxyribonucleic acid. Carrier of genetic information.
 """,
         "diagram": "assets/dna.png"
     },
-    ("S3", "Cell Division"): {
-        "text": """### Cell Division
-**Mitosis:** For growth, 2 identical diploid cells.
-**Meiosis:** For gametes, 4 non-identical haploid cells.
-""",
-        "diagram": None
-    },
-    ("S3", "Genetics"): {
-        "text": """### Genetics
-Study of inheritance. **Mendel's Laws.** **Terms:** Gene, Allele, Dominant, Recessive, Genotype, Phenotype.
-""",
-        "diagram": None
-    },
-    ("S3", "Evolution"): {
-        "text": """### Evolution
-Change in characteristics of species over generations.
-**Theories:** Lamarckism, Darwin's Natural Selection.
-""",
-        "diagram": None
-    },
-    ("S3", "Ecology"): {
-        "text": """### Ecology
-Study of interactions between organisms and environment.
-**Concepts:** Food chains, Food webs, Energy pyramids, Conservation.
-""",
-        "diagram": None
-    },
+    ("S3", "Cell Division"): {"text": "### Cell Division\n**Mitosis:** For growth. **Meiosis:** For gametes.", "diagram": None},
+    ("S3", "Genetics"): {"text": "### Genetics\nStudy of inheritance. **Mendel's Laws.**", "diagram": None},
+    ("S3", "Evolution"): {"text": "### Evolution\nChange in characteristics over generations. **Natural Selection.**", "diagram": None},
+    ("S3", "Ecology"): {"text": "### Ecology\nStudy of interactions between organisms and environment.", "diagram": None},
 
     # SENIOR 4
-    ("S4", "Human Reproduction"): {
-        "text": """### Human Reproduction
-**Male:** Testes produce sperm. **Female:** Ovaries produce ova.
-**Menstrual Cycle:** 28 days. Fertilization in fallopian tube.
-""",
-        "diagram": None
-    },
+    ("S4", "Human Reproduction"): {"text": "### Human Reproduction\n**Male:** Testes. **Female:** Ovaries. **Menstrual Cycle:** 28 days.", "diagram": None},
     ("S4", "Nervous System"): {
         "text": """### Nervous System
 **Central:** Brain and Spinal cord. **Peripheral:** Nerves.
 **Neuron:** Sensory, Relay, Motor. Transmission via electrical impulses.
 """,
-        "diagram": None
+        "diagram": "assets/neurone.png"
     },
-    ("S4", "Homeostasis"): {
-        "text": """### Homeostasis
-Maintenance of constant internal environment.
-**Examples:** Temperature regulation, Osmoregulation, Blood glucose regulation.
-""",
-        "diagram": None
-    },
-    ("S4", "Immunity"): {
-        "text": """### Immunity
-Body's defense against pathogens.
-**Types:** Natural, Artificial. **Cells:** Lymphocytes, Antibodies.
-""",
-        "diagram": None
-    },
-    ("S4", "Biotechnology"): {
-        "text": """### Biotechnology
-Use of living organisms to make useful products.
-**Examples:** Brewing, Baking, Genetic engineering, IVF.
-""",
-        "diagram": None
-    },
+    ("S4", "Homeostasis"): {"text": "### Homeostasis\nMaintenance of constant internal environment.", "diagram": None},
+    ("S4", "Immunity"): {"text": "### Immunity\nBody's defense against pathogens. **Antibodies.**", "diagram": None},
+    ("S4", "Biotechnology"): {"text": "### Biotechnology\nUse of living organisms to make useful products.", "diagram": None},
 }
 
 def get_topics(level: str) -> List[str]:
