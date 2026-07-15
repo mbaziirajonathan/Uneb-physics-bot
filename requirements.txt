@@ -1,6 +1,8 @@
 streamlit>=1.58.0
 groq>=1.5.0
-pytz>=2024.1
+pandas>=2.1.0
+plotly>=5.18.0
+matplotlib>=3.8.0
+numpy>=1.26.0
 reportlab>=4.2.0
-SpeechRecognition>=3.10.0
-pyaudio
+pytz>=2024.1
