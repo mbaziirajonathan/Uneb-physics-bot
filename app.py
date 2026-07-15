@@ -1,7 +1,9 @@
 import streamlit as st
 import os
 import io
+import json
 import pytz
+import speech_recognition as sr
 from datetime import datetime
 from pathlib import Path
 from groq import Groq, GroqError
@@ -52,6 +54,13 @@ DIAGRAM_FILES = {
     ("Biology", "S2", "Excretion"): "assets/nephron.png",
     ("Biology", "S3", "DNA"): "assets/dna.png",
     ("Biology", "S4", "Nervous System"): "assets/neurone.png",
+}
+
+PAST_PAPERS = {
+    "Current Electricity": "2019 P2 Q3: State Ohm's Law. Calculate current when V=12V, R=4Ω",
+    "Plant Cell": "2022 P1 Q1: Name the organelle where photosynthesis occurs.",
+    "DNA": "2021 P2 Q5: Describe the structure of DNA double helix.",
+    "Nervous System": "2020 P1 Q4: State the function of a neurone."
 }
 
 class DiagramManager:
@@ -110,6 +119,22 @@ QUIZ_BANK = {
     "DNA": "What does DNA stand for and what is its role?"
 }
 
+def save_progress(subject, level, topic):
+    if "progress" not in st.session_state: st.session_state.progress = []
+    key = f"{subject}_{level}_{topic}"
+    if key not in st.session_state.progress:
+        st.session_state.progress.append(key)
+
+def load_voice():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("Listening... Speak now")
+        audio = r.listen(source, timeout=5)
+    try:
+        text = r.recognize_google(audio)
+        return text
+    except: return ""
+
 try:
     import subjects.physics as physics
     import subjects.chemistry as chemistry
@@ -117,7 +142,6 @@ try:
     SUBJECT_MODULES = {"Physics": physics, "Chemistry": chemistry, "Biology": biology}
 except ImportError:
     SUBJECT_MODULES = {}
-    st.warning("⚠️ Subject content modules not fully found. Defaulting to AI & Diagram generation only.")
 
 st.set_page_config(page_title="UNEB AI Tutor 2026", page_icon="📚", layout="wide", initial_sidebar_state="expanded")
 
@@ -126,6 +150,7 @@ def init_session_state():
     if "messages" not in st.session_state: st.session_state.messages = []
     if "current_topic" not in st.session_state: st.session_state.current_topic = None
     if "show_quiz" not in st.session_state: st.session_state.show_quiz = False
+    if "progress" not in st.session_state: st.session_state.progress = []
 
 def render_auth_gate():
     st.title("🛡️ UNEB AI Tutor - Secure Access")
@@ -148,7 +173,7 @@ def get_groq_client() -> Groq:
         st.stop()
 
 def generate_ai_response(client: Groq, subject: str, level: str, topic: str, user_prompt: str):
-    system_prompt = f"You are an expert UNEB examiner and tutor for {subject} {level}. The current topic is: {topic}. Strictly align your answers with the Ugandan Lower Secondary Curriculum 2026. Use clear, direct language. Use bullet points for readability. Never use ASCII art. If a user asks for a diagram, tell them: 'Please refer to the diagram rendered in the interactive viewer above'."
+    system_prompt = f"You are an expert UNEB examiner and tutor for {subject} {level}. The current topic is: {topic}. Strictly align your answers with the Ugandan Lower Secondary Curriculum 2026. Use clear, direct language. Use bullet points for readability. Never use ASCII art."
     messages_payload = [{"role": "system", "content": system_prompt}] + st.session_state.messages
     try:
         response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages_payload, temperature=0.3, max_tokens=1024)
@@ -167,10 +192,12 @@ def main():
     if not topics_list:
         st.sidebar.warning("No topics mapped for this level yet."); st.stop()
     topic = st.sidebar.selectbox("Topic", topics_list)
+    save_progress(subject, level, topic)
     if st.session_state.current_topic!= f"{subject}_{level}_{topic}":
         st.session_state.messages = []; st.session_state.show_quiz = False; st.session_state.current_topic = f"{subject}_{level}_{topic}"
     tz = pytz.timezone("Africa/Kampala")
     st.sidebar.divider()
+    st.sidebar.metric("Topics Completed", len(st.session_state.progress))
     st.sidebar.caption(f"📍 Kampala Time: {datetime.now(tz).strftime('%A, %H:%M %p')}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False; st.rerun()
@@ -194,13 +221,20 @@ def main():
             response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=300)
             st.session_state[cache_key] = response.choices[0].message.content
     st.divider()
-    col_pdf, col_quiz = st.columns(2)
-    with col_pdf:
+    col1, col2, col3 = st.columns(3)
+    with col1:
         pdf_buffer = create_pdf(topic, subject, level, diagram_path)
-        st.download_button(label="📄 Download Full PDF Notes", data=pdf_buffer, file_name=f"UNEB_{subject}_{level}_{topic}.pdf", mime="application/pdf", use_container_width=True)
-    with col_quiz:
-        if st.button("🧠 Test Me - Quiz Mode", use_container_width=True):
+        st.download_button(label="📄 Download PDF", data=pdf_buffer, file_name=f"UNEB_{subject}_{level}_{topic}.pdf", mime="application/pdf", use_container_width=True)
+    with col2:
+        if st.button("🧠 Quiz Mode", use_container_width=True):
             st.session_state.show_quiz = not st.session_state.show_quiz
+    with col3:
+        if st.button("🎤 Voice Ask", use_container_width=True):
+            voice_text = load_voice()
+            if voice_text: st.session_state.voice_prompt = voice_text; st.rerun()
+    if topic in PAST_PAPERS:
+        with st.expander("📜 Past Paper Question"):
+            st.write(PAST_PAPERS[topic])
     if st.session_state.show_quiz:
         st.markdown("---")
         st.subheader(f"Quiz: {topic}")
@@ -209,19 +243,21 @@ def main():
         user_answer = st.text_area("Your Answer:", key=f"quiz_{topic}")
         if st.button("Check with AI"):
             with st.spinner("AI is marking..."):
-                prompt = f"You are a UNEB examiner for {subject} {level}. Mark this student answer out of 10. Topic: {topic}. Question: {question}. Student Answer: {user_answer}. Give score, 2 feedback points, and 1 improvement tip. Be strict but encouraging."
+                prompt = f"You are a UNEB examiner for {subject} {level}. Mark this student answer out of 10. Topic: {topic}. Question: {question}. Student Answer: {user_answer}. Give score, 2 feedback points, and 1 improvement tip."
                 response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=250)
                 st.success(response.choices[0].message.content)
     st.divider()
     st.subheader("🤖 Ask the UNEB AI Tutor")
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
-    if prompt := st.chat_input("E.g., Explain how this diagram works..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+    prompt_input = st.chat_input("E.g., Explain how this diagram works...") or st.session_state.get("voice_prompt", "")
+    if prompt_input:
+        if "voice_prompt" in st.session_state: del st.session_state.voice_prompt
+        st.session_state.messages.append({"role": "user", "content": prompt_input})
+        with st.chat_message("user"): st.markdown(prompt_input)
         with st.chat_message("assistant"):
             with st.spinner("Analyzing UNEB syllabus..."):
-                answer = generate_ai_response(client, subject, level, topic, prompt)
+                answer = generate_ai_response(client, subject, level, topic, prompt_input)
                 st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
 
