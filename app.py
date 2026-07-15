@@ -26,21 +26,34 @@ UNEB_CURRICULUM_MAP = {
     }
 }
 
-# MAP TOPICS TO YOUR PNG FILES IN assets/ FOLDER
+# ALL DIAGRAMS MAPPED - PREVIOUS + NEW FROM YOUR SCREENSHOT
 DIAGRAM_FILES = {
+    # PHYSICS - 10 DIAGRAMS
+    ("Physics", "S1", "Measurement"): "assets/vernier.png",
+    ("Physics", "S1", "Force"): "assets/spring_balance.png",
+    ("Physics", "S2", "Current Electricity"): "assets/simple_circuit.png",
     ("Physics", "S2", "Electroscope"): "assets/electroscope.png", 
     ("Physics", "S2", "Refraction"): "assets/refraction.png", 
-    ("Physics", "S2", "Waves"): "assets/wave.png",
+    ("Physics", "S2", "Waves"): "assets/cro.png",
     ("Physics", "S3", "Hookes Law"): "assets/hookes_law.png", 
-    ("Physics", "S3", "Specific Heat Capacity"): "assets/specific_heat.png",
+    ("Physics", "S3", "Specific Heat Capacity"): "assets/colorimeter.png",
     ("Physics", "S4", "Transformers"): "assets/ac_transformer.png", 
     ("Physics", "S4", "X-Ray Production"): "assets/xray_tube.png",
+
+    # CHEMISTRY - 4 DIAGRAMS
     ("Chemistry", "S1", "Structure of an Atom"): "assets/atom.png",
+    ("Chemistry", "S1", "Chemical Bonding"): "assets/covalent_water.png",
+    ("Chemistry", "S2", "Water and Hydrogen"): "assets/filtration.png",
+    ("Chemistry", "S2", "Metals"): "assets/fractional_distillation.png",
+
+    # BIOLOGY - 7 DIAGRAMS
     ("Biology", "S1", "Plant Cell"): "assets/plant_cell.png", 
-    ("Biology", "S1", "Ecosystem"): "assets/ecosystem.png",
-    ("Biology", "S2", "Circulatory System"): "assets/circulatory.png", 
+    ("Biology", "S1", "Ecosystem"): "assets/leaf.png",
+    ("Biology", "S2", "Circulatory System"): "assets/heart.png", 
     ("Biology", "S2", "Photosynthesis"): "assets/photosynthesis.png",
-    ("Biology", "S3", "DNA"): "assets/dna.png"
+    ("Biology", "S2", "Excretion"): "assets/nephron.png",
+    ("Biology", "S3", "DNA"): "assets/dna.png",
+    ("Biology", "S4", "Nervous System"): "assets/neurone.png",
 }
 
 class DiagramManager:
@@ -54,7 +67,7 @@ class DiagramManager:
                 st.image(image_path, use_column_width=True, caption=f"{topic} Diagram")
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
-                st.error(f"Image not found: {image_path}. Did you upload it to assets/?")
+                st.error(f"Image not found: {image_path}")
         else:
             st.info("No diagram available for this topic yet")
 
@@ -135,7 +148,7 @@ def main():
             st.info("Ask the AI Tutor below for a detailed explanation of this topic.")
     with col_visual:
         st.subheader("🔬 Interactive Diagram")
-        DiagramManager.render(subject, level, topic) # NOW LOADS PNG
+        DiagramManager.render(subject, level, topic) # NOW LOADS ALL 28 PNGs
     st.divider()
     st.subheader("🤖 Ask the UNEB AI Tutor")
     for msg in st.session_state.messages:
