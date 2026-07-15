@@ -1,11 +1,10 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from typing import Optional, Dict
 
 # ==========================================
-# 1. SVG DICTIONARY - ON-DEMAND, NO SPRITE BANK
+# 1. SVG DICTIONARY - CLIENT SIDE RENDERING
 # ==========================================
-# Each diagram is a full standalone <svg>. Fixes Streamlit Cloud 100KB limit
+# We will inject this with st.markdown. No server iframe
 SVG_DICTIONARY = {
 
     "animal_cell": """
@@ -17,10 +16,6 @@ SVG_DICTIONARY = {
     <circle cx="270" cy="170" r="12" fill="#66b3ff"/> 
     <ellipse cx="400" cy="140" rx="25" ry="12" fill="#ffe6e6" stroke="#333" stroke-width="1.5" transform="rotate(30 400 140)"/>
     <path d="M385 140 Q395 130 400 140 T415 140" fill="none" stroke="#333" stroke-width="1.5" transform="rotate(30 400 140)"/>
-    <ellipse cx="200" cy="240" rx="25" ry="12" fill="#ffe6e6" stroke="#333" stroke-width="1.5" transform="rotate(-45 200 240)"/>
-    <path d="M185 240 Q195 230 200 240 T215 240" fill="none" stroke="#333" stroke-width="1.5" transform="rotate(-45 200 240)"/>
-    <circle cx="360" cy="230" r="15" fill="#fff" stroke="#333" stroke-width="1"/>
-    <circle cx="180" cy="140" r="10" fill="#fff" stroke="#333" stroke-width="1"/>
     <line x1="390" y1="75" x2="550" y2="75" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
     <text x="560" y="80" font-size="14">Cell Membrane</text>
     <line x1="350" y1="120" x2="550" y2="120" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/>
@@ -190,9 +185,26 @@ SVG_DICTIONARY = {
     """
 }
 
+    "filtration": """
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_filtration" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
+    <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">2. SIMPLE FILTRATION APPARATUS</text>
+    <path d="M 260 270 H 340 V 200 H 260 Z" fill="none" stroke="#444" stroke-width="2"/>
+    <path d="M 260 250 H 340" fill="none" stroke="#444" stroke-width="1"/>
+    <rect x="262" y="250" width="76" height="20" fill="#e3f2fd"/>
+    <path d="M 280 120 L 300 180 L 320 120 Z" fill="none" stroke="#000" stroke-width="2"/>
+    <path d="M 285 120 L 300 170 L 315 120" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
+    <rect x="295" y="180" width="10" height="30" fill="none" stroke="#000" stroke-width="2"/>
+    <line x1="310" y1="140" x2="420" y2="120" stroke="#000" marker-end="url(#arr_filtration)"/><text x="430" y="125" font-size="14">Filter Paper (with Residue)</text>
+    <line x1="320" y1="160" x2="420" y2="160" stroke="#000" marker-end="url(#arr_filtration)"/><text x="430" y="165" font-size="14">Filter Funnel</text>
+    <line x1="340" y1="230" x2="420" y2="230" stroke="#000" marker-end="url(#arr_filtration)"/><text x="430" y="235" font-size="14">Beaker</text>
+    <line x1="300" y1="260" x2="420" y2="260" stroke="#000" marker-end="url(#arr_filtration)"/><text x="430" y="265" font-size="14">Filtrate (Clear Liquid)</text>
+    </svg>
+    """,
+
     "chromatography": """
-    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc;">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_chrom" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
     <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">3. ASCENDING PAPER CHROMATOGRAPHY</text>
     <path d="M 250 250 H 350 V 100 H 250 Z" fill="none" stroke="#444" stroke-width="3"/>
     <rect x="252" y="210" width="96" height="38" fill="#e0f7fa"/>
@@ -202,17 +214,17 @@ SVG_DICTIONARY = {
     <circle cx="300" cy="180" r="3" fill="#d32f2f"/>
     <circle cx="300" cy="140" r="3" fill="#1976d2"/>
     <circle cx="300" cy="110" r="3" fill="#388e3c"/>
-    <line x1="320" y1="80" x2="440" y2="80" stroke="#000" marker-end="url(#arr)"/><text x="450" y="85" font-size="14">Glass Rod / Support</text>
-    <line x1="310" y1="125" x2="440" y2="125" stroke="#000" marker-end="url(#arr)"/><text x="450" y="130" font-size="14">Chromatography Paper</text>
-    <line x1="305" y1="180" x2="440" y2="170" stroke="#000" marker-end="url(#arr)"/><text x="450" y="175" font-size="14">Separated Components (Dyes)</text>
-    <line x1="300" y1="200" x2="440" y2="200" stroke="#000" marker-end="url(#arr)"/><text x="450" y="205" font-size="14">Origin (Pencil Line)</text>
-    <line x1="340" y1="230" x2="440" y2="230" stroke="#000" marker-end="url(#arr)"/><text x="450" y="235" font-size="14">Solvent (Mobile Phase)</text>
+    <line x1="320" y1="80" x2="440" y2="80" stroke="#000" marker-end="url(#arr_chrom)"/><text x="450" y="85" font-size="14">Glass Rod / Support</text>
+    <line x1="310" y1="125" x2="440" y2="125" stroke="#000" marker-end="url(#arr_chrom)"/><text x="450" y="130" font-size="14">Chromatography Paper</text>
+    <line x1="305" y1="180" x2="440" y2="170" stroke="#000" marker-end="url(#arr_chrom)"/><text x="450" y="175" font-size="14">Separated Components (Dyes)</text>
+    <line x1="300" y1="200" x2="440" y2="200" stroke="#000" marker-end="url(#arr_chrom)"/><text x="450" y="205" font-size="14">Origin (Pencil Line)</text>
+    <line x1="340" y1="230" x2="440" y2="230" stroke="#000" marker-end="url(#arr_chrom)"/><text x="450" y="235" font-size="14">Solvent (Mobile Phase)</text>
     </svg>
     """,
 
     "titration": """
-    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc;">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_titration" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
     <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">4. ACID-BASE TITRATION APPARATUS</text>
     <path d="M 280 270 H 350 M 315 270 V 70 H 330" fill="none" stroke="#444" stroke-width="5"/>
     <rect x="250" y="60" width="10" height="150" fill="none" stroke="#000" stroke-width="1.5"/>
@@ -222,20 +234,20 @@ SVG_DICTIONARY = {
     <rect x="251" y="100" width="8" height="110" fill="#fce4ec"/>
     <path d="M 230 260 H 280 L 285 270 H 225 Z" fill="#e8eaf6"/>
     <path d="M 260 140 H 315" fill="none" stroke="#444" stroke-width="3"/>
-    <line x1="260" y1="120" x2="400" y2="100" stroke="#000" marker-end="url(#arr)"/><text x="410" y="105" font-size="14">Burette containing Titrant (Acid)</text>
-    <line x1="265" y1="222" x2="400" y2="200" stroke="#000" marker-end="url(#arr)"/><text x="410" y="205" font-size="14">Tap / Stopcock</text>
-    <line x1="270" y1="250" x2="400" y2="250" stroke="#000" marker-end="url(#arr)"/><text x="410" y="255" font-size="14">Conical Flask containing Analyte & Indicator</text>
-    <line x1="315" y1="170" x2="400" y2="170" stroke="#000" marker-end="url(#arr)"/><text x="410" y="175" font-size="14">Retort Stand and Clamp</text>
+    <line x1="260" y1="120" x2="400" y2="100" stroke="#000" marker-end="url(#arr_titration)"/><text x="410" y="105" font-size="14">Burette containing Titrant (Acid)</text>
+    <line x1="265" y1="222" x2="400" y2="200" stroke="#000" marker-end="url(#arr_titration)"/><text x="410" y="205" font-size="14">Tap / Stopcock</text>
+    <line x1="270" y1="250" x2="400" y2="250" stroke="#000" marker-end="url(#arr_titration)"/><text x="410" y="255" font-size="14">Conical Flask containing Analyte & Indicator</text>
+    <line x1="315" y1="170" x2="400" y2="170" stroke="#000" marker-end="url(#arr_titration)"/><text x="410" y="175" font-size="14">Retort Stand and Clamp</text>
     </svg>
     """,
 
     "gas_prep": """
-    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc;">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker><pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1.5" fill="#555"/></pattern></defs>
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_gas" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker><pattern id="dots_gas" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="1.5" fill="#555"/></pattern></defs>
     <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">5. LAB PREPARATION OF OXYGEN GAS (H2O2 + MnO2)</text>
     <path d="M 170 240 H 230 V 160 H 170 Z" fill="none" stroke="#000" stroke-width="2"/>
     <rect x="172" y="200" width="56" height="40" fill="#fff9c4"/>
-    <rect x="180" y="230" width="40" height="10" fill="url(#dots)"/>
+    <rect x="180" y="230" width="40" height="10" fill="url(#dots_gas)"/>
     <path d="M 190 70 V 180" fill="none" stroke="#000" stroke-width="4"/>
     <path d="M 180 70 L 190 90 L 200 70" fill="none" stroke="#000" stroke-width="2"/>
     <path d="M 210 170 H 215 V 100 H 350 V 260 H 370" fill="none" stroke="#000" stroke-width="3"/>
@@ -245,18 +257,18 @@ SVG_DICTIONARY = {
     <rect x="360" y="130" width="30" height="120" fill="none" stroke="#000" stroke-width="2"/>
     <rect x="362" y="180" width="26" height="70" fill="#e3f2fd"/>
     <circle cx="375" cy="160" r="2" fill="#000"/><circle cx="370" cy="150" r="2" fill="#000"/><circle cx="380" cy="140" r="2" fill="#000"/>
-    <line x1="185" y1="80" x2="110" y2="80" stroke="#000" marker-end="url(#arr)"/><text x="100" y="85" font-size="14" text-anchor="end">Thistle Funnel (Adds H2O2)</text>
-    <line x1="200" y1="235" x2="110" y2="235" stroke="#000" marker-end="url(#arr)"/><text x="100" y="240" font-size="14" text-anchor="end">Manganese(IV) Oxide Catalyst</text>
-    <line x1="280" y1="100" x2="280" y2="70" stroke="#000" marker-end="url(#arr)"/><text x="280" y="60" font-size="14" text-anchor="middle">Delivery Tube</text>
-    <line x1="375" y1="150" x2="450" y2="150" stroke="#000" marker-end="url(#arr)"/><text x="460" y="155" font-size="14">Oxygen Gas (O2)</text>
-    <line x1="390" y1="210" x2="450" y2="210" stroke="#000" marker-end="url(#arr)"/><text x="460" y="215" font-size="14">Inverted Gas Jar</text>
-    <line x1="420" y1="260" x2="450" y2="260" stroke="#000" marker-end="url(#arr)"/><text x="460" y="265" font-size="14">Water Trough</text>
+    <line x1="185" y1="80" x2="110" y2="80" stroke="#000" marker-end="url(#arr_gas)"/><text x="100" y="85" font-size="14" text-anchor="end">Thistle Funnel (Adds H2O2)</text>
+    <line x1="200" y1="235" x2="110" y2="235" stroke="#000" marker-end="url(#arr_gas)"/><text x="100" y="240" font-size="14" text-anchor="end">Manganese(IV) Oxide Catalyst</text>
+    <line x1="280" y1="100" x2="280" y2="70" stroke="#000" marker-end="url(#arr_gas)"/><text x="280" y="60" font-size="14" text-anchor="middle">Delivery Tube</text>
+    <line x1="375" y1="150" x2="450" y2="150" stroke="#000" marker-end="url(#arr_gas)"/><text x="460" y="155" font-size="14">Oxygen Gas (O2)</text>
+    <line x1="390" y1="210" x2="450" y2="210" stroke="#000" marker-end="url(#arr_gas)"/><text x="460" y="215" font-size="14">Inverted Gas Jar</text>
+    <line x1="420" y1="260" x2="450" y2="260" stroke="#000" marker-end="url(#arr_gas)"/><text x="460" y="265" font-size="14">Water Trough</text>
     </svg>
     """,
 
     "fractional_distillation": """
-    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc;">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_distil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
     <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">6. FRACTIONAL DISTILLATION</text>
     <circle cx="200" cy="230" r="30" fill="none" stroke="#000" stroke-width="2"/>
     <rect x="190" y="180" width="20" height="25" fill="none" stroke="#000" stroke-width="2"/>
@@ -267,17 +279,17 @@ SVG_DICTIONARY = {
     <path d="M 210 100 L 320 150" fill="none" stroke="#000" stroke-width="4"/>
     <path d="M 230 110 L 300 145" fill="none" stroke="#1976d2" stroke-width="12" opacity="0.3"/>
     <rect x="310" y="160" width="30" height="50" fill="none" stroke="#000" stroke-width="2"/>
-    <line x1="170" y1="230" x2="100" y2="230" stroke="#000" marker-end="url(#arr)"/><text x="90" y="235" font-size="14" text-anchor="end">Round Bottom Flask (Mixture)</text>
-    <line x1="190" y1="130" x2="100" y2="130" stroke="#000" marker-end="url(#arr)"/><text x="90" y="135" font-size="14" text-anchor="end">Fractionating Column (Glass Beads)</text>
-    <line x1="200" y1="65" x2="280" y2="65" stroke="#000" marker-end="url(#arr)"/><text x="290" y="70" font-size="14">Thermometer</text>
-    <line x1="265" y1="125" x2="350" y2="110" stroke="#000" marker-end="url(#arr)"/><text x="360" y="115" font-size="14">Liebig Condenser</text>
-    <line x1="340" y1="185" x2="400" y2="185" stroke="#000" marker-end="url(#arr)"/><text x="410" y="190" font-size="14">Distillate (Pure Fraction)</text>
+    <line x1="170" y1="230" x2="100" y2="230" stroke="#000" marker-end="url(#arr_distil)"/><text x="90" y="235" font-size="14" text-anchor="end">Round Bottom Flask (Mixture)</text>
+    <line x1="190" y1="130" x2="100" y2="130" stroke="#000" marker-end="url(#arr_distil)"/><text x="90" y="135" font-size="14" text-anchor="end">Fractionating Column (Glass Beads)</text>
+    <line x1="200" y1="65" x2="280" y2="65" stroke="#000" marker-end="url(#arr_distil)"/><text x="290" y="70" font-size="14">Thermometer</text>
+    <line x1="265" y1="125" x2="350" y2="110" stroke="#000" marker-end="url(#arr_distil)"/><text x="360" y="115" font-size="14">Liebig Condenser</text>
+    <line x1="340" y1="185" x2="400" y2="185" stroke="#000" marker-end="url(#arr_distil)"/><text x="410" y="190" font-size="14">Distillate (Pure Fraction)</text>
     </svg>
     """,
 
     "covalent_water": """
-    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc;">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
+    <svg width="100%" height="350" viewBox="0 0 800 325" style="border:1px solid #e2e8f0; border-radius: 8px; background:#f8fafc; margin-top:10px;">
+    <defs><marker id="arr_covalent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1.5 L10 5 L0 8.5 z" fill="#000"/></marker></defs>
     <text x="400" y="30" font-size="14" text-anchor="middle" font-weight="bold">7. COVALENT BONDING IN WATER (H2O DOT AND CROSS)</text>
     <circle cx="400" cy="180" r="60" fill="none" stroke="#d32f2f" stroke-width="2"/>
     <circle cx="330" cy="140" r="40" fill="none" stroke="#1976d2" stroke-width="2"/>
@@ -291,9 +303,9 @@ SVG_DICTIONARY = {
     <text x="350" y="152" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">x</text>
     <circle cx="440" cy="145" r="3" fill="#000"/>
     <text x="450" y="152" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">x</text>
-    <line x1="420" y1="220" x2="520" y2="250" stroke="#000" marker-end="url(#arr)"/><text x="530" y="255" font-size="14">Oxygen Outer Shell (6 Electrons)</text>
-    <line x1="360" y1="140" x2="250" y2="100" stroke="#000" marker-end="url(#arr)"/><text x="240" y="95" font-size="14" text-anchor="end">Shared Pair (Single Covalent Bond)</text>
-    <line x1="470" y1="100" x2="520" y2="80" stroke="#000" marker-end="url(#arr)"/><text x="530" y="85" font-size="14">Hydrogen Shell (1 Electron)</text>
+    <line x1="420" y1="220" x2="520" y2="250" stroke="#000" marker-end="url(#arr_covalent)"/><text x="530" y="255" font-size="14">Oxygen Outer Shell (6 Electrons)</text>
+    <line x1="360" y1="140" x2="250" y2="100" stroke="#000" marker-end="url(#arr_covalent)"/><text x="240" y="95" font-size="14" text-anchor="end">Shared Pair (Single Covalent Bond)</text>
+    <line x1="470" y1="100" x2="520" y2="80" stroke="#000" marker-end="url(#arr_covalent)"/><text x="530" y="85" font-size="14">Hydrogen Shell (1 Electron)</text>
     </svg>
     """
 }
@@ -317,12 +329,12 @@ UNEB_CURRICULUM_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
 }
 
 # ==========================================
-# 3. CHATBOT DIAGRAM MANAGER CLASS - FIXED FOR CLOUD
+# 3. CHATBOT DIAGRAM MANAGER CLASS - CLIENT RENDER
 # ==========================================
 class DiagramManager:
     @staticmethod
     def initialize_sprites() -> None:
-        pass # No longer needed
+        pass
 
     @classmethod
     def get_symbol_by_curriculum(cls, subject: str, level: str, topic: str) -> Optional[str]:
@@ -335,7 +347,8 @@ class DiagramManager:
             return
         svg_code = SVG_DICTIONARY.get(symbol_id)
         if svg_code:
-            components.html(svg_code, height=370, scrolling=False)
+            # KEY FIX: Use st.markdown to render on client, not server
+            st.markdown(svg_code, unsafe_allow_html=True)
         else:
             st.error(f"Diagram '{symbol_id}' not found in SVG_DICTIONARY")
 
