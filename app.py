@@ -43,7 +43,6 @@ else: # PRO
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
-# ADDED BACK THE MISSING MODES
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
 # SYLLABUS TOPICS - NO DATA LOST
@@ -168,13 +167,13 @@ def main():
             else: st.error("Incorrect Password")
         st.stop()
 
-    # SIDEBAR - ALL FEATURES RESTORED
+    # SIDEBAR - ALL FEATURES
     with st.sidebar:
         st.header("Settings")
         subject = st.selectbox("Select Subject", SUBJECTS)
         class_level = st.selectbox("Select Class", CLASSES)
 
-        # TOPICS SECTION BOX - ADDED BACK
+        # TOPICS SECTION BOX
         st.markdown("---")
         st.subheader("📖 Topics in Syllabus")
         with st.expander(f"View {subject} {class_level} Topics"):
@@ -192,90 +191,146 @@ def main():
         st.markdown(f"[📞 WhatsApp/Call: {ADMIN_CONTACT}](https://wa.me/256{ADMIN_CONTACT[1:]})")
         st.caption("Disclaimer: This app is not affiliated with UNEB. Content is aligned to NCDC Uganda Syllabus for practice purposes only.")
 
-    # MODE LOGIC - ALL MODES INCLUDED
+    # MODE LOGIC - ASK BOX ADDED TO EVERY MODE
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
-        query = st.text_input("Ask any question from the syllabus")
-        if st.button("Search") and query:
+        query = st.text_input("Ask any question from the syllabus", key="ask_smart")
+        if st.button("Search", key="btn_smart") and query:
             prompt = f"Explain {query} for {class_level} {subject} in Uganda. Give examples."
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
             st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Smart Search: {query}"})
 
-    elif mode == "Theory Mode": # ADDED BACK
+    elif mode == "Theory Mode":
         st.header("📘 Theory Mode")
-        topic = st.selectbox("Select Topic for Detailed Theory", SYLLABUS[subject][class_level])
-        if st.button("Explain Theory"):
-            prompt = f"Give detailed theory notes on {topic} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
-            response = generate_ai_response(client, prompt, subject, class_level)
-            st.write(response)
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory: {topic}"})
+        query = st.text_input("Ask about any theory topic", key="ask_theory")
+        topic_dropdown = st.selectbox("Or Select Topic", SYLLABUS[subject][class_level], key="topic_theory")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ask AI", key="btn_theory_ask") and query:
+                prompt = f"Give detailed theory notes on {query} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory Ask: {query}"})
+        with col2:
+            if st.button("Explain Selected Topic", key="btn_theory_topic"):
+                prompt = f"Give detailed theory notes on {topic_dropdown} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory: {topic_dropdown}"})
 
-    elif mode == "Lesson Preparation": # ADDED BACK
+    elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
-        topic = st.selectbox("Select Topic for Lesson Plan", SYLLABUS[subject][class_level])
-        if st.button("Generate Lesson Plan"):
-            prompt = f"Prepare a 40-minute lesson plan for {topic} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
-            response = generate_ai_response(client, prompt, subject, class_level)
-            st.write(response)
-            pdf = create_pdf(response, "lesson_plan.pdf")
-            st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf")
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic}"})
+        query = st.text_input("Ask to prepare a lesson on any topic", key="ask_lesson")
+        topic_dropdown = st.selectbox("Or Select Topic", SYLLABUS[subject][class_level], key="topic_lesson")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Generate Lesson Plan", key="btn_lesson_ask") and query:
+                prompt = f"Prepare a 40-minute lesson plan for {query} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                pdf = create_pdf(response, "lesson_plan.pdf")
+                st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_ask")
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan Ask: {query}"})
+        with col2:
+            if st.button("Generate for Selected Topic", key="btn_lesson_topic"):
+                prompt = f"Prepare a 40-minute lesson plan for {topic_dropdown} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                pdf = create_pdf(response, "lesson_plan.pdf")
+                st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_topic")
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic_dropdown}"})
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
-        practical = st.selectbox("Select Practical", [p["name"] for p in PRACTICALS[subject]])
-        p_data = next(p for p in PRACTICALS[subject] if p["name"] == practical)
-        st.subheader(p_data["name"])
-        st.write(f"**Aim:** {p_data['aim']}")
-        st.write(f"**Materials:** {p_data['materials']}")
-        st.write(f"**Procedure:** {p_data['procedure']}")
-        if p_data["graph"]:
-            st.info(f"Suggested Graph: {p_data['graph']}")
-            if st.button("Generate Sample Graph"):
-                x = np.linspace(0, 10, 20)
-                y = x * random.uniform(0.5, 2)
-                df = pd.DataFrame({"X": x, "Y": y})
-                fig = generate_graph(df, "X", "Y", p_data["graph"])
-                st.plotly_chart(fig)
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical: {practical}"})
+        query = st.text_input("Ask about any practical", key="ask_practical")
+        practical = st.selectbox("Or Select Practical", [p["name"] for p in PRACTICALS[subject]], key="practical_select")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ask AI About Practical", key="btn_practical_ask") and query:
+                prompt = f"Explain the practical '{query}' for {class_level} {subject}. Give aim, materials, procedure, precautions."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical Ask: {query}"})
+        with col2:
+            if st.button("Show Selected Practical", key="btn_practical_show"):
+                p_data = next(p for p in PRACTICALS[subject] if p["name"] == practical)
+                st.subheader(p_data["name"])
+                st.write(f"**Aim:** {p_data['aim']}")
+                st.write(f"**Materials:** {p_data['materials']}")
+                st.write(f"**Procedure:** {p_data['procedure']}")
+                if p_data["graph"]:
+                    st.info(f"Suggested Graph: {p_data['graph']}")
+                    if st.button("Generate Sample Graph", key="btn_graph"):
+                        x = np.linspace(0, 10, 20)
+                        y = x * random.uniform(0.5, 2)
+                        df = pd.DataFrame({"X": x, "Y": y})
+                        fig = generate_graph(df, "X", "Y", p_data["graph"])
+                        st.plotly_chart(fig)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical: {practical}"})
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
-        topic = st.selectbox("Select Topic", SYLLABUS[subject][class_level])
-        if st.button("Generate Quiz"):
-            prompt = f"Generate 5 MCQ questions on {topic} for {class_level} {subject}. Include answers."
-            response = generate_ai_response(client, prompt, subject, class_level)
-            st.write(response)
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz: {topic}"})
+        query = st.text_input("Ask to generate quiz on any topic", key="ask_quiz")
+        topic_dropdown = st.selectbox("Or Select Topic", SYLLABUS[subject][class_level], key="topic_quiz")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Generate Quiz", key="btn_quiz_ask") and query:
+                prompt = f"Generate 5 MCQ questions on {query} for {class_level} {subject}. Include answers."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz Ask: {query}"})
+        with col2:
+            if st.button("Generate for Selected Topic", key="btn_quiz_topic"):
+                prompt = f"Generate 5 MCQ questions on {topic_dropdown} for {class_level} {subject}. Include answers."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz: {topic_dropdown}"})
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
-        if st.button("Generate Prediction Paper"):
-            prompt = f"Predict likely exam questions for {class_level} {subject} UCE/UACE based on NCDC syllabus."
-            response = generate_ai_response(client, prompt, subject, class_level)
-            st.write(response)
-            pdf = create_pdf(response, "prediction.pdf")
-            st.download_button("Download PDF", pdf, "prediction.pdf")
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": "Predict Paper"})
+        query = st.text_input("Ask to predict papers for specific topic", key="ask_predict")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Predict for Asked Topic", key="btn_predict_ask") and query:
+                prompt = f"Predict likely exam questions on {query} for {class_level} {subject} UCE/UACE based on NCDC syllabus."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                pdf = create_pdf(response, "prediction.pdf")
+                st.download_button("Download PDF", pdf, "prediction.pdf", key="dl_predict_ask")
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Predict Ask: {query}"})
+        with col2:
+            if st.button("Predict Full Subject", key="btn_predict_full"):
+                prompt = f"Predict likely exam questions for {class_level} {subject} UCE/UACE based on NCDC syllabus."
+                response = generate_ai_response(client, prompt, subject, class_level)
+                st.write(response)
+                pdf = create_pdf(response, "prediction.pdf")
+                st.download_button("Download PDF", pdf, "prediction.pdf", key="dl_predict_full")
+                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": "Predict Paper"})
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
+        query = st.text_input("Type your question here too", key="ask_voice")
         audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="recorder")
         if audio:
             st.audio(audio["bytes"])
-            text_input = st.text_input("Or type your question")
-            if text_input:
-                response = generate_ai_response(client, text_input, subject, class_level)
-                st.write(response)
-                tts = gTTS(response)
-                tts.save("response.mp3")
-                st.audio("response.mp3")
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": "Voice Chat"})
+        if st.button("Send Typed Question", key="btn_voice_text") and query:
+            response = generate_ai_response(client, query, subject, class_level)
+            st.write(response)
+            tts = gTTS(response)
+            tts.save("response.mp3")
+            st.audio("response.mp3")
+            st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Voice Ask: {query}"})
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
+        query = st.text_input("Ask about your progress", key="ask_progress")
+        if st.button("Ask AI", key="btn_progress") and query:
+            prompt = f"A student is using UCE/UACE DIGITAL TUTOR for {subject} {class_level}. They ask: {query}. Give helpful advice."
+            response = generate_ai_response(client, prompt, subject, class_level)
+            st.write(response)
         if st.session_state.activities_log:
+            st.subheader("Activity Log")
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df)
         else: st.info("No activities yet")
