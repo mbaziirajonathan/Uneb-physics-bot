@@ -61,47 +61,64 @@ def render_graph(df, x, y, title):
         st.download_button("📥 Download Graph PNG", buf, f"{title}.png", "image/png")
     except Exception as e: st.error(f"Graph failed: {e}")
 
-def build_messages(system, user, history): msgs = [{"role": "system", "content": system}]; msgs.extend(history[-6:]); msgs.append({"role": "user", "content": user}); return msgs
+def validate_subject(text, subject):
+    other_subjects = ["Physics", "Chemistry", "Biology"]
+    other_subjects.remove(subject)
+    for os in other_subjects:
+        if f"UNEB {os}" in text or f"In {os}" in text: return False
+    return True
+
+def call_groq(client, messages, subject):
+    for attempt in range(2):
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages, temperature=0.1, max_tokens=600)
+        text = res.choices[0].message.content
+        if validate_subject(text, subject) or attempt == 1: return text
+    return text
 
 def universal_search(client, query, subject, level, history):
-    system = f"CRITICAL: You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026. You ONLY teach {subject}. If asked about other subjects, refuse and redirect to {subject}. Never hallucinate."
-    user = f"Student searched: '{query}'. Answer in 5 bullets: 1.Definition 2.UNEB example 3.Formula 4.Common mistake 5.Quick tip. Only use {subject} content."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.1, max_tokens=500)
-    return res.choices[0].message.content
+    system = f"""ROLE: You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026.
+    RULES: 
+    1. YOU ONLY TEACH {subject}. 
+    2. IF QUESTION IS NOT ABOUT {subject}, SAY: "I only teach {subject}. Please select {subject} in the sidebar."
+    3. NEVER MENTION PHYSICS IF SUBJECT IS CHEMISTRY. NEVER MENTION CHEMISTRY IF SUBJECT IS PHYSICS.
+    4. BE EXAM FOCUSED."""
+    user = f"SUBJECT: {subject} LEVEL: {level} TOPIC SEARCH: '{query}'. Answer in 5 bullets: 1.Definition 2.UNEB example 3.Formula 4.Common mistake 5.Quick tip. Use only {subject} examples."
+    msgs = [{"role": "system", "content": system}] + history[-4:] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def explain_mistake(client, subject, level, question, wrong_answer, history):
-    system = f"CRITICAL: You are a UNEB {subject} examiner for {level} Uganda. Only mark {subject}."
-    user = f"Question: {question}\nStudent Wrong Answer: {wrong_answer}\nExplain: 1.Why wrong 2.What UNEB expects 3.How to get full marks 4.Related {subject} concept."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.2, max_tokens=600)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} examiner for {level} Uganda. RULE: Only mark {subject} questions. Refuse other subjects."
+    user = f"SUBJECT: {subject} Q: {question}\nStudent Wrong Answer: {wrong_answer}\nExplain: 1.Why wrong 2.What UNEB expects 3.How to get full marks 4.Related {subject} concept."
+    msgs = [{"role": "system", "content": system}] + history[-2:] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def generate_quiz(client, subject, level, topic, history):
-    system = f"CRITICAL: You are a UNEB {subject} tutor assistant 2026. Only generate {subject} questions."
-    user = f"Generate 10 MCQ for {subject} {level} on topic: {topic}. Format: Q1. Q? A. B. C. D. Answer: C. Only {subject} syllabus."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.7, max_tokens=1200)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} tutor assistant 2026. RULE: Only generate {subject} questions."
+    user = f"SUBJECT: {subject} LEVEL: {level} TOPIC: {topic}. Generate 10 MCQ. Format: Q1. Q? A. B. C. D. Answer: C. Only {subject} syllabus."
+    msgs = [{"role": "system", "content": system}] + history[-2:] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def generate_marking_scheme(client, subject, level, question, student_answer, history):
-    system = f"CRITICAL: You are a UNEB {subject} Head Examiner 2026 for {level}. Mark only {subject}."
-    user = f"Q: {question}\nStudent: {student_answer}\nGenerate: 1.MODEL ANSWER 2.MARKING GUIDE 3.COMMON MISTAKES 4.TIPS. For {subject} only."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.2, max_tokens=800)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} Head Examiner 2026 for {level}. RULE: Mark only {subject}."
+    user = f"SUBJECT: {subject} Q: {question}\nStudent: {student_answer}\nGenerate: 1.MODEL ANSWER 2.MARKING GUIDE 3.COMMON MISTAKES 4.TIPS."
+    msgs = [{"role": "system", "content": system}] + history[-2:] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 @st.cache_data
 def load_past_papers(): return SAMPLE_PAST_PAPERS
 def search_past_papers(topic, subject): papers = load_past_papers(); return [q for q in papers if topic.lower() in q['topic'].lower() and q['subject']==subject]
 
 def generate_apparatus_list(client, practical_topic, subject, history):
-    system = f"CRITICAL: You are a UNEB {subject} lab technician. Only discuss {subject} practicals."
-    user = f"For UNEB Uganda {subject} practical: {practical_topic}, list apparatus for 40 students. Include cost in UGX and local alternatives."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.3, max_tokens=600)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} lab technician. RULE: Only discuss {subject} practicals."
+    user = f"SUBJECT: {subject} PRACTICAL: {practical_topic}. List apparatus for 40 students. Include cost in UGX and local alternatives."
+    msgs = [{"role": "system", "content": system}] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def translate_explanation(client, text, language, subject, level, history):
     system = f"You are a translator for {subject} {level} Uganda."
     user = f"Translate this {subject} explanation to simple {language} for {level} students. Keep science terms English. Text: {text}"
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.5, max_tokens=400)
-    return res.choices[0].message.content
+    msgs = [{"role": "system", "content": system}] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def generate_inspector_report(school_name, activities_done):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); w,h = A4; p.setFont("Helvetica-Bold",18); p.drawString(40,h-50,"DIGITAL UNEB TUTOR - ACTIVITY REPORT"); p.setFont("Helvetica",12); p.drawString(40,h-80,f"School: {school_name}"); p.drawString(40,h-100,f"Date: {datetime.now().strftime('%d/%m/%Y')}"); p.drawString(40,h-120,"Activities Conducted This Term:"); y=h-150
@@ -111,35 +128,36 @@ def generate_inspector_report(school_name, activities_done):
     p.drawString(40,y-40,"Remarks: Digital support provided in line with Ministry Digital Agenda 2025-2032"); p.drawString(40,y-70,"Signed: __________________ Stamp: __________________"); p.save(); buffer.seek(0); return buffer
 
 def generate_practical(client, subject, level, topic, history):
-    system = f"CRITICAL: You are a UNEB {subject} examiner for {level} Uganda NCDC 2026. Only {subject} practicals."
-    user = f"Generate complete practical report for: {topic}. Include AIM,HYPOTHESIS,VARIABLES,APPARATUS,PROCEDURE,SAFETY,DATA TABLE,GRAPH GUIDE,CONCLUSION. End with JSON data: ```json {{\"x_label\": \"X\", \"y_label\": \"Y\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10],[6,12]]}} ```"
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.2, max_tokens=2000)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} examiner for {level} Uganda NCDC 2026. RULE: Only {subject} practicals."
+    user = f"SUBJECT: {subject} TOPIC: {topic}. Generate complete practical report. Include AIM,HYPOTHESIS,VARIABLES,APPARATUS,PROCEDURE,SAFETY,DATA TABLE,GRAPH GUIDE,CONCLUSION. End with JSON data: ```json {{\"x_label\": \"X\", \"y_label\": \"Y\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10],[6,12]]}} ```"
+    msgs = [{"role": "system", "content": system}] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def describe_and_draw_graph(client, prompt, subject, history):
-    system = f"CRITICAL: You are a UNEB {subject} examiner Uganda 2026. Only {subject} graphs."
-    user = f"Describe and generate data for this graph: {prompt}. Return JSON then 3 UNEB marking points for {subject}."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, user, history), temperature=0.3, max_tokens=1200)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} examiner Uganda 2026. RULE: Only {subject} graphs."
+    user = f"SUBJECT: {subject} GRAPH: {prompt}. Return JSON then 3 UNEB marking points for {subject}."
+    msgs = [{"role": "system", "content": system}] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
 
 def describe_uploaded_graph(client, image_bytes, subject):
-    b64 = base64.b64encode(image_bytes).decode(); system = f"CRITICAL: You are a UNEB {subject} examiner. Analyze only {subject} graphs."; user = f"Describe this graph image and tell me what {subject} experiment it represents for UNEB Uganda 2026."
-    res = client.chat.completions.create(model="llama-3.2-11b-vision-preview", messages=[{"role":"system","content":system},{"role":"user","content":[{"type":"text","text":user},{"type":"image_url","image_url":{"url":f"data:image/png;base64,{b64}"}}]}], temperature=0.3, max_tokens=800)
+    b64 = base64.b64encode(image_bytes).decode(); system = f"ROLE: You are a UNEB {subject} examiner. RULE: Analyze only {subject} graphs."; user = f"SUBJECT: {subject} Describe this graph image and tell me what {subject} experiment it represents for UNEB Uganda 2026."
+    res = client.chat.completions.create(model="llama-3.2-11b-vision-preview", messages=[{"role":"system","content":system},{"role":"user","content":[{"type":"text","text":user},{"type":"image_url","image_url":{"url":f"data:image/png;base64,{b64}"}}]}], temperature=0.2, max_tokens=800)
     return res.choices[0].message.content
 
 def voice_chat(client, audio_bytes, subject, level, history):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp: tmp.write(audio_bytes); tmp_path = tmp.name
     with open(tmp_path, "rb") as audio_file: transcription = client.audio.transcriptions.create(file=audio_file, model="whisper-large-v3")
-    user_text = transcription.text; system = f"CRITICAL: You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026. Only answer {subject}."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, f"Question: {user_text}. Answer in 4 sentences max. Only {subject} content.", history), temperature=0.5, max_tokens=300)
+    user_text = transcription.text; system = f"ROLE: You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026. RULE: Only answer {subject}."
+    msgs = [{"role": "system", "content": system}] + history[-2:] + [{"role": "user", "content": f"SUBJECT: {subject} Question: {user_text}. Answer in 4 sentences max."}]
+    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=msgs, temperature=0.3, max_tokens=300)
     answer_text = res.choices[0].message.content; tts = gTTS(text=answer_text, lang='en'); audio_buf = io.BytesIO(); tts.write_to_fp(audio_buf); audio_buf.seek(0)
     return user_text, answer_text, audio_buf
 
 def generate_prediction(client, subject, paper, history):
-    system = f"CRITICAL: You are a UNEB {subject} Head of Examinations 2026. Only {subject} papers."
-    prompts = {"P1": f"Generate 40 MCQ for {subject} Paper 1. Mix {subject} topics S1-S4. 4 options A-D. NCDC 2026. Mark answers.","P2": f"Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include 2 calculations, 1 diagram. 10 marks each. Marking guide.","P3": f"Generate 3 Practical scenarios for {subject} Paper 3. Competency-based NCDC 2026. Include apparatus."}
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=build_messages(system, prompts[paper], history), temperature=0.7, max_tokens=1600)
-    return res.choices[0].message.content
+    system = f"ROLE: You are a UNEB {subject} Head of Examinations 2026. RULE: Only {subject} papers."
+    prompts = {"P1": f"SUBJECT: {subject} Generate 40 MCQ for {subject} Paper 1. Mix {subject} topics S1-S4. 4 options A-D. NCDC 2026. Mark answers.","P2": f"SUBJECT: {subject} Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include 2 calculations, 1 diagram. 10 marks each. Marking guide.","P3": f"SUBJECT: {subject} Generate 3 Practical scenarios for {subject} Paper 3. Competency-based NCDC 2026. Include apparatus."}
+    msgs = [{"role": "system", "content": system}] + [{"role": "user", "content": prompts[paper]}]
+    return call_groq(client, msgs, subject)
 
 def create_pdf(topic, subject, level, notes):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); w,h = A4; p.setFont("Helvetica-Bold",16); p.drawString(40,h-50,f"UNEB 2026: {subject} {level}"); p.drawString(40,h-75,f"Topic: {topic}"); p.setFont("Helvetica",10); y=h-110; p.drawString(40,y,"Key Notes:"); y-=20
@@ -188,8 +206,8 @@ def main():
         with col1:
             if st.button("Generate UNEB Notes", use_container_width=True):
                 with st.spinner("Generating notes..."):
-                    prompt = f"Give 6 concise UNEB {level} exam notes for {subject} topic: {topic}. NCDC Uganda syllabus 2026. Competency based."
-                    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=400); st.session_state.notes = res.choices[0].message.content; st.session_state.activities_log.append(f"Generated {subject} notes for {topic}")
+                    prompt = f"ROLE: UNEB {subject} tutor. SUBJECT: {subject} LEVEL: {level} TOPIC: {topic}. Give 6 concise UNEB exam notes. NCDC Uganda syllabus 2026. Competency based."
+                    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":f"You are UNEB {subject} tutor only."},{"role":"user","content":prompt}], max_tokens=400); st.session_state.notes = res.choices[0].message.content; st.session_state.activities_log.append(f"Generated {subject} notes for {topic}")
             st.divider()
             if st.button("🔍 Get 5 UNEB Past Paper Questions", use_container_width=True):
                 papers = search_past_papers(topic, subject)
@@ -197,7 +215,7 @@ def main():
                 else: st.info("No past papers yet for this topic.")
             st.divider(); ask_box(client, "theory", subject, level)
             if "notes" in st.session_state: st.markdown("### Key Notes"); st.markdown(st.session_state.notes); pdf = create_pdf(topic,subject,level,st.session_state.notes); st.download_button("📄 Download PDF",pdf,f"UNEB_{subject}_{level}_{topic}.pdf", use_container_width=True)
-        with col2: key = (subject,level,topic);
+        with col2: key = (subject,level,topic)
         if key in DIAGRAM_FILES and os.path.exists(DIAGRAM_FILES[key]): st.image(DIAGRAM_FILES[key], caption=topic, use_column_width=True)
         else: st.info("No diagram for this topic yet")
 
@@ -262,7 +280,6 @@ def main():
 
     elif mode == "💬 Chat Memory":
         st.title("💬 Chat Memory - Yesterday's Explanations")
-        st.write("Search your past chats. Ask: 'explain what we did yesterday on acids'")
         mem_q = st.text_input("Search Memory:", placeholder="e.g. what did we say about titration")
         if st.button("Recall", use_container_width=True):
             if mem_q:
