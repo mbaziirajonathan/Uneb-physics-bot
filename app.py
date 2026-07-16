@@ -348,7 +348,7 @@ def main():
         with c3:
             if st.button("Generate P3 Practical + Examples", use_container_width=True):
                 with st.spinner("..."): st.session_state.p3 = generate_prediction(client,subject,"P3", level, st.session_state.chat_history); st.session_state.activities_log.append(f"Generated {subject} P3")
-                      if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
+            if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
 
     elif mode == "🛠️ Teacher Tools":
         st.title("🛠️ Teacher Support Tools"); tab1, tab2 = st.tabs(["📝 Marking Helper", "📄 Inspector Report"])
@@ -363,3 +363,4 @@ def main():
             else: st.warning("No activities logged yet.")
 
 if __name__ == "__main__": main()
+    
