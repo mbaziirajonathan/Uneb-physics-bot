@@ -11,6 +11,7 @@ from PIL import Image
 import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
+from pathlib import Path # NEW: to force correct path
 
 # HARDCODED APP BRANDING - NO MORE "STREAMLIT" OR "UNEB"
 st.set_page_config(
@@ -34,7 +35,10 @@ APP_PASSWORD = st.secrets["APP_PASSWORD"]
 
 # CONSTANTS
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
-DIAGRAMS_DIR = os.path.join(os.getcwd(), "assets", "diagrams")
+
+# FORCE CORRECT PATH FOR STREAMLIT CLOUD
+BASE_DIR = Path(__file__).parent
+DIAGRAMS_DIR = BASE_DIR / "assets" / "diagrams"
 
 # UPDATE SUBJECTS BASED ON LICENSE
 if LICENSE_TIER == "FREE":
@@ -150,72 +154,62 @@ def sanitize_filename(name):
     return name
 
 def find_diagram(topic):
-    """FUZZY SEARCH V3: Uses your exact file names + keyword map"""
-    if not os.path.exists(DIAGRAMS_DIR):
-        return None, []
+    """FINAL: Forces Streamlit Cloud to see assets/diagrams using Path(__file__)"""
+    if not DIAGRAMS_DIR.exists():
+        return None, [f"Folder not found at: {DIAGRAMS_DIR}"]
 
     search_key = sanitize_filename(topic)
     search_words = [w for w in search_key.split() if len(w) > 2]
-    all_pngs = glob.glob(os.path.join(DIAGRAMS_DIR, "*.png"))
-    all_filenames = [os.path.basename(f) for f in all_pngs]
+    all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
+    all_filenames = [f.name for f in all_pngs]
 
-    # KEYWORD MAP: Topic -> matches your actual filenames
     KEYWORD_MAP = {
+        "respiration": ["respiratory_system"],
         "transport in plants": ["transport_in_plants"],
         "microbiology": ["prokaryotic_eukaryotic", "chemical_cell"],
         "human eye": ["human_eye"],
         "human ear": ["human_ear"],
         "alveolus": ["alveolus", "respiratory_system"],
-        "respiratory system": ["respiratory_system"],
-        "human body systems": ["body_systems", "heart", "human_brain"],
         "cells": ["animal_cell", "plant_cell", "chemical_cell"],
         "chemical bonding": ["chemical_bonding", "covalent_water"],
-        "periodic table": ["periodic_table"],
-        "chemical kinetics": ["chemical_kinetics"],
-        "chromatography": ["chromatography"],
         "waves": ["transverse_wave", "longitudinal_wave"],
         "light": ["light_reflection", "convex_concave_lens"],
-        "optics": ["convex_concave_lens", "light_reflection"],
         "electricity": ["simple_circuit", "ac_dc_electricity"],
         "ac/dc": ["ac_dc_electricity", "ac_generator"],
         "electronics": ["transformer", "ac_generator", "cro"],
         "magnetism": ["bar_magnet", "electroscope"],
-        "electrostatics": ["electroscope"],
         "measurement": ["vernier", "spring_balance"],
         "motion": ["linear_motion", "pendulum"],
         "heat": ["heat_capacity", "colorimeter"],
         "radioactivity": ["radioactivity"],
         "dna": ["dna"],
         "ecology": ["ecology"],
-        "hydrocarbon": ["hydrocarbon"],
         "atoms": ["atom"],
-        "molecules": ["covalent_water"],
         "leaf": ["leaf"],
         "neurone": ["neurone"],
         "nephron": ["nephron"],
         "growth": ["human_growth_cycle"],
+        "body systems": ["body_systems", "heart", "human_brain"],
     }
 
-    # 1. Check keyword map first
     for key, possible_files in KEYWORD_MAP.items():
         if key in search_key:
             for pf in possible_files:
                 for f in all_pngs:
-                    if pf in os.path.basename(f).lower():
-                        return f, all_filenames
+                    if pf in f.name.lower():
+                        return str(f), all_filenames
 
-    # 2. General fuzzy match
     best_match = None
     best_score = 0
     for png_path in all_pngs:
-        filename = os.path.basename(png_path).lower().replace(".png", "")
+        filename = png_path.name.lower().replace(".png", "")
         score = sum(1 for word in search_words if word in filename)
         if score > best_score:
             best_score = score
             best_match = png_path
 
     if best_score >= 1:
-        return best_match, all_filenames
+        return str(best_match), all_filenames
 
     return None, all_filenames
 
@@ -320,7 +314,7 @@ def main():
 
         diagram_path, all_files = find_diagram(topic)
 
-        if diagram_path:
+        if diagram_path and os.path.exists(diagram_path):
             image = Image.open(diagram_path)
             st.image(image, caption=f"{subject} {class_level} - {topic}", use_column_width=True)
             with open(diagram_path, "rb") as file:
@@ -328,12 +322,9 @@ def main():
             st.success(f"Found: `{os.path.basename(diagram_path)}`")
         else:
             st.error(f"Diagram for '{topic}' not found yet.")
-            st.info(f"Looking in: `assets/diagrams/`")
+            st.info(f"Looking in: `{DIAGRAMS_DIR}`")
             st.markdown("**Available diagrams in folder:**")
-            if all_files:
-                st.code("\n".join(sorted(all_files)))
-            else:
-                st.code("No PNGs found. Check if assets/diagrams/ is pushed to Github")
+            st.code("\n".join(sorted(all_files)) if all_files else "0 files found. Check Github repo structure.")
 
         st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Diagram: {topic}"})
 
