@@ -348,21 +348,39 @@ def main():
                 with st.spinner("..."): st.session_state.p2 = generate_prediction(client,subject,"P2", level, st.session_state.chat_history); st.session_state.activities_log.append(f"Generated {subject} P2")
             if "p2" in st.session_state: st.text_area("Paper 2", st.session_state.p2, height=400)
         with c3:
-            if st.button("Generate P3 Practical + Examples", use   
             if st.button("Generate P3 Practical + Examples", use_container_width=True):
-                with st.spinner("..."): st.session_state.p3 = generate_prediction(client,subject,"P3", level, st.session_state.chat_history); st.session_state.activities_log.append(f"Generated {subject} P3")
-            if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
+                with st.spinner("..."): 
+                    st.session_state.p3 = generate_prediction(client,subject,"P3", level, st.session_state.chat_history)
+                    st.session_state.activities_log.append(f"Generated {subject} P3")
+            if "p3" in st.session_state: 
+                 st.text_area("Paper 3", st.session_state.p3, height=400)
 
     elif mode == "🛠️ Teacher Tools":
-        st.title("🛠️ Teacher Support Tools"); tab1, tab2 = st.tabs(["📝 Marking Helper", "📄 Inspector Report"])
-        with tab1: qn = st.text_area("Paste UNEB Question:", height=100); ans = st.text_area("Paste Student Answer (optional):", height=100)
+        st.title("🛠️ Teacher Support Tools")
+        tab1, tab2 = st.tabs(["📝 Marking Helper", "📄 Inspector Report"])
+        
+        with tab1: 
+            qn = st.text_area("Paste UNEB Question:", height=100)
+            ans = st.text_area("Paste Student Answer (optional):", height=100)
+        
         if st.button("Generate Marking Scheme + 3 Models"):
             if qn:
-                with st.spinner("Generating marking guide..."): scheme = generate_marking_scheme(client, subject, level, qn, ans, topic, st.session_state.chat_history); st.markdown(scheme); st.session_state.activities_log.append(f"{subject} Marking scheme")
-            else: st.warning("Please enter a question")
-        with tab2: school = st.text_input("School Name:", value="Nabiswera Progressive SS")
+                with st.spinner("Generating marking guide..."): 
+                    scheme = generate_marking_scheme(client, subject, level, qn, ans, topic, st.session_state.chat_history)
+                    st.markdown(scheme)
+                    st.session_state.activities_log.append(f"{subject} Marking scheme")
+            else: 
+                st.warning("Please enter a question")
+        
+        with tab2: 
+            school = st.text_input("School Name:", value="Nabiswera Progressive SS")
+        
         if st.button("Generate PDF Report"):
-            if st.session_state.activities_log: pdf = generate_inspector_report(school, st.session_state.activities_log); st.download_button("📥 Download Activity Report", pdf, f"Report_{school}.pdf")
-            else: st.warning("No activities logged yet.")
+            if st.session_state.activities_log: 
+                pdf = generate_inspector_report(school, st.session_state.activities_log)
+                st.download_button("📥 Download Activity Report", pdf, f"Report_{school}.pdf")
+            else: 
+                st.warning("No activities logged yet.")
 
-if __name__ == "__main__": main()           
+if __name__ == "__main__": 
+    main()          
