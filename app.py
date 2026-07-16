@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 from datetime import datetime
-from groq import Groq, GroqError
+from groq import Groq
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from PIL import Image
@@ -23,48 +23,16 @@ def check_password():
     else: return True
 if not check_password(): st.stop()
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide", initial_sidebar_state="expanded")
 
 PRACTICAL_TOPICS = {
-    "Physics": [
-        "Simple Pendulum - Finding g",
-        "Principle of Moments - Lever",
-        "Hooke's Law - Spring Constant",
-        "Density and Upthrust - Archimedes",
-        "Converging Lens - Focal Length",
-        "Glass Block - Refractive Index",
-        "Ohm's Law - V vs I Graph",
-        "Resistance vs Length - Wire",
-        "Specific Heat Capacity - Water",
-        "Electrostatics - Gold Leaf Electroscope"
-    ],
-    "Chemistry": [
-        "Acid-Base Titration - HCl vs NaOH",
-        "Back Titration - Purity of Na2CO3",
-        "Heat of Neutralization",
-        "Rates of Reaction - HCl + CaCO3",
-        "Qualitative Analysis - Cations",
-        "Qualitative Analysis - Anions",
-        "Gas Tests - H2, CO2, O2, NH3",
-        "Enthalpy Change - Dissolution",
-        "Electrolysis of Water",
-        "Preparation and Properties of Oxygen"
-    ],
-    "Biology": [
-        "Food Tests - Starch, Protein, Lipids",
-        "Osmosis in Potato Cylinders",
-        "Photosynthesis Rate - Elodea",
-        "Respiration in Germinating Seeds",
-        "Microscopy - Onion and Cheek Cells",
-        "Ecological Sampling - Quadrat",
-        "Transpiration - Potometer",
-        "Enzyme Activity - Catalase",
-        "Human Blood Smear - WBC Count",
-        "Germination Conditions - Seeds"
-    ]
+    "Physics": ["Simple Pendulum - Finding g","Principle of Moments - Lever","Hooke's Law - Spring Constant","Density and Upthrust - Archimedes","Converging Lens - Focal Length","Glass Block - Refractive Index","Ohm's Law - V vs I Graph","Resistance vs Length - Wire","Specific Heat Capacity - Water","Electrostatics - Gold Leaf Electroscope"],
+    "Chemistry": ["Acid-Base Titration - HCl vs NaOH","Back Titration - Purity of Na2CO3","Heat of Neutralization","Rates of Reaction - HCl + CaCO3","Qualitative Analysis - Cations","Qualitative Analysis - Anions","Gas Tests - H2, CO2, O2, NH3","Enthalpy Change - Dissolution","Electrolysis of Water","Preparation and Properties of Oxygen"],
+    "Biology": ["Food Tests - Starch, Protein, Lipids","Osmosis in Potato Cylinders","Photosynthesis Rate - Elodea","Respiration in Germinating Seeds","Microscopy - Onion and Cheek Cells","Ecological Sampling - Quadrat","Transpiration - Potometer","Enzyme Activity - Catalase","Human Blood Smear - WBC Count","Germination Conditions - Seeds"]
 }
 
 UNEB_CURRICULUM_MAP = {"Physics": {"S1": ["Introduction to Physics", "Measurement", "Force", "Work, Energy and Power", "Pressure"],"S2": ["Current Electricity", "Light: Reflection", "Light: Refraction", "Waves", "Heat"],"S3": ["Hookes Law and Elasticity", "Specific Heat Capacity", "Magnetism", "Electrostatics", "Sound"],"S4": ["Transformers", "Electronics", "Nuclear Physics", "A.C Theory", "Cathode Rays and X-Rays", "Astrophysics"]},"Chemistry": {"S1": ["Introduction to Chemistry", "Structure of an Atom", "Chemical Bonding", "Periodic Table", "Chemical Formulas"],"S2": ["Water and Hydrogen", "Oxygen and Oxides", "Acids, Bases and Salts", "Metals", "Air and Combustion"],"S3": ["Rates of Reaction", "Energy Changes", "Organic Chemistry Intro", "Chemical Equations", "Mole Concept"],"S4": ["Electrochemistry", "Industrial Chemistry", "Organic Chemistry II", "Equilibrium", "Nuclear Chemistry"]},"Biology": {"S1": ["Introduction to Biology", "Plant Cell and Animal Cell", "Ecosystem", "Characteristics of Living Things", "Nutrition in Plants"],"S2": ["Circulatory System", "Photosynthesis", "Respiration", "Excretion", "Human Digestive System"],"S3": ["DNA and RNA", "Genetics", "Cell Division", "Ecology", "Reproduction in Plants"],"S4": ["Nervous System", "Immunity", "Human Reproductive System", "Evolution", "Environmental Conservation"]}}
+
 DIAGRAM_FILES = {("Physics","S1","Measurement"): "assets/vernier.png",("Physics","S2","Current Electricity"): "assets/simple_circuit.png",("Physics","S3","Hookes Law and Elasticity"): "assets/hookes_law.png",("Physics","S4","Transformers"): "assets/ac_transformer.png",("Physics","S4","Astrophysics"): "assets/solar_system.png",("Biology","S1","Plant Cell and Animal Cell"): "assets/plant_cell.png",("Biology","S2","Photosynthesis"): "assets/photosynthesis.png",("Biology","S4","Nervous System"): "assets/neurone.png"}
 SAMPLE_PAST_PAPERS = [{"subject":"Physics","topic":"Current Electricity","year":"2022","paper":"P2","question":"State Ohm's Law and write the formula."},{"subject":"Physics","topic":"Hookes Law and Elasticity","year":"2023","paper":"P2","question":"A spring extends by 0.05m when a force of 10N is applied. Find the spring constant."},{"subject":"Chemistry","topic":"Acids, Bases and Salts","year":"2021","paper":"P1","question":"Which of the following is a weak acid? A.HCl B.H2SO4 C.CH3COOH D.HNO3"},{"subject":"Chemistry","topic":"Rates of Reaction","year":"2023","paper":"P3","question":"Describe an experiment to investigate the effect of temperature on rate of reaction."},{"subject":"Biology","topic":"Photosynthesis","year":"2022","paper":"P2","question":"State 3 factors that affect the rate of photosynthesis."},{"subject":"Biology","topic":"Nervous System","year":"2023","paper":"P1","question":"Which part of the brain controls balance? A.Cerebrum B.Cerebellum C.Medulla D.Hypothalamus"}]
 
@@ -120,20 +88,22 @@ def validate_subject(text, subject):
 
 def call_groq(client, messages, subject):
     for attempt in range(2):
-        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages, temperature=0.1, max_tokens=600)
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages, temperature=0.1, max_tokens=1200)
         text = res.choices[0].message.content
         if validate_subject(text, subject) or attempt == 1: return text
     return text
 
 def universal_search(client, query, subject, level, history):
     system = f"""ROLE: You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026.
-    RULES:
-    1. YOU ONLY TEACH {subject}.
-    2. IF QUESTION IS NOT ABOUT {subject}, SAY: "I only teach {subject}. Please select {subject} in the sidebar."
-    3. NEVER MENTION PHYSICS IF SUBJECT IS CHEMISTRY. NEVER MENTION CHEMISTRY IF SUBJECT IS PHYSICS.
-    4. BE EXAM FOCUSED."""
+    RULES: 1. YOU ONLY TEACH {subject}. 2. IF QUESTION IS NOT ABOUT {subject}, SAY: "I only teach {subject}. Please select {subject} in the sidebar." 3. NEVER MENTION OTHER SUBJECTS. 4. BE EXAM FOCUSED."""
     user = f"SUBJECT: {subject} LEVEL: {level} TOPIC SEARCH: '{query}'. Answer in 5 bullets: 1.Definition 2.UNEB example 3.Formula 4.Common mistake 5.Quick tip. Use only {subject} examples."
     msgs = [{"role": "system", "content": system}] + history[-4:] + [{"role": "user", "content": user}]
+    return call_groq(client, msgs, subject)
+
+def explain_practical_detailed(client, subject, level, topic, history):
+    system = f"ROLE: You are a UNEB {subject} examiner 2026. RULE: Only explain {subject} practicals following NCDC 2026 guidelines."
+    user = f"SUBJECT: {subject} LEVEL: {level} PRACTICAL: {topic}. Provide: 1.DETAILED EXPLANATION of procedure 2.REQUIREMENTS/APPARATUS 3.RULES STUDENT MUST FOLLOW 4.CRITICAL POINTS TO SCORE FULL MARKS 5.GRAPH DESCRIPTION - how to draw, label axes, plot points, draw line of best fit 6.ILLUSTRATION EXAMPLE. Be specific for UNEB P3 2026."
+    msgs = [{"role": "system", "content": system}] + history[-2:] + [{"role": "user", "content": user}]
     return call_groq(client, msgs, subject)
 
 def explain_mistake(client, subject, level, question, wrong_answer, history):
@@ -244,7 +214,7 @@ def main():
 
     if mode == "🔍 Smart Search":
         st.title("🔍 Smart Search - Ask Anything")
-        search_q = st.text_input("Search:", placeholder="e.g. Ohm's Law formula, Acid and Bases, Photosynthesis graph")
+        search_q = st.text_input("Search:", placeholder="e.g. Ohm's Law formula, Acid and Bases, Photosynthesis graph, Glass Block practical")
         if st.button("Search", use_container_width=True):
             if search_q:
                 with st.spinner("Searching UNEB database..."):
@@ -271,13 +241,17 @@ def main():
 
     elif mode == "🧪 Practicals Lab":
         st.title(f"🧪 Practicals Lab: {subject} {level}"); st.warning("Master these 10 topics. They repeat every year in UNEB P3.")
-        topic = st.sidebar.selectbox("Select Practical", PRACTICAL_TOPICS[subject])
-
+        topic = st.sidebar.selectbox("Select Practical", PRACTICAL_TOPICS[subject], key="practical_topic")
+        st.divider()
+        if st.button(f"📖 Explain Full Practical: {topic}", use_container_width=True):
+            with st.spinner("Generating detailed explanation..."):
+                explanation = explain_practical_detailed(client, subject, level, topic, st.session_state.chat_history)
+                st.markdown(explanation); st.session_state.activities_log.append(f"Explained {subject} Practical: {topic}")
+        st.divider()
         if st.button(f"💰 Get Apparatus & Budget: {topic}", use_container_width=True):
             with st.spinner("Calculating budget..."): budget = generate_apparatus_list(client, topic, subject, st.session_state.chat_history); st.markdown(budget); st.session_state.activities_log.append(f"Budget for {subject}: {topic}")
-
         st.divider()
-        if st.button(f"Generate Full Report: {topic}", use_container_width=True):
+        if st.button(f"Generate Full Report + Graph: {topic}", use_container_width=True):
             with st.spinner("System generating full UNEB report..."):
                 report = generate_practical(client,subject,level,topic, st.session_state.chat_history)
                 data, json_block = safe_json_extract(report)
