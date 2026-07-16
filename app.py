@@ -19,19 +19,30 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'mailto:your_email@gmail.com',
+        'Get Help': 'https://wa.me/256751040731',
         'Report a bug': None,
         'About': "UCE/UACE DIGITAL TUTOR 2026\nAligned to NCDC Uganda Syllabus 2026\nFor S1-S4 Students"
     }
 )
 
-# HARDCODED PASSWORD
-APP_PASSWORD = "Nabiswera2026"
+# LICENSE CONTROL - CHANGE THIS TO "PRO" WHEN THEY PAY
+LICENSE_TIER = "FREE" # Options: "FREE" or "PRO"
+ADMIN_CONTACT = "0751040731"
+
+# PASSWORD FROM STREAMLIT SECRETS - HIDDEN
+APP_PASSWORD = st.secrets["APP_PASSWORD"]
 
 # CONSTANTS
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
-SUBJECTS = ["Physics", "Chemistry", "Biology"]
-CLASSES = ["S1", "S2", "S3", "S4"]
+
+# UPDATE SUBJECTS BASED ON LICENSE
+if LICENSE_TIER == "FREE":
+    SUBJECTS = ["Physics", "Chemistry", "Biology"]
+    CLASSES = ["S1", "S2", "S3", "S4"]
+else: # PRO
+    SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
+    CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
+
 MODES = ["Smart Search", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
 # SYLLABUS TOPICS - NO DATA LOST
@@ -97,7 +108,7 @@ PRACTICALS = {
 }
 
 def get_client():
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = st.secrets["GROQ_API_KEY"]
     if not api_key: st.error("GROQ_API_KEY not set in secrets"); st.stop()
     return Groq(api_key=api_key)
 
@@ -160,8 +171,18 @@ def main():
     with st.sidebar:
         st.header("Settings")
         subject = st.selectbox("Select Subject", SUBJECTS)
+
+        if LICENSE_TIER == "FREE":
+            st.warning(f"🔒 Upgrade to Pro to unlock: Mathematics + S5 + S6")
+
         class_level = st.selectbox("Select Class", CLASSES)
         mode = st.radio("Select Mode", MODES)
+
+        st.markdown("---")
+        st.subheader("Need Help?")
+        st.write(f"**Contact Admin to Upgrade or Report Issue**")
+        st.markdown(f"[📞 WhatsApp/Call: {ADMIN_CONTACT}](https://wa.me/256{ADMIN_CONTACT[1:]})")
+
         st.caption("Disclaimer: This app is not affiliated with UNEB. Content is aligned to NCDC Uganda Syllabus for practice purposes only.")
 
     # MODE LOGIC
