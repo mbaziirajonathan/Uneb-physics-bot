@@ -53,7 +53,6 @@ PRACTICAL_TOPICS = {
     "Biology": ["Food Tests", "Osmosis in Potato", "Photosynthesis Rate", "Respiration in Seeds", "Microscopy - Cells", "Ecological Sampling", "Transpiration - Potometer", "Enzyme Activity"]
 }
 
-# UPDATED TO FULL NCDC 2026 CURRICULUM + ASTROPHYSICS S4
 UNEB_CURRICULUM_MAP = {
     "Physics": {
         "S1": ["Introduction to Physics", "Measurement", "Force", "Work, Energy and Power", "Pressure"],
@@ -86,7 +85,6 @@ DIAGRAM_FILES = {
     ("Biology","S4","Nervous System"): "assets/neurone.png"
 }
 
-# SAMPLE UNEB PAST PAPERS
 SAMPLE_PAST_PAPERS = [
     {"subject":"Physics","topic":"Current Electricity","year":"2022","paper":"P2","question":"State Ohm's Law and write the formula."},
     {"subject":"Physics","topic":"Hookes Law and Elasticity","year":"2023","paper":"P2","question":"A spring extends by 0.05m when a force of 10N is applied. Find the spring constant."},
@@ -145,40 +143,38 @@ def render_graph(df, x, y, title):
     except Exception as e:
         st.error(f"Graph failed: {e}")
 
-# ============ NEW: UNIVERSAL SEARCH ENGINE ============
+# ============ FIXED: UNIVERSAL SEARCH ENGINE - NO HARDCODED PHYSICS ============
 def universal_search(client, query, subject, level):
-    prompt = f"""You are a UNEB {subject} tutor for {level} Uganda NCDC 2026.
+    prompt = f"""You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026.
     Student searched: "{query}"
     Answer directly in 5 bullet points max. Include: 1. Definition 2. UNEB example 3. Formula if any 4. Common mistake 5. Quick tip.
-    Be exam focused. No filler."""
+    Only use {subject} content. Do not mention other subjects. Be exam focused."""
     try:
-        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.3, max_tokens=500)
+        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=500)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-# ============ NEW: QUIZ MODE ============
+# ============ FIXED: QUIZ MODE ============
 def generate_quiz(client, subject, level, topic):
-    prompt = f"""You are UNEB examiner 2026. Generate 10 MCQ for {subject} {level} on topic: {topic}.
+    prompt = f"""You are a UNEB {subject} tutor assistant 2026. Generate 10 MCQ for {subject} {level} on topic: {topic}.
     Format strictly: Q1. Question? A. B. C. D. Answer: C
-    Mix easy, medium, hard. NCDC 2026 Uganda."""
+    Only use {subject} syllabus. Mix easy, medium, hard. NCDC 2026 Uganda."""
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.7, max_tokens=1200)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-# ============ FEATURE 1: MARKING SCHEME ============
 def generate_marking_scheme(client, subject, level, question, student_answer=""):
-    prompt = f"""You are UNEB Head Examiner 2026 for {subject} {level} Uganda NCDC.
+    prompt = f"""You are a UNEB {subject} Head Examiner 2026 for {level} Uganda NCDC.
     Question: {question}
     Student Answer: {student_answer if student_answer else 'N/A'}
     Generate: 1. MODEL ANSWER 2. MARKING GUIDE: 1 mark points. Total 10 marks. 3. COMMON MISTAKES 4. TIPS TO SCORE 10/10
-    Use official UNEB marking style."""
+    Use official UNEB marking style for {subject} only."""
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=800)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-# ============ FEATURE 2: PAST PAPERS ============
 @st.cache_data
 def load_past_papers():
     return SAMPLE_PAST_PAPERS
@@ -188,9 +184,8 @@ def search_past_papers(topic, subject):
     results = [q for q in papers if topic.lower() in q['topic'].lower() and q['subject']==subject]
     return results
 
-# ============ FEATURE 3: APPARATUS BUDGET ============
-def generate_apparatus_list(client, practical_topic):
-    prompt = f"""For UNEB Uganda {practical_topic}, list all apparatus needed for a class of 40 students.
+def generate_apparatus_list(client, practical_topic, subject):
+    prompt = f"""For UNEB Uganda {subject} practical: {practical_topic}, list all apparatus needed for a class of 40 students.
     Format: 1. List with quantity 2. Estimated cost in UGX per item 3. Total cost 4. Local cheap alternatives.
     Be realistic for Ugandan schools 2026."""
     try:
@@ -198,15 +193,13 @@ def generate_apparatus_list(client, practical_topic):
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-# ============ FEATURE 4: LANGUAGE TRANSLATION ============
-def translate_explanation(client, text, language="Luganda"):
-    prompt = f"Translate this {st.session_state.subject} explanation to simple {language} for {st.session_state.level} students in Uganda. Keep science terms in English. Text: {text}"
+def translate_explanation(client, text, language, subject, level):
+    prompt = f"Translate this {subject} explanation to simple {language} for {level} students in Uganda. Keep science terms in English. Text: {text}"
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.5, max_tokens=400)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-# ============ FEATURE 5: INSPECTOR REPORT ============
 def generate_inspector_report(school_name, activities_done):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); w,h = A4
     p.setFont("Helvetica-Bold",18); p.drawString(40,h-50,"DIGITAL UNEB TUTOR - ACTIVITY REPORT")
@@ -222,28 +215,28 @@ def generate_inspector_report(school_name, activities_done):
     p.save(); buffer.seek(0); return buffer
 
 def generate_practical(client, subject, level, topic):
-    prompt = f"""You are a UNEB examiner for {subject} {level} Uganda NCDC 2026. Generate a complete practical report for: {topic}.
+    prompt = f"""You are a UNEB {subject} examiner for {level} Uganda NCDC 2026. Generate a complete practical report for: {topic}.
     Format strictly:
     1. AIM 2. HYPOTHESIS 3. VARIABLES: Independent, Dependent, 3 Controlled 4. APPARATUS 5. PROCEDURE 6. SAFETY PRECAUTIONS 7. DATA TABLE 8. GRAPH GUIDE 9. CONCLUSION
     At the end include realistic mock data in this exact JSON: ```json {{"x_label": "X", "y_label": "Y", "data": [[1,2],[2,4],[3,6],[4,8],[5,10],[6,12]]}} ```
-    Use competency-based curriculum. 6 data points."""
+    Use competency-based curriculum for {subject} only. 6 data points."""
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.2, max_tokens=2000)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-def describe_and_draw_graph(client, prompt):
-    sys_prompt = "You are a UNEB examiner Uganda 2026. Return ONLY realistic data for that experiment."
-    user_prompt = f"Describe and generate data for this graph: {prompt}. Return format: ```json {{\"x_label\": \"X axis\", \"y_label\": \"Y axis\", \"data\": [[x1,y1],[x2,y2],[x3,y3],[x4,y4],[x5,y5],[x6,y6]]}} ``` Then give 3 UNEB marking points."
+def describe_and_draw_graph(client, prompt, subject):
+    sys_prompt = f"You are a UNEB {subject} examiner Uganda 2026. Return ONLY realistic data for that {subject} experiment."
+    user_prompt = f"Describe and generate data for this graph: {prompt}. Return format: ```json {{\"x_label\": \"X axis\", \"y_label\": \"Y axis\", \"data\": [[x1,y1],[x2,y2],[x3,y3],[x4,y4],[x5,y5],[x6,y6]]}} ``` Then give 3 UNEB marking points for {subject}."
     try:
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"system","content":sys_prompt},{"role":"user","content":user_prompt}], temperature=0.3, max_tokens=1200)
         return res.choices[0].message.content
     except GroqError as e: return f"System Error: {e}"
 
-def describe_uploaded_graph(client, image_bytes):
+def describe_uploaded_graph(client, image_bytes, subject):
     b64 = base64.b64encode(image_bytes).decode()
-    sys_prompt = "You are a UNEB examiner. Analyze this student graph image. Describe what the graph shows, identify axes, trend, and give 3 UNEB marking points."
-    user_prompt = f"Describe this graph image and tell me what experiment it likely represents for UNEB Uganda 2026."
+    sys_prompt = f"You are a UNEB {subject} examiner. Analyze this student graph image for {subject}. Describe what the graph shows, identify axes, trend, and give 3 UNEB marking points."
+    user_prompt = f"Describe this graph image and tell me what {subject} experiment it likely represents for UNEB Uganda 2026."
     try:
         res = client.chat.completions.create(
             model="llama-3.2-11b-vision-preview",
@@ -259,7 +252,7 @@ def describe_uploaded_graph(client, image_bytes):
         return res.choices[0].message.content
     except GroqError as e: return f"Vision System Error: {e}"
 
-def voice_chat(client, audio_bytes):
+def voice_chat(client, audio_bytes, subject, level):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             tmp.write(audio_bytes)
@@ -269,7 +262,7 @@ def voice_chat(client, audio_bytes):
             transcription = client.audio.transcriptions.create(file=audio_file, model="whisper-large-v3")
         user_text = transcription.text
 
-        llm_prompt = f"You are a UNEB {st.session_state.subject} tutor for {st.session_state.level} Uganda NCDC 2026. Answer concisely in 4 sentences max. Question: {user_text}"
+        llm_prompt = f"You are a UNEB {subject} tutor assistant for {level} Uganda NCDC 2026. Answer concisely in 4 sentences max. Only use {subject} content. Question: {user_text}"
         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":llm_prompt}], temperature=0.5, max_tokens=300)
         answer_text = res.choices[0].message.content
 
@@ -284,9 +277,9 @@ def voice_chat(client, audio_bytes):
 
 def generate_prediction(client, subject, paper):
     prompts = {
-        "P1": f"You are UNEB Head of Examinations 2026. Generate 40 MCQ for {subject} Paper 1. Mix S1-S4. Include Astrophysics for Physics. 4 options A-D. NCDC Syllabus 2026. Mark answers at end.",
-        "P2": f"You are UNEB Head 2026. Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include Astrophysics for Physics. Include 2 calculations, 1 diagram question. 10 marks each. Provide marking guide.",
-        "P3": f"You are UNEB Head 2026. Generate 3 Practical scenarios for {subject} Paper 3. Competency-based NCDC 2026. Include apparatus and method."
+        "P1": f"You are a UNEB {subject} Head of Examinations 2026. Generate 40 MCQ for {subject} Paper 1. Mix {subject} topics S1-S4. 4 options A-D. NCDC Syllabus 2026. Mark answers at end.",
+        "P2": f"You are a UNEB {subject} Head 2026. Generate 5 Theory questions for {subject} Paper 2. S3-S4. Include 2 calculations, 1 diagram question. 10 marks each. Provide marking guide.",
+        "P3": f"You are a UNEB {subject} Head 2026. Generate 3 Practical scenarios for {subject} Paper 3. Competency-based NCDC 2026. Include apparatus and method."
     }
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], temperature=0.7, max_tokens=1600)
     return res.choices[0].message.content
@@ -300,19 +293,19 @@ def create_pdf(topic, subject, level, notes):
         p.drawString(50,y,f"• {line[:90]}"); y-=15
     p.save(); buffer.seek(0); return buffer
 
-def ask_box(client, context, key):
+def ask_box(client, context, key, subject, level):
     st.text_input("❓ Ask anything about this:", key=f"ask_{key}")
     if st.button("Ask Tutor", key=f"btn_{key}"):
         query = st.session_state[f"ask_{key}"]
         if query:
             with st.spinner("Thinking..."):
-                answer = universal_search(client, query, st.session_state.subject, st.session_state.level)
+                answer = universal_search(client, query, subject, level)
                 st.success(answer)
                 c1,c2 = st.columns(2)
                 with c1:
-                    if st.button("🌍 Luganda", key=f"lug_{key}"): st.info(translate_explanation(client, answer, "Luganda"))
+                    if st.button("🌍 Luganda", key=f"lug_{key}"): st.info(translate_explanation(client, answer, "Luganda", subject, level))
                 with c2:
-                    if st.button("🌍 Swahili", key=f"swa_{key}"): st.info(translate_explanation(client, answer, "Swahili"))
+                    if st.button("🌍 Swahili", key=f"swa_{key}"): st.info(translate_explanation(client, answer, "Swahili", subject, level))
 
 def main():
     client = get_client()
@@ -326,17 +319,16 @@ def main():
     st.session_state.level = level
     tz = pytz.timezone("Africa/Kampala"); st.sidebar.divider(); st.sidebar.caption(f"Kampala: {datetime.now(tz).strftime('%A %H:%M %p')}")
 
-    # ============ NEW MODE: SMART SEARCH ============
     if mode == "🔍 Smart Search":
         st.title("🔍 Smart Search - Ask Anything")
         st.write("Don't scroll. Just type what you need. UNEB, Practical, Graph, Formula...")
-        search_q = st.text_input("Search:", placeholder="e.g. Ohm's Law formula, Photosynthesis graph, Acid base titration")
+        search_q = st.text_input("Search:", placeholder="e.g. Ohm's Law formula, Acid and Bases, Photosynthesis graph")
         if st.button("Search", use_container_width=True):
             if search_q:
                 with st.spinner("Searching UNEB database..."):
                     result = universal_search(client, search_q, subject, level)
                     st.markdown(result)
-                    st.session_state.activities_log.append(f"Searched: {search_q}")
+                    st.session_state.activities_log.append(f"Searched {subject}: {search_q}")
 
     elif mode == "📖 Learn Theory":
         st.title(f"Theory: {subject} {level}")
@@ -348,9 +340,8 @@ def main():
                     prompt = f"Give 6 concise UNEB {level} exam notes for {subject} topic: {topic}. NCDC Uganda syllabus 2026. Competency based."
                     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=400)
                     st.session_state.notes = res.choices[0].message.content
-                    st.session_state.activities_log.append(f"Generated notes for {topic}")
+                    st.session_state.activities_log.append(f"Generated {subject} notes for {topic}")
 
-            # FEATURE 2: PAST PAPERS
             st.divider()
             if st.button("🔍 Get 5 UNEB Past Paper Questions", use_container_width=True):
                 papers = search_past_papers(topic, subject)
@@ -359,9 +350,8 @@ def main():
                     for p in papers: st.markdown(f"**{p['year']} {p['paper']}**: {p['question']}")
                 else: st.info("No past papers yet for this topic.")
 
-            # ASK BOX HERE
             st.divider()
-            ask_box(client, f"Theory: {topic}", "theory")
+            ask_box(client, f"Theory: {topic}", "theory", subject, level)
 
             if "notes" in st.session_state:
                 st.markdown("### Key Notes")
@@ -381,9 +371,9 @@ def main():
 
         if st.button(f"💰 Get Apparatus & Budget: {topic}", use_container_width=True):
             with st.spinner("Calculating budget..."):
-                budget = generate_apparatus_list(client, topic)
+                budget = generate_apparatus_list(client, topic, subject)
                 st.markdown(budget)
-                st.session_state.activities_log.append(f"Budget for {topic}")
+                st.session_state.activities_log.append(f"Budget for {subject}: {topic}")
 
         st.divider()
         if st.button(f"Generate Full Report: {topic}", use_container_width=True):
@@ -400,11 +390,10 @@ def main():
                 else:
                     st.warning("System did not return valid data table.")
                 st.markdown(report.replace(json_block,"") if json_block else report)
-                st.session_state.activities_log.append(f"Practical report: {topic}")
+                st.session_state.activities_log.append(f"{subject} Practical report: {topic}")
 
-        # ASK BOX FOR PRACTICALS
         st.divider()
-        ask_box(client, f"Practical: {topic}", "practical")
+        ask_box(client, f"Practical: {topic}", "practical", subject, level)
 
     elif mode == "📈 Graph Describer":
         st.title("📈 Graph Describer & Drawer")
@@ -416,7 +405,7 @@ def main():
                 if not user_graph.strip(): st.warning("Please describe a graph first.")
                 else:
                     with st.spinner("Generating graph..."):
-                        result = describe_and_draw_graph(client, user_graph)
+                        result = describe_and_draw_graph(client, user_graph, subject)
                         data, json_block = safe_json_extract(result)
                         if data and "data" in data:
                             try:
@@ -429,11 +418,10 @@ def main():
                             st.warning("System did not return valid data.")
                         st.markdown("### Explanation")
                         st.markdown(result.replace(json_block,"") if json_block else result)
-                        st.session_state.activities_log.append(f"Graph: {user_graph}")
+                        st.session_state.activities_log.append(f"{subject} Graph: {user_graph}")
 
-            # ASK BOX FOR GRAPHS
             st.divider()
-            ask_box(client, "Graph Topic", "graph")
+            ask_box(client, "Graph Topic", "graph", subject, level)
 
         with tab2:
             uploaded_file = st.file_uploader("Choose an image", type=["png","jpg","jpeg"], key="img_upload")
@@ -443,7 +431,7 @@ def main():
                 if st.button("Analyze Graph", use_container_width=True, key="btn_analyze"):
                     with st.spinner("Analyzing image..."):
                         image_bytes = uploaded_file.getvalue()
-                        result = describe_uploaded_graph(client, image_bytes)
+                        result = describe_uploaded_graph(client, image_bytes, subject)
                         st.markdown("### Analysis")
                         st.markdown(result)
 
@@ -454,13 +442,12 @@ def main():
         if audio:
             st.audio(audio['bytes'])
             with st.spinner("Listening and processing..."):
-                user_q, tutor_a, tutor_audio = voice_chat(client, audio['bytes'])
+                user_q, tutor_a, tutor_audio = voice_chat(client, audio['bytes'], subject, level)
             if user_q:
                 st.markdown(f"**You:** {user_q}")
-                st.markdown(f"**Digital Tutor:** {tutor_a}")
+                st.markdown(f"**UNEB {subject} Tutor:** {tutor_a}")
                 if tutor_audio: st.audio(tutor_audio, format="audio/mp3")
 
-    # ============ NEW MODE: QUIZ MODE ============
     elif mode == "📝 Quiz Mode":
         st.title(f"📝 UNEB Quiz Mode: {subject} {level}")
         topic = st.selectbox("Select Topic for Quiz", UNEB_CURRICULUM_MAP[subject][level])
@@ -468,10 +455,10 @@ def main():
             with st.spinner("Generating quiz..."):
                 quiz = generate_quiz(client, subject, level, topic)
                 st.markdown(quiz)
-                st.session_state.activities_log.append(f"Generated Quiz: {topic}")
+                st.session_state.activities_log.append(f"Generated {subject} Quiz: {topic}")
 
         st.divider()
-        ask_box(client, f"Quiz on {topic}", "quiz")
+        ask_box(client, f"Quiz on {topic}", "quiz", subject, level)
 
     elif mode == "🔮 Predict Papers":
         st.title(f"🔮 UNEB 2026 Prediction: {subject}")
@@ -480,17 +467,17 @@ def main():
         with c1:
             if st.button("Generate P1 MCQ", use_container_width=True):
                 with st.spinner("..."): st.session_state.p1 = generate_prediction(client,subject,"P1")
-                st.session_state.activities_log.append(f"Generated P1 for {subject}")
+                st.session_state.activities_log.append(f"Generated {subject} P1")
             if "p1" in st.session_state: st.text_area("Paper 1", st.session_state.p1, height=400)
         with c2:
             if st.button("Generate P2 Theory", use_container_width=True):
                 with st.spinner("..."): st.session_state.p2 = generate_prediction(client,subject,"P2")
-                st.session_state.activities_log.append(f"Generated P2 for {subject}")
+                st.session_state.activities_log.append(f"Generated {subject} P2")
             if "p2" in st.session_state: st.text_area("Paper 2", st.session_state.p2, height=400)
         with c3:
             if st.button("Generate P3 Practical", use_container_width=True):
                 with st.spinner("..."): st.session_state.p3 = generate_prediction(client,subject,"P3")
-                st.session_state.activities_log.append(f"Generated P3 for {subject}")
+                st.session_state.activities_log.append(f"Generated {subject} P3")
             if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
 
     elif mode == "🛠️ Teacher Tools":
@@ -504,7 +491,7 @@ def main():
                     with st.spinner("Generating marking guide..."):
                         scheme = generate_marking_scheme(client, subject, level, qn, ans)
                         st.markdown(scheme)
-                        st.session_state.activities_log.append(f"Marking scheme for {subject}")
+                        st.session_state.activities_log.append(f"{subject} Marking scheme")
                 else: st.warning("Please enter a question")
         with tab2:
             school = st.text_input("School Name:", value="Nabiswera Progressive SS")
