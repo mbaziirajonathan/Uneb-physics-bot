@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, ast, pytz, numpy as np, tempfile, random
+import os, io, json, re, ast, pytz, numpy as np, tempfile, random, glob
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -43,9 +43,9 @@ else: # PRO
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
-MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
+MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"] # ADDED DIAGRAMS LIBRARY
 
-# SYLLABUS TOPICS - NO DATA LOST
+# SYLLABUS TOPICS - NCDC 2026 ONLY - NO DATA LOST
 SYLLABUS = {
     "Physics": {
         "S1": ["Introduction to Physics", "Matter", "Measurement", "Energy", "Light", "Sound", "Heat", "Electricity", "Magnetism", "Machines"],
@@ -60,8 +60,8 @@ SYLLABUS = {
         "S4": ["Advanced Organic", "Analytical Chemistry", "Environmental Chemistry", "Polymers"]
     },
     "Biology": {
-        "S1": ["Introduction to Biology", "Cells", "Classification", "Nutrition", "Respiration", "Transport", "Ecology"],
-        "S2": ["Reproduction", "Genetics", "Growth", "Human Body Systems", "Disease", "Immunity"],
+        "S1": ["Introduction to Biology", "Cells", "Classification", "Nutrition", "Respiration", "Transport", "Ecology", "Transport in Plants"],
+        "S2": ["Reproduction", "Genetics", "Growth", "Human Body Systems", "Disease", "Immunity", "Respiratory System", "Alveolus", "Human Ear", "Human Eye"],
         "S3": ["Ecology II", "Evolution", "Genetics II", "Physiology", "Microbiology"],
         "S4": ["Molecular Biology", "Biotechnology", "Conservation", "Human Health"]
     }
@@ -113,7 +113,8 @@ def get_client():
     return Groq(api_key=api_key)
 
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. You teach {subject} for {class_level} in Uganda. Follow NCDC Syllabus. Be accurate, no hallucinations. Use Ugandan examples. Be clear and step-by-step."
+    # CRITICAL: LOCKED TO NCDC 2026 ONLY. NO HALLUCINATION.
+    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. You teach {subject} for {class_level} in Uganda. Answer ONLY according to NCDC Uganda Syllabus 2026 and UNEB guidelines. Be accurate, cite NCDC where possible. Use Ugandan examples. Be clear and step-by-step. If question is outside NCDC syllabus, say 'This is outside NCDC 2026 syllabus'."
     try:
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -143,6 +144,18 @@ def create_pdf(content, filename):
     buffer.seek(0)
     return buffer
 
+def find_diagram(topic):
+    """Auto-search assets/diagrams folder for matching PNG"""
+    diagram_folder = "assets/diagrams"
+    if not os.path.exists(diagram_folder):
+        return None
+    search_name = topic.lower().replace(" ", "_").replace("'", "").replace("-", "_").replace("(", "").replace(")", "")
+    # check for partial match
+    for f in os.listdir(diagram_folder):
+        if f.endswith(".png") and search_name in f.lower():
+            return os.path.join(diagram_folder, f)
+    return None
+
 def main():
     client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -152,7 +165,7 @@ def main():
     st.markdown("""
     <div style="background:linear-gradient(90deg, #0E4D92 0%, #1a75ff 100%); padding:15px; border-radius:10px; margin-bottom:20px">
         <h1 style="color:white; margin:0; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026</h1>
-        <p style="color:#d9e8ff; margin:0; text-align:center">Aligned to NCDC Uganda Syllabus | S1-S4 | Physics | Chemistry | Biology</p>
+        <p style="color:#d9e8ff; margin:0; text-align:center">Aligned to NCDC Uganda Syllabus 2026 | S1-S4 | Physics | Chemistry | Biology</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -189,14 +202,14 @@ def main():
         st.subheader("Need Help?")
         st.write(f"**Contact Admin to Upgrade or Report Issue**")
         st.markdown(f"[📞 WhatsApp/Call: {ADMIN_CONTACT}](https://wa.me/256{ADMIN_CONTACT[1:]})")
-        st.caption("Disclaimer: This app is not affiliated with UNEB. Content is aligned to NCDC Uganda Syllabus for practice purposes only.")
+        st.caption("Disclaimer: This app is aligned to NCDC Uganda Syllabus 2026 for practice purposes only.")
 
-    # MODE LOGIC - ASK BOX ADDED TO EVERY MODE
+    # MODE LOGIC
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question from the syllabus", key="ask_smart")
         if st.button("Search", key="btn_smart") and query:
-            prompt = f"Explain {query} for {class_level} {subject} in Uganda. Give examples."
+            prompt = f"Explain {query} for {class_level} {subject} in Uganda according to NCDC 2026 syllabus. Give examples."
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
             st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Smart Search: {query}"})
@@ -208,13 +221,13 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Ask AI", key="btn_theory_ask") and query:
-                prompt = f"Give detailed theory notes on {query} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
+                prompt = f"Give detailed theory notes on {query} for {class_level} {subject} Uganda NCDC 2026 syllabus. Include definitions, examples, formulas."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory Ask: {query}"})
         with col2:
             if st.button("Explain Selected Topic", key="btn_theory_topic"):
-                prompt = f"Give detailed theory notes on {topic_dropdown} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
+                prompt = f"Give detailed theory notes on {topic_dropdown} for {class_level} {subject} Uganda NCDC 2026 syllabus. Include definitions, examples, formulas."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory: {topic_dropdown}"})
@@ -226,7 +239,7 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Generate Lesson Plan", key="btn_lesson_ask") and query:
-                prompt = f"Prepare a 40-minute lesson plan for {query} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
+                prompt = f"Prepare a 40-minute lesson plan for {query} for {class_level} {subject} in Uganda according to NCDC 2026. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 pdf = create_pdf(response, "lesson_plan.pdf")
@@ -234,12 +247,32 @@ def main():
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan Ask: {query}"})
         with col2:
             if st.button("Generate for Selected Topic", key="btn_lesson_topic"):
-                prompt = f"Prepare a 40-minute lesson plan for {topic_dropdown} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
+                prompt = f"Prepare a 40-minute lesson plan for {topic_dropdown} for {class_level} {subject} in Uganda according to NCDC 2026. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 pdf = create_pdf(response, "lesson_plan.pdf")
                 st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_topic")
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic_dropdown}"})
+
+    elif mode == "Diagrams Library": # NEW MODE
+        st.header("🖼️ Diagrams Library")
+        st.write("Visual aids aligned to NCDC 2026. Download and use in class.")
+
+        topic = st.selectbox("Select Topic to View Diagram", SYLLABUS[subject][class_level], key="diagram_topic")
+
+        diagram_path = find_diagram(topic)
+
+        if diagram_path:
+            image = Image.open(diagram_path)
+            st.image(image, caption=f"{subject} {class_level} - {topic}", use_column_width=True)
+            with open(diagram_path, "rb") as file:
+                st.download_button("⬇️ Download PNG", file, file_name=os.path.basename(diagram_path), mime="image/png", key=f"dl_diagram_{topic}")
+            st.success(f"Found: {os.path.basename(diagram_path)}")
+        else:
+            st.warning(f"Diagram for '{topic}' not uploaded yet.")
+            st.info(f"Add PNG to `assets/diagrams/` with name like `{topic.lower().replace(' ', '_')}.png`")
+
+        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Diagram: {topic}"})
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -248,7 +281,7 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Ask AI About Practical", key="btn_practical_ask") and query:
-                prompt = f"Explain the practical '{query}' for {class_level} {subject}. Give aim, materials, procedure, precautions."
+                prompt = f"Explain the practical '{query}' for {class_level} {subject} according to NCDC 2026. Give aim, materials, procedure, precautions."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical Ask: {query}"})
@@ -276,13 +309,13 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Generate Quiz", key="btn_quiz_ask") and query:
-                prompt = f"Generate 5 MCQ questions on {query} for {class_level} {subject}. Include answers."
+                prompt = f"Generate 5 MCQ questions on {query} for {class_level} {subject} based on NCDC 2026 syllabus. Include answers."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz Ask: {query}"})
         with col2:
             if st.button("Generate for Selected Topic", key="btn_quiz_topic"):
-                prompt = f"Generate 5 MCQ questions on {topic_dropdown} for {class_level} {subject}. Include answers."
+                prompt = f"Generate 5 MCQ questions on {topic_dropdown} for {class_level} {subject} based on NCDC 2026 syllabus. Include answers."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz: {topic_dropdown}"})
@@ -293,7 +326,7 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Predict for Asked Topic", key="btn_predict_ask") and query:
-                prompt = f"Predict likely exam questions on {query} for {class_level} {subject} UCE/UACE based on NCDC syllabus."
+                prompt = f"Predict likely exam questions on {query} for {class_level} {subject} UCE/UACE based on NCDC 2026 syllabus only."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 pdf = create_pdf(response, "prediction.pdf")
@@ -301,7 +334,7 @@ def main():
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Predict Ask: {query}"})
         with col2:
             if st.button("Predict Full Subject", key="btn_predict_full"):
-                prompt = f"Predict likely exam questions for {class_level} {subject} UCE/UACE based on NCDC syllabus."
+                prompt = f"Predict likely exam questions for {class_level} {subject} UCE/UACE based on NCDC 2026 syllabus only."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
                 pdf = create_pdf(response, "prediction.pdf")
@@ -326,7 +359,7 @@ def main():
         st.header("📊 Progress Tracker")
         query = st.text_input("Ask about your progress", key="ask_progress")
         if st.button("Ask AI", key="btn_progress") and query:
-            prompt = f"A student is using UCE/UACE DIGITAL TUTOR for {subject} {class_level}. They ask: {query}. Give helpful advice."
+            prompt = f"A student is using UCE/UACE DIGITAL TUTOR for {subject} {class_level} NCDC 2026. They ask: {query}. Give helpful advice."
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
         if st.session_state.activities_log:
