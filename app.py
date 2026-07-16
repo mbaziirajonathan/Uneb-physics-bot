@@ -43,7 +43,8 @@ else: # PRO
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
-MODES = ["Smart Search", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
+# ADDED BACK THE MISSING MODES
+MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
 # SYLLABUS TOPICS - NO DATA LOST
 SYLLABUS = {
@@ -167,25 +168,31 @@ def main():
             else: st.error("Incorrect Password")
         st.stop()
 
-    # SIDEBAR
+    # SIDEBAR - ALL FEATURES RESTORED
     with st.sidebar:
         st.header("Settings")
         subject = st.selectbox("Select Subject", SUBJECTS)
+        class_level = st.selectbox("Select Class", CLASSES)
+
+        # TOPICS SECTION BOX - ADDED BACK
+        st.markdown("---")
+        st.subheader("📖 Topics in Syllabus")
+        with st.expander(f"View {subject} {class_level} Topics"):
+            for topic in SYLLABUS[subject][class_level]:
+                st.write(f"• {topic}")
 
         if LICENSE_TIER == "FREE":
             st.warning(f"🔒 Upgrade to Pro to unlock: Mathematics + S5 + S6")
 
-        class_level = st.selectbox("Select Class", CLASSES)
         mode = st.radio("Select Mode", MODES)
 
         st.markdown("---")
         st.subheader("Need Help?")
         st.write(f"**Contact Admin to Upgrade or Report Issue**")
         st.markdown(f"[📞 WhatsApp/Call: {ADMIN_CONTACT}](https://wa.me/256{ADMIN_CONTACT[1:]})")
-
         st.caption("Disclaimer: This app is not affiliated with UNEB. Content is aligned to NCDC Uganda Syllabus for practice purposes only.")
 
-    # MODE LOGIC
+    # MODE LOGIC - ALL MODES INCLUDED
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question from the syllabus")
@@ -194,6 +201,26 @@ def main():
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
             st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Smart Search: {query}"})
+
+    elif mode == "Theory Mode": # ADDED BACK
+        st.header("📘 Theory Mode")
+        topic = st.selectbox("Select Topic for Detailed Theory", SYLLABUS[subject][class_level])
+        if st.button("Explain Theory"):
+            prompt = f"Give detailed theory notes on {topic} for {class_level} {subject} Uganda NCDC syllabus. Include definitions, examples, formulas."
+            response = generate_ai_response(client, prompt, subject, class_level)
+            st.write(response)
+        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory: {topic}"})
+
+    elif mode == "Lesson Preparation": # ADDED BACK
+        st.header("👨‍🏫 Lesson Preparation")
+        topic = st.selectbox("Select Topic for Lesson Plan", SYLLABUS[subject][class_level])
+        if st.button("Generate Lesson Plan"):
+            prompt = f"Prepare a 40-minute lesson plan for {topic} for {class_level} {subject} in Uganda. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
+            response = generate_ai_response(client, prompt, subject, class_level)
+            st.write(response)
+            pdf = create_pdf(response, "lesson_plan.pdf")
+            st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf")
+        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic}"})
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
