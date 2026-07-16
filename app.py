@@ -34,6 +34,7 @@ APP_PASSWORD = st.secrets["APP_PASSWORD"]
 
 # CONSTANTS
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
+DIAGRAMS_DIR = os.path.join(os.getcwd(), "assets", "diagrams")
 
 # UPDATE SUBJECTS BASED ON LICENSE
 if LICENSE_TIER == "FREE":
@@ -43,7 +44,7 @@ else: # PRO
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
-MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"] # ADDED DIAGRAMS LIBRARY
+MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
 # SYLLABUS TOPICS - NCDC 2026 ONLY - NO DATA LOST
 SYLLABUS = {
@@ -113,7 +114,6 @@ def get_client():
     return Groq(api_key=api_key)
 
 def generate_ai_response(client, prompt, subject, class_level):
-    # CRITICAL: LOCKED TO NCDC 2026 ONLY. NO HALLUCINATION.
     system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. You teach {subject} for {class_level} in Uganda. Answer ONLY according to NCDC Uganda Syllabus 2026 and UNEB guidelines. Be accurate, cite NCDC where possible. Use Ugandan examples. Be clear and step-by-step. If question is outside NCDC syllabus, say 'This is outside NCDC 2026 syllabus'."
     try:
         response = client.chat.completions.create(
@@ -144,24 +144,86 @@ def create_pdf(content, filename):
     buffer.seek(0)
     return buffer
 
+def sanitize_filename(name):
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9\s]', '', name)
+    return name
+
 def find_diagram(topic):
-    """Auto-search assets/diagrams folder for matching PNG"""
-    diagram_folder = "assets/diagrams"
-    if not os.path.exists(diagram_folder):
-        return None
-    search_name = topic.lower().replace(" ", "_").replace("'", "").replace("-", "_").replace("(", "").replace(")", "")
-    # check for partial match
-    for f in os.listdir(diagram_folder):
-        if f.endswith(".png") and search_name in f.lower():
-            return os.path.join(diagram_folder, f)
-    return None
+    """FUZZY SEARCH V3: Uses your exact file names + keyword map"""
+    if not os.path.exists(DIAGRAMS_DIR):
+        return None, []
+
+    search_key = sanitize_filename(topic)
+    search_words = [w for w in search_key.split() if len(w) > 2]
+    all_pngs = glob.glob(os.path.join(DIAGRAMS_DIR, "*.png"))
+    all_filenames = [os.path.basename(f) for f in all_pngs]
+
+    # KEYWORD MAP: Topic -> matches your actual filenames
+    KEYWORD_MAP = {
+        "transport in plants": ["transport_in_plants"],
+        "microbiology": ["prokaryotic_eukaryotic", "chemical_cell"],
+        "human eye": ["human_eye"],
+        "human ear": ["human_ear"],
+        "alveolus": ["alveolus", "respiratory_system"],
+        "respiratory system": ["respiratory_system"],
+        "human body systems": ["body_systems", "heart", "human_brain"],
+        "cells": ["animal_cell", "plant_cell", "chemical_cell"],
+        "chemical bonding": ["chemical_bonding", "covalent_water"],
+        "periodic table": ["periodic_table"],
+        "chemical kinetics": ["chemical_kinetics"],
+        "chromatography": ["chromatography"],
+        "waves": ["transverse_wave", "longitudinal_wave"],
+        "light": ["light_reflection", "convex_concave_lens"],
+        "optics": ["convex_concave_lens", "light_reflection"],
+        "electricity": ["simple_circuit", "ac_dc_electricity"],
+        "ac/dc": ["ac_dc_electricity", "ac_generator"],
+        "electronics": ["transformer", "ac_generator", "cro"],
+        "magnetism": ["bar_magnet", "electroscope"],
+        "electrostatics": ["electroscope"],
+        "measurement": ["vernier", "spring_balance"],
+        "motion": ["linear_motion", "pendulum"],
+        "heat": ["heat_capacity", "colorimeter"],
+        "radioactivity": ["radioactivity"],
+        "dna": ["dna"],
+        "ecology": ["ecology"],
+        "hydrocarbon": ["hydrocarbon"],
+        "atoms": ["atom"],
+        "molecules": ["covalent_water"],
+        "leaf": ["leaf"],
+        "neurone": ["neurone"],
+        "nephron": ["nephron"],
+        "growth": ["human_growth_cycle"],
+    }
+
+    # 1. Check keyword map first
+    for key, possible_files in KEYWORD_MAP.items():
+        if key in search_key:
+            for pf in possible_files:
+                for f in all_pngs:
+                    if pf in os.path.basename(f).lower():
+                        return f, all_filenames
+
+    # 2. General fuzzy match
+    best_match = None
+    best_score = 0
+    for png_path in all_pngs:
+        filename = os.path.basename(png_path).lower().replace(".png", "")
+        score = sum(1 for word in search_words if word in filename)
+        if score > best_score:
+            best_score = score
+            best_match = png_path
+
+    if best_score >= 1:
+        return best_match, all_filenames
+
+    return None, all_filenames
 
 def main():
     client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-    # HARDCODED HEADER
     st.markdown("""
     <div style="background:linear-gradient(90deg, #0E4D92 0%, #1a75ff 100%); padding:15px; border-radius:10px; margin-bottom:20px">
         <h1 style="color:white; margin:0; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026</h1>
@@ -169,7 +231,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # PASSWORD GATE
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
         st.title("🔒 UCE/UACE DIGITAL TUTOR 2026 - Login")
@@ -180,13 +241,11 @@ def main():
             else: st.error("Incorrect Password")
         st.stop()
 
-    # SIDEBAR - ALL FEATURES
     with st.sidebar:
         st.header("Settings")
         subject = st.selectbox("Select Subject", SUBJECTS)
         class_level = st.selectbox("Select Class", CLASSES)
 
-        # TOPICS SECTION BOX
         st.markdown("---")
         st.subheader("📖 Topics in Syllabus")
         with st.expander(f"View {subject} {class_level} Topics"):
@@ -204,7 +263,6 @@ def main():
         st.markdown(f"[📞 WhatsApp/Call: {ADMIN_CONTACT}](https://wa.me/256{ADMIN_CONTACT[1:]})")
         st.caption("Disclaimer: This app is aligned to NCDC Uganda Syllabus 2026 for practice purposes only.")
 
-    # MODE LOGIC
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question from the syllabus", key="ask_smart")
@@ -254,23 +312,28 @@ def main():
                 st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_topic")
                 st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic_dropdown}"})
 
-    elif mode == "Diagrams Library": # NEW MODE
+    elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         st.write("Visual aids aligned to NCDC 2026. Download and use in class.")
 
         topic = st.selectbox("Select Topic to View Diagram", SYLLABUS[subject][class_level], key="diagram_topic")
 
-        diagram_path = find_diagram(topic)
+        diagram_path, all_files = find_diagram(topic)
 
         if diagram_path:
             image = Image.open(diagram_path)
             st.image(image, caption=f"{subject} {class_level} - {topic}", use_column_width=True)
             with open(diagram_path, "rb") as file:
                 st.download_button("⬇️ Download PNG", file, file_name=os.path.basename(diagram_path), mime="image/png", key=f"dl_diagram_{topic}")
-            st.success(f"Found: {os.path.basename(diagram_path)}")
+            st.success(f"Found: `{os.path.basename(diagram_path)}`")
         else:
-            st.warning(f"Diagram for '{topic}' not uploaded yet.")
-            st.info(f"Add PNG to `assets/diagrams/` with name like `{topic.lower().replace(' ', '_')}.png`")
+            st.error(f"Diagram for '{topic}' not found yet.")
+            st.info(f"Looking in: `assets/diagrams/`")
+            st.markdown("**Available diagrams in folder:**")
+            if all_files:
+                st.code("\n".join(sorted(all_files)))
+            else:
+                st.code("No PNGs found. Check if assets/diagrams/ is pushed to Github")
 
         st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Diagram: {topic}"})
 
