@@ -199,7 +199,6 @@ def ask_box(client, key, subject, level, topic):
                     if st.button("🌍 Luganda", key=f"lug_{key}"): st.info(translate_explanation(client, answer, "Luganda", subject, level, st.session_state.chat_history))
                 with c2:
                     if st.button("🌍 Swahili", key=f"swa_{key}"): st.info(translate_explanation(client, answer, "Swahili", subject, level, st.session_state.chat_history))
-
 def main():
     client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -215,9 +214,13 @@ def main():
     st.sidebar.subheader("📖 Current Topics")
     topic = st.sidebar.selectbox("Select Topic", UNEB_CURRICULUM_MAP[subject][level], key="global_topic")
 
+    # FIXED: Practicals dropdown now lists all 10 and updates with subject
+    if mode == "🧪 Practicals Lab":
+        st.sidebar.subheader("🧪 Select Practical")
+        practical_topic = st.sidebar.selectbox("Practical Topic", PRACTICAL_TOPICS[subject], key=f"practical_menu_{subject}")
+
     tz = pytz.timezone("Africa/Kampala"); st.sidebar.divider(); st.sidebar.caption(f"Kampala: {datetime.now(tz).strftime('%A %H:%M %p')}")
 
-    # ============ NEW BANNER ============
     st.markdown(f"""
     <div style="background-color:#0E4D92; padding:12px; border-radius:10px; margin-bottom:15px">
         <h3 style="color:white; margin:0; text-align:center">
@@ -255,7 +258,6 @@ def main():
 
     elif mode == "🧪 Practicals Lab":
         st.title(f"🧪 Practicals Lab: {subject} {level}"); st.warning("Master these 10 topics. They repeat every year in UNEB P3.")
-        practical_topic = st.sidebar.selectbox("Select Practical", PRACTICAL_TOPICS[subject], key="practical_select")
 
         if st.button(f"📖 Explain Full Practical + Examples: {practical_topic}", use_container_width=True):
             with st.spinner("Generating detailed explanation..."):
@@ -346,6 +348,7 @@ def main():
                 with st.spinner("..."): st.session_state.p2 = generate_prediction(client,subject,"P2", level, st.session_state.chat_history); st.session_state.activities_log.append(f"Generated {subject} P2")
             if "p2" in st.session_state: st.text_area("Paper 2", st.session_state.p2, height=400)
         with c3:
+            if st.button("Generate P3 Practical + Examples", use   
             if st.button("Generate P3 Practical + Examples", use_container_width=True):
                 with st.spinner("..."): st.session_state.p3 = generate_prediction(client,subject,"P3", level, st.session_state.chat_history); st.session_state.activities_log.append(f"Generated {subject} P3")
             if "p3" in st.session_state: st.text_area("Paper 3", st.session_state.p3, height=400)
@@ -362,5 +365,4 @@ def main():
             if st.session_state.activities_log: pdf = generate_inspector_report(school, st.session_state.activities_log); st.download_button("📥 Download Activity Report", pdf, f"Report_{school}.pdf")
             else: st.warning("No activities logged yet.")
 
-if __name__ == "__main__": main()
-    
+if __name__ == "__main__": main()           
