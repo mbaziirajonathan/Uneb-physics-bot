@@ -11,9 +11,8 @@ from PIL import Image
 import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
-from pathlib import Path # NEW: to force correct path
+from pathlib import Path
 
-# HARDCODED APP BRANDING - NO MORE "STREAMLIT" OR "UNEB"
 st.set_page_config(
     page_title="UCE/UACE DIGITAL TUTOR 2026",
     page_icon="📚",
@@ -26,31 +25,24 @@ st.set_page_config(
     }
 )
 
-# LICENSE CONTROL - CHANGE THIS TO "PRO" WHEN THEY PAY
-LICENSE_TIER = "FREE" # Options: "FREE" or "PRO"
+LICENSE_TIER = "FREE"
 ADMIN_CONTACT = "0751040731"
-
-# PASSWORD FROM STREAMLIT SECRETS - HIDDEN
 APP_PASSWORD = st.secrets["APP_PASSWORD"]
-
-# CONSTANTS
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
 
-# FORCE CORRECT PATH FOR STREAMLIT CLOUD
-BASE_DIR = Path(__file__).parent
+# FORCE PATH FOR STREAMLIT CLOUD: /mount/src/repo-name/
+BASE_DIR = Path(__file__).parent.resolve()
 DIAGRAMS_DIR = BASE_DIR / "assets" / "diagrams"
 
-# UPDATE SUBJECTS BASED ON LICENSE
 if LICENSE_TIER == "FREE":
     SUBJECTS = ["Physics", "Chemistry", "Biology"]
     CLASSES = ["S1", "S2", "S3", "S4"]
-else: # PRO
+else:
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
-# SYLLABUS TOPICS - NCDC 2026 ONLY - NO DATA LOST
 SYLLABUS = {
     "Physics": {
         "S1": ["Introduction to Physics", "Matter", "Measurement", "Energy", "Light", "Sound", "Heat", "Electricity", "Magnetism", "Machines"],
@@ -72,7 +64,6 @@ SYLLABUS = {
     }
 }
 
-# 10 PRACTICALS - NO DATA LOST
 PRACTICALS = {
     "Physics": [
         {"name": "Measuring Length and Time", "aim": "Use rulers and stopwatches accurately", "materials": "Meter rule, Stopwatch, String", "procedure": "1. Measure length 10 times 2. Calculate average 3. Find error", "graph": "Length vs Time"},
@@ -154,41 +145,43 @@ def sanitize_filename(name):
     return name
 
 def find_diagram(topic):
-    """FINAL: Forces Streamlit Cloud to see assets/diagrams using Path(__file__)"""
+    """DEBUG VERSION: Lists everything in /mount/src/repo/assets/"""
+    
+    debug_info = []
+    debug_info.append(f"App Root: {BASE_DIR}")
+    debug_info.append(f"Looking in: {DIAGRAMS_DIR}")
+    debug_info.append(f"Folder Exists: {DIAGRAMS_DIR.exists()}")
+
     if not DIAGRAMS_DIR.exists():
-        return None, [f"Folder not found at: {DIAGRAMS_DIR}"]
+        # List what IS in the repo so we can debug
+        try:
+            root_files = [f.name for f in BASE_DIR.iterdir()]
+            debug_info.append(f"Files in root: {root_files}")
+            if (BASE_DIR / "assets").exists():
+                asset_files = [f.name for f in (BASE_DIR / "assets").iterdir()]
+                debug_info.append(f"Files in assets/: {asset_files}")
+        except: pass
+        return None, debug_info
+
+    all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
+    all_filenames = [f.name for f in all_pngs]
+    debug_info.append(f"Found {len(all_filenames)} PNGs")
 
     search_key = sanitize_filename(topic)
     search_words = [w for w in search_key.split() if len(w) > 2]
-    all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
-    all_filenames = [f.name for f in all_pngs]
 
     KEYWORD_MAP = {
-        "respiration": ["respiratory_system"],
-        "transport in plants": ["transport_in_plants"],
-        "microbiology": ["prokaryotic_eukaryotic", "chemical_cell"],
-        "human eye": ["human_eye"],
-        "human ear": ["human_ear"],
-        "alveolus": ["alveolus", "respiratory_system"],
-        "cells": ["animal_cell", "plant_cell", "chemical_cell"],
-        "chemical bonding": ["chemical_bonding", "covalent_water"],
-        "waves": ["transverse_wave", "longitudinal_wave"],
-        "light": ["light_reflection", "convex_concave_lens"],
-        "electricity": ["simple_circuit", "ac_dc_electricity"],
-        "ac/dc": ["ac_dc_electricity", "ac_generator"],
-        "electronics": ["transformer", "ac_generator", "cro"],
-        "magnetism": ["bar_magnet", "electroscope"],
-        "measurement": ["vernier", "spring_balance"],
-        "motion": ["linear_motion", "pendulum"],
-        "heat": ["heat_capacity", "colorimeter"],
-        "radioactivity": ["radioactivity"],
-        "dna": ["dna"],
-        "ecology": ["ecology"],
-        "atoms": ["atom"],
-        "leaf": ["leaf"],
-        "neurone": ["neurone"],
-        "nephron": ["nephron"],
-        "growth": ["human_growth_cycle"],
+        "respiration": ["respiratory_system"], "transport in plants": ["transport_in_plants"],
+        "microbiology": ["prokaryotic_eukaryotic", "chemical_cell"], "human eye": ["human_eye"],
+        "human ear": ["human_ear"], "alveolus": ["alveolus", "respiratory_system"],
+        "cells": ["animal_cell", "plant_cell", "chemical_cell"], "chemical bonding": ["chemical_bonding", "covalent_water"],
+        "waves": ["transverse_wave", "longitudinal_wave"], "light": ["light_reflection", "convex_concave_lens"],
+        "electricity": ["simple_circuit", "ac_dc_electricity"], "ac/dc": ["ac_dc_electricity", "ac_generator"],
+        "electronics": ["transformer", "ac_generator", "cro"], "magnetism": ["bar_magnet", "electroscope"],
+        "measurement": ["vernier", "spring_balance"], "motion": ["linear_motion", "pendulum"],
+        "heat": ["heat_capacity", "colorimeter"], "radioactivity": ["radioactivity"],
+        "dna": ["dna"], "ecology": ["ecology"], "atoms": ["atom"], "leaf": ["leaf"],
+        "neurone": ["neurone"], "nephron": ["nephron"], "growth": ["human_growth_cycle"],
         "body systems": ["body_systems", "heart", "human_brain"],
     }
 
@@ -197,41 +190,30 @@ def find_diagram(topic):
             for pf in possible_files:
                 for f in all_pngs:
                     if pf in f.name.lower():
-                        return str(f), all_filenames
+                        return str(f), debug_info + all_filenames
 
-    best_match = None
-    best_score = 0
+    best_match = None; best_score = 0
     for png_path in all_pngs:
         filename = png_path.name.lower().replace(".png", "")
         score = sum(1 for word in search_words if word in filename)
-        if score > best_score:
-            best_score = score
-            best_match = png_path
+        if score > best_score: best_score = score; best_match = png_path
 
-    if best_score >= 1:
-        return str(best_match), all_filenames
-
-    return None, all_filenames
+    if best_score >= 1: return str(best_match), debug_info + all_filenames
+    return None, debug_info + all_filenames
 
 def main():
     client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-    st.markdown("""
-    <div style="background:linear-gradient(90deg, #0E4D92 0%, #1a75ff 100%); padding:15px; border-radius:10px; margin-bottom:20px">
-        <h1 style="color:white; margin:0; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026</h1>
-        <p style="color:#d9e8ff; margin:0; text-align:center">Aligned to NCDC Uganda Syllabus 2026 | S1-S4 | Physics | Chemistry | Biology</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="background:linear-gradient(90deg, #0E4D92 0%, #1a75ff 100%); padding:15px; border-radius:10px; margin-bottom:20px"><h1 style="color:white; margin:0; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026</h1><p style="color:#d9e8ff; margin:0; text-align:center">Aligned to NCDC Uganda Syllabus 2026 | S1-S4 | Physics | Chemistry | Biology</p></div>""", unsafe_allow_html=True)
 
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
         st.title("🔒 UCE/UACE DIGITAL TUTOR 2026 - Login")
         password = st.text_input("Enter Password", type="password")
         if st.button("Login"):
-            if password == APP_PASSWORD:
-                st.session_state.authenticated = True; st.rerun()
+            if password == APP_PASSWORD: st.session_state.authenticated = True; st.rerun()
             else: st.error("Incorrect Password")
         st.stop()
 
@@ -239,18 +221,12 @@ def main():
         st.header("Settings")
         subject = st.selectbox("Select Subject", SUBJECTS)
         class_level = st.selectbox("Select Class", CLASSES)
-
         st.markdown("---")
         st.subheader("📖 Topics in Syllabus")
         with st.expander(f"View {subject} {class_level} Topics"):
-            for topic in SYLLABUS[subject][class_level]:
-                st.write(f"• {topic}")
-
-        if LICENSE_TIER == "FREE":
-            st.warning(f"🔒 Upgrade to Pro to unlock: Mathematics + S5 + S6")
-
+            for topic in SYLLABUS[subject][class_level]: st.write(f"• {topic}")
+        if LICENSE_TIER == "FREE": st.warning(f"🔒 Upgrade to Pro to unlock: Mathematics + S5 + S6")
         mode = st.radio("Select Mode", MODES)
-
         st.markdown("---")
         st.subheader("Need Help?")
         st.write(f"**Contact Admin to Upgrade or Report Issue**")
@@ -309,10 +285,8 @@ def main():
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         st.write("Visual aids aligned to NCDC 2026. Download and use in class.")
-
         topic = st.selectbox("Select Topic to View Diagram", SYLLABUS[subject][class_level], key="diagram_topic")
-
-        diagram_path, all_files = find_diagram(topic)
+        diagram_path, debug_list = find_diagram(topic)
 
         if diagram_path and os.path.exists(diagram_path):
             image = Image.open(diagram_path)
@@ -322,9 +296,8 @@ def main():
             st.success(f"Found: `{os.path.basename(diagram_path)}`")
         else:
             st.error(f"Diagram for '{topic}' not found yet.")
-            st.info(f"Looking in: `{DIAGRAMS_DIR}`")
-            st.markdown("**Available diagrams in folder:**")
-            st.code("\n".join(sorted(all_files)) if all_files else "0 files found. Check Github repo structure.")
+            st.markdown("**DEBUG INFO:**")
+            st.code("\n".join(debug_list))
 
         st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Diagram: {topic}"})
 
@@ -399,8 +372,7 @@ def main():
         st.header("🎤 Voice Chat")
         query = st.text_input("Type your question here too", key="ask_voice")
         audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="recorder")
-        if audio:
-            st.audio(audio["bytes"])
+        if audio: st.audio(audio["bytes"])
         if st.button("Send Typed Question", key="btn_voice_text") and query:
             response = generate_ai_response(client, query, subject, class_level)
             st.write(response)
