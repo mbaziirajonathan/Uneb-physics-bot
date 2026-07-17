@@ -4,7 +4,7 @@ python-multipart==0.0.9
 twilio==9.0.0
 python-dotenv==1.0.1
 
-# Shared dependencies. Copy from main requirements
+# Shared
 groq==0.11.0
 pandas==2.2.2
 numpy==1.26.4
