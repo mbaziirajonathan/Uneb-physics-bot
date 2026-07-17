@@ -8,72 +8,49 @@ from reportlab.lib.pagesizes import A4
 from PIL import Image
 from pathlib import Path
 from gtts import gTTS
-import streamlit as st # ONLY for st.secrets. We will remove this later
 
-# COPY ALL YOUR DATA STRUCTURES HERE FROM app.py
-SUBJECTS = ["Physics", "Chemistry", "Biology"]
-CLASSES = ["S1", "S2", "S3", "S4"]
-SYLLABUS = {...} # PASTE YOUR FULL SYLLABUS DICT HERE
-PRACTICALS = {...} # PASTE YOUR FULL PRACTICALS DICT HERE
+# PASTE YOUR FULL SYLLABUS + PRACTICALS HERE FROM app.py
+SYLLABUS = {...}
+PRACTICALS = {...}
 
 BASE_DIR = Path(__file__).parent.resolve()
 DIAGRAMS_DIR = BASE_DIR / "assets"
 
-# 1. CORE AI FUNCTION
 def get_client():
-    api_key = st.secrets["GROQ_API_KEY"] # For now. Later use os.getenv
+    api_key = os.getenv("GROQ_API_KEY") # Use.env, not st.secrets for API
+    if not api_key: raise ValueError("GROQ_API_KEY not found in.env")
     return Groq(api_key=api_key)
 
+def is_in_syllabus(query: str, subject: str, class_level: str) -> bool:
+    """Check if topic is in NCDC 2026 syllabus to reduce hallucination"""
+    topics = " ".join(SYLLABUS.get(subject, {}).get(class_level, [])).lower()
+    return any(word in topics for word in query.lower().split() if len(word) > 3)
+
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. You teach {subject} for {class_level} in Uganda. Answer ONLY according to NCDC Uganda Syllabus 2026 and UNEB guidelines. Be accurate, cite NCDC where possible. Use Ugandan examples. Be clear and step-by-step. If question is outside NCDC syllabus, say 'This is outside NCDC 2026 syllabus'."
+    # ANTI-HALLUCINATION SYSTEM PROMPT
+    system_prompt = f"""You are UCE/UACE DIGITAL TUTOR 2026.
+    CRITICAL RULES:
+    1. You ONLY teach {subject} for {class_level} in Uganda.
+    2. You MUST follow NCDC Uganda Syllabus 2026 ONLY. Topics: {SYLLABUS[subject][class_level]}
+    3. If the question is NOT in the syllabus above, you MUST reply exactly: "This topic is outside NCDC 2026 syllabus for {subject} {class_level}. I cannot answer it."
+    4. Use Ugandan examples. Be factual, step-by-step. Cite UNEB style.
+    5. Never make up formulas, dates, or facts.
+    """
+
+    # Pre-check to save API cost
+    if not is_in_syllabus(prompt, subject, class_level):
+        return f"This topic is outside NCDC 2026 syllabus for {subject} {class_level}. I cannot answer it."
+
     try:
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=1024
+            temperature=0.1, # LOW = less creative, more factual
+            max_tokens=800,
+            top_p=0.9
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Error: {e}"
+        return f"System Error: Could not reach AI. Please try again. Error: {str(e)}"
 
-# 2. UTILS COPIED FROM app.py
-def generate_graph(data, x_col, y_col, title):
-    fig = px.line(data, x=x_col, y=y_col, title=title, markers=True)
-    fig.update_layout(template="plotly_white")
-    return fig
-
-def create_pdf(content, filename):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    c.setFont("Helvetica", 12)
-    y = height - 50
-    for line in content.split('\n'):
-        c.drawString(50, y, line[:90])
-        y -= 20
-        if y < 50: c.showPage(); y = height - 50
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-def sanitize_filename(name):
-    name = name.lower()
-    name = re.sub(r'[^a-z0-9\s]', '', name)
-    return name
-
-def find_diagram(topic):
-    if not DIAGRAMS_DIR.exists(): return None, []
-    all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
-    search_key = sanitize_filename(topic)
-    KEYWORD_MAP = {"respiration": ["respiratory_system"], "human eye": ["human_eye"], "cells": ["animal_cell", "plant_cell"]} # SHORTENED FOR BREVITY. PASTE YOUR FULL MAP
-    for key, possible_files in KEYWORD_MAP.items():
-        if key in search_key:
-            for pf in possible_files:
-                for f in all_pngs:
-                    if pf in f.name.lower(): return str(f), []
-    return None, []
-
-def generate_tts(text, filename="response.mp3"):
-    tts = gTTS(text)
-    tts.save(filename)
-    return filename
+# PASTE ALL YOUR OTHER FUNCTIONS: generate_graph, create_pdf, find_diagram, generate_tts
