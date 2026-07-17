@@ -13,6 +13,7 @@ from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 from pathlib import Path
 
+# HARDCODED APP BRANDING
 st.set_page_config(
     page_title="UCE/UACE DIGITAL TUTOR 2026",
     page_icon="📚",
@@ -25,15 +26,17 @@ st.set_page_config(
     }
 )
 
+# LICENSE CONTROL
 LICENSE_TIER = "FREE"
 ADMIN_CONTACT = "0751040731"
 APP_PASSWORD = st.secrets["APP_PASSWORD"]
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
 
-# FORCE PATH FOR STREAMLIT CLOUD: /mount/src/repo-name/
+# FIXED PATH: Files are in /assets/ not /assets/diagrams/
 BASE_DIR = Path(__file__).parent.resolve()
-DIAGRAMS_DIR = BASE_DIR / "assets" / "diagrams"
+DIAGRAMS_DIR = BASE_DIR / "assets"
 
+# UPDATE SUBJECTS BASED ON LICENSE
 if LICENSE_TIER == "FREE":
     SUBJECTS = ["Physics", "Chemistry", "Biology"]
     CLASSES = ["S1", "S2", "S3", "S4"]
@@ -43,6 +46,7 @@ else:
 
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
 
+# SYLLABUS TOPICS - NCDC 2026 ONLY
 SYLLABUS = {
     "Physics": {
         "S1": ["Introduction to Physics", "Matter", "Measurement", "Energy", "Light", "Sound", "Heat", "Electricity", "Magnetism", "Machines"],
@@ -64,6 +68,7 @@ SYLLABUS = {
     }
 }
 
+# 10 PRACTICALS
 PRACTICALS = {
     "Physics": [
         {"name": "Measuring Length and Time", "aim": "Use rulers and stopwatches accurately", "materials": "Meter rule, Stopwatch, String", "procedure": "1. Measure length 10 times 2. Calculate average 3. Find error", "graph": "Length vs Time"},
@@ -145,21 +150,16 @@ def sanitize_filename(name):
     return name
 
 def find_diagram(topic):
-    """DEBUG VERSION: Lists everything in /mount/src/repo/assets/"""
-    
+    """FIXED: Now looks in /assets/ directly"""
     debug_info = []
     debug_info.append(f"App Root: {BASE_DIR}")
     debug_info.append(f"Looking in: {DIAGRAMS_DIR}")
     debug_info.append(f"Folder Exists: {DIAGRAMS_DIR.exists()}")
 
     if not DIAGRAMS_DIR.exists():
-        # List what IS in the repo so we can debug
         try:
             root_files = [f.name for f in BASE_DIR.iterdir()]
             debug_info.append(f"Files in root: {root_files}")
-            if (BASE_DIR / "assets").exists():
-                asset_files = [f.name for f in (BASE_DIR / "assets").iterdir()]
-                debug_info.append(f"Files in assets/: {asset_files}")
         except: pass
         return None, debug_info
 
