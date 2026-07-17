@@ -1,0 +1,15 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+twilio==9.0.0
+python-dotenv==1.0.1
+
+# Shared dependencies. Copy from main requirements
+groq==0.11.0
+pandas==2.2.2
+numpy==1.26.4
+plotly==5.22.0
+reportlab==4.2.2
+Pillow==10.4.0
+gTTS==2.5.4
+pytz==2024.1
