@@ -1,7 +1,7 @@
 import streamlit as st
 import os, io, pytz, random
 import pandas as pd
-import numpy as np # FIX 1: Added here for Practicals
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 
@@ -19,18 +19,26 @@ def create_pdf(content, filename):
     from reportlab.lib.pagesizes import A4
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4; c.setFont("Helvetica", 12); y = height - 50
+    width, height = A4
+    c.setFont("Helvetica", 10)
+    y = height - 50
     for line in content.split('\n'):
-        c.drawString(50, y, line[:90]); y -= 20
-        if y < 50: c.showPage(); y = height - 50
-    c.save(); buffer.seek(0)
+        for chunk in [line[i:i+95] for i in range(0, len(line), 95)]:
+            c.drawString(50, y, chunk)
+            y -= 15
+            if y < 50:
+                c.showPage()
+                c.setFont("Helvetica", 10)
+                y = height - 50
+    c.save()
+    buffer.seek(0)
     return buffer
 
 @st.cache_data
 def generate_graph(data, x_col, y_col, title):
     import plotly.express as px
     fig = px.line(data, x=x_col, y=y_col, title=title, markers=True)
-    fig.update_layout(template="plotly_white")
+    fig.update_layout(template="plotly_white", height=400)
     return fig
 
 # ===============================
@@ -49,8 +57,6 @@ st.set_page_config(
 # ===============================
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
-MAX_QUESTIONS_FREE = 20
-MAX_QUESTIONS_GOLD = 9999
 
 BASE_DIR = Path(__file__).parent.resolve()
 DIAGRAMS_DIR = BASE_DIR / "assets"
@@ -103,7 +109,7 @@ def get_topics(subject, level):
     return CURRICULUM.get(subject, {}).get(level, [])
 
 # ===============================
-# 10 PRACTICALS PER SUBJECT - ALL RESTORED - NO DATA LOST
+# 10 PRACTICALS PER SUBJECT - ALL RESTORED
 # ===============================
 PRACTICALS = {
     "Physics": [
@@ -214,7 +220,7 @@ def main():
         show_gold_lock(subject); st.stop()
 
     # ===============================
-    # ALL 12 MODES - LAZY LOADED
+    # ALL 12 MODES
     # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
@@ -246,19 +252,22 @@ def main():
         path = find_diagram(topic)
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-        else: st.error("Diagram not found in /assets folder")
+        else: st.warning("Diagram not found in /assets folder")
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
         practical = st.selectbox("Select Practical", [p["name"] for p in PRACTICALS[subject]])
         if st.button("Show Practical"):
             p = next(p for p in PRACTICALS[subject] if p["name"] == practical)
-            st.write(f"**Aim:** {p['aim']}"); st.write(f"**Materials:** {p['materials']}"); st.write(f"**Procedure:** {p['procedure']}")
+            st.write(f"**Aim:** {p['aim']}")
+            st.write(f"**Materials:** {p['materials']}")
+            st.write(f"**Procedure:** {p['procedure']}")
             if p["graph"]:
                 if st.button("Generate Sample Graph"):
-                    x = np.linspace(0,10,20); y = x * random.uniform(0.5,2) # FIX: np now global
+                    x = np.linspace(0,10,20)
+                    y = x * random.uniform(0.5,2) + np.random.randn(20)*2
                     fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
-                    st.plotly_chart(fig)
+                    st.plotly_chart(fig, use_container_width=True)
             log_activity(f"Practical: {practical}", subject, class_level)
 
     elif mode == "Quiz Mode":
@@ -290,7 +299,7 @@ def main():
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
-        try: # FIX 2: Safe import
+        try:
             from streamlit_mic_recorder import mic_recorder
             from gtts import gTTS
             audio = mic_recorder(start_prompt="Record", stop_prompt="Stop")
@@ -298,16 +307,18 @@ def main():
             if st.button("Send") and query:
                 resp = generate_ai_response(client, query, subject, class_level)
                 st.write(resp)
-                tts = gTTS(resp); tts.save("resp.mp3"); st.audio("resp.mp3")
+                tts = gTTS(resp)
+                tts.save("resp.mp3")
+                st.audio("resp.mp3")
                 log_activity(f"Voice: {query}", subject, class_level)
         except Exception as e:
-            st.error("Voice Chat requires microphone. Error: " + str(e))
+            st.error("Voice Chat library not available. " + str(e))
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
-            st.dataframe(df)
+            st.dataframe(df, use_container_width=True)
         else: st.info("No activities yet")
 
     elif mode == "Admin Dashboard":
@@ -315,7 +326,7 @@ def main():
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.metric("Total Activities", len(df))
-            st.dataframe(df)
+            st.dataframe(df, use_container_width=True)
             st.download_button("Download CSV", df.to_csv().encode(), "log.csv")
 
     elif mode == "Practical Assessment Generator":
