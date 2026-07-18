@@ -61,16 +61,10 @@ def find_diagram(topic):
     if not DIAGRAMS_DIR.exists(): return None
     all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
     if not all_pngs: return None
-
-    # Clean topic for matching
     topic_clean = topic.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
-
-    # 1. Exact match first
     for png_path in all_pngs:
         if topic_clean in png_path.name.lower():
             return str(png_path)
-
-    # 2. Fuzzy match if no exact
     png_names = [p.stem.lower() for p in all_pngs]
     matches = difflib.get_close_matches(topic_clean, png_names, n=1, cutoff=0.6)
     if matches:
@@ -103,17 +97,42 @@ def main():
 
     st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
 
+    # LOGIN GATE - 2 BOXES ON SAME PAGE
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
-        st.title("🔒 Login")
-        password = st.text_input("Enter Access Key", type="password")
-        if st.button("Login", type="primary"):
-            FREE_PASS = st.secrets.get("FREE_PASSWORD", "UNEB_TEST_2026").upper().strip()
-            GOLD_PASS = st.secrets.get("GOLD_PASSWORD", "GOLD2026").upper().strip()
-            user_input = password.upper().strip()
-            if user_input == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
-            elif user_input == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
-            else: st.error("Invalid Access Key. Contact Admin.")
+        st.title("🔒 Enter Access Key")
+        col1, col2 = st.columns(2)
+
+        FREE_PASS = st.secrets.get("FREE_PASSWORD", "UNEB_TEST_2026").upper().strip()
+        GOLD_PASS = st.secrets.get("GOLD_PASSWORD", "GOLD2026").upper().strip()
+
+        with col1:
+            with st.container(border=True):
+                st.markdown("### 🟢 FREE PACKAGE")
+                st.write("Access: S1 - S4")
+                free_password = st.text_input("Enter FREE Key", type="password", key="free_login")
+                if st.button("Login FREE", type="secondary", use_container_width=True):
+                    if free_password.upper().strip() == FREE_PASS:
+                        st.session_state.authenticated = True
+                        st.session_state.license = "FREE"
+                        st.rerun()
+                    else:
+                        st.error("Invalid FREE Key")
+
+        with col2:
+            with st.container(border=True):
+                st.markdown("### ⭐ GOLD PACKAGE")
+                st.write("Access: S1 - S6 + All Features")
+                gold_password = st.text_input("Enter GOLD Key", type="password", key="gold_login")
+                if st.button("Login GOLD", type="primary", use_container_width=True):
+                    if gold_password.upper().strip() == GOLD_PASS:
+                        st.session_state.authenticated = True
+                        st.session_state.license = "GOLD"
+                        st.rerun()
+                    else:
+                        st.error("Invalid GOLD Key")
+                st.markdown(f"**Need GOLD?**")
+                st.markdown(f"[📱 WhatsApp {ADMIN_CONTACT}](https://wa.me/{ADMIN_CONTACT})")
         st.stop()
 
     client = get_client()
@@ -179,7 +198,7 @@ def main():
             st.image(path, caption=topic, use_container_width=True)
             st.success(f"✅ Found diagram: {Path(path).name}")
         else:
-            st.warning(f"Diagram not found for '{topic}'. Add PNG to /assets folder. Name it like: {topic.lower().replace(' ', '_')}.png")
+            st.warning(f"Diagram not found for '{topic}'. Add PNG to /assets folder.")
             st.info(f"Found {len(list(DIAGRAMS_DIR.glob('*.png')))} images in assets folder")
         ask_bar(client, subject, class_level, mode, "Explain this diagram")
 
