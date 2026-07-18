@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, difflib
+import os, io, pytz, random, difflib, re
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -50,23 +50,45 @@ SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 GOLD_LOCKED_CLASSES = ["S5", "S6"]
 GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
-MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
+MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Graph Generator", "Explainer Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY NCDC 2026 curriculum. Ugandan examples."
+    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY NCDC 2026 curriculum. Ugandan examples. Explain step by step."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
     return resp.choices[0].message.content
 
 def find_diagram(topic):
+    """Smart image finder: matches keywords even if names don't match exactly"""
     if not DIAGRAMS_DIR.exists(): return None
     all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
     if not all_pngs: return None
-    topic_clean = topic.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
+
+    topic_lower = topic.lower()
+    topic_words = set(re.findall(r'\w+', topic_lower)) # ['cells', 'structure']
+    
+    # 1. EXACT MATCH FIRST
+    topic_clean = topic_lower.replace(" ", "_")
     for png_path in all_pngs:
         if topic_clean in png_path.name.lower():
             return str(png_path)
+
+    # 2. KEYWORD MATCH: Score images by how many topic words they contain
+    best_match = None
+    best_score = 0
+    for png_path in all_pngs:
+        png_name = png_path.name.lower()
+        png_words = set(re.findall(r'\w+', png_name))
+        score = len(topic_words.intersection(png_words))
+        if score > best_score:
+            best_score = score
+            best_match = png_path
+
+    if best_score > 0: # At least 1 word matched
+        return str(best_match)
+
+    # 3. FUZZY MATCH FALLBACK
     png_names = [p.stem.lower() for p in all_pngs]
-    matches = difflib.get_close_matches(topic_clean, png_names, n=1, cutoff=0.6)
+    matches = difflib.get_close_matches(topic_lower, png_names, n=1, cutoff=0.5)
     if matches:
         for png_path in all_pngs:
             if matches[0] in png_path.stem.lower():
@@ -102,10 +124,8 @@ def main():
     if not st.session_state.authenticated:
         st.title("🔒 Enter Access Key")
         col1, col2 = st.columns(2)
-
         FREE_PASS = st.secrets.get("FREE_PASSWORD", "UNEB_TEST_2026").upper().strip()
         GOLD_PASS = st.secrets.get("GOLD_PASSWORD", "GOLD2026").upper().strip()
-
         with col1:
             with st.container(border=True):
                 st.markdown("### 🟢 FREE PACKAGE")
@@ -118,7 +138,6 @@ def main():
                         st.rerun()
                     else:
                         st.error("Invalid FREE Key")
-
         with col2:
             with st.container(border=True):
                 st.markdown("### ⭐ GOLD PACKAGE")
@@ -160,6 +179,9 @@ def main():
         show_gold_upgrade()
         st.stop()
 
+    # ===============================
+    # ALL 14 MODES
+    # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
@@ -194,12 +216,16 @@ def main():
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
+        all_images = list(DIAGRAMS_DIR.glob("*.png"))
+        st.info(f"Found {len(all_images)} images in assets folder")
+        
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-            st.success(f"✅ Found diagram: {Path(path).name}")
+            st.success(f"✅ Found related diagram: {Path(path).name}")
         else:
-            st.warning(f"Diagram not found for '{topic}'. Add PNG to /assets folder.")
-            st.info(f"Found {len(list(DIAGRAMS_DIR.glob('*.png')))} images in assets folder")
+            st.warning(f"No related diagram found for '{topic}'. Try naming images with topic keywords.")
+            with st.expander("Show all images in assets"):
+                for img in all_images[:10]: st.write(img.name)
         ask_bar(client, subject, class_level, mode, "Explain this diagram")
 
     elif mode == "Practicals Lab":
@@ -229,6 +255,57 @@ def main():
                 resp = generate_ai_response(client, f"Generate 5 competency-based MCQs with answers on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Quiz: {topic}", subject, class_level)
         ask_bar(client, subject, class_level, mode, "Explain any answer")
+
+    elif mode == "Graph Generator":
+        st.header("📊 Graph Generator")
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        graph_type = st.selectbox("Graph Type", ["Line Graph", "Bar Chart", "Scatter Plot"])
+        col1, col2 = st.columns(2)
+        with col1: x_label = st.text_input("X-Axis Label", "Time (s)")
+        with col2: y_label = st.text_input("Y-Axis Label", "Distance (m)")
+        num_points = st.slider("Number of Data Points", 5, 50, 20)
+        if st.button("Generate Graph"):
+            with st.spinner("Generating graph..."):
+                if graph_type == "Line Graph":
+                    x = np.linspace(0, 10, num_points)
+                    y = x**2 * 0.5 + np.random.randn(num_points)*5
+                    df = pd.DataFrame({x_label: x, y_label: y})
+                    fig = generate_graph(df, x_label, y_label, f"{topic} - {graph_type}")
+                elif graph_type == "Bar Chart":
+                    categories = [f"Cat {i+1}" for i in range(num_points//2)]
+                    values = np.random.randint(10, 100, len(categories))
+                    df = pd.DataFrame({x_label: categories, y_label: values})
+                    import plotly.express as px
+                    fig = px.bar(df, x=x_label, y=y_label, title=f"{topic} - {graph_type}")
+                else:
+                    x = np.random.randn(num_points)
+                    y = np.random.randn(num_points)
+                    df = pd.DataFrame({x_label: x, y_label: y})
+                    import plotly.express as px
+                    fig = px.scatter(df, x=x_label, y=y_label, title=f"{topic} - {graph_type}")
+                st.plotly_chart(fig, use_container_width=True)
+                st.download_button("Download CSV", df.to_csv(index=False).encode(), "graph_data.csv")
+                log_activity(f"Graph: {topic}", subject, class_level)
+        if st.button("Explain This Graph"):
+            with st.spinner("AI is explaining..."):
+                resp = generate_ai_response(client, f"Explain how to interpret and draw a {graph_type} for {topic} in {class_level}. Give Ugandan example.", subject, class_level)
+            st.success(resp)
+        ask_bar(client, subject, class_level, mode, "Ask about graph interpretation")
+
+    elif mode == "Explainer Mode":
+        st.header("🎓 Explainer Mode")
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        level = st.selectbox("Explanation Level", ["Simple", "Detailed", "Exam Focused"])
+        if st.button("Explain Topic"):
+            with st.spinner("Generating explanation..."):
+                resp = generate_ai_response(client, f"Explain {topic} for {class_level} at {level} level. Use Ugandan examples. Give 3 worked examples.", subject, class_level)
+            st.write(resp)
+            log_activity(f"Explain: {topic}", subject, class_level)
+        if st.button("Common Mistakes"):
+            with st.spinner("Finding mistakes..."):
+                resp = generate_ai_response(client, f"List 5 common mistakes students make on {topic} in {class_level} and how to avoid them", subject, class_level)
+            st.warning(resp)
+        ask_bar(client, subject, class_level, mode, "Ask a specific doubt")
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
