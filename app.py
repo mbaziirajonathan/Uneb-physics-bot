@@ -54,7 +54,7 @@ st.set_page_config(
 )
 
 # ===============================
-# LICENSE CONTROL - TEST MODE
+# LICENSE CONTROL + LOCKS
 # ===============================
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
@@ -65,6 +65,8 @@ DIAGRAMS_DIR.mkdir(exist_ok=True)
 
 SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
+GOLD_LOCKED_CLASSES = ["S5", "S6"] # LOCKED
+GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"] # ALL SUBJECTS LOCKED
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 # ===============================
@@ -85,28 +87,51 @@ def find_diagram(topic):
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
-    st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ).strftime("%Y-%m-%d %H:%M:%S"), "activity": activity, "subject": subject, "class": class_level, "license": "GOLD"})
+    st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ).strftime("%Y-%m-%d %H:%M:%S"), "activity": activity, "subject": subject, "class": class_level, "license": st.session_state.license})
+
+def show_gold_lock(subject):
+    st.error(f"🔒 **GOLD PACKAGE REQUIRED**")
+    st.info(f"S5 and S6 are GOLD ONLY for all subjects.")
+    st.info(f"WhatsApp/Call **{ADMIN_CONTACT}** to get your access key")
+    st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
 
 # ===============================
 # MAIN APP
 # ===============================
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
-    st.session_state.license = "GOLD" # FORCE GOLD FOR TESTING
+    if "license" not in st.session_state: st.session_state.license = "FREE"
 
-    st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD - TEST MODE</h1></div>""", unsafe_allow_html=True)
+    st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
 
-    # LOGIN REMOVED FOR TROUBLESHOOTING
+    # LOGIN GATE - RESTORED
+    if "authenticated" not in st.session_state: st.session_state.authenticated = False
+    if not st.session_state.authenticated:
+        st.title("🔒 Login")
+        password = st.text_input("Enter Access Key", type="password")
+        if st.button("Login", type="primary"):
+            FREE_PASS = st.secrets.get("FREE_PASSWORD")
+            GOLD_PASS = st.secrets.get("GOLD_PASSWORD")
+            if password == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
+            elif password == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
+            else: st.error("Invalid Access Key. Contact Admin on WhatsApp.")
+        st.stop()
+
     client = get_client()
 
     with st.sidebar:
-        st.success(f"License: GOLD TEST MODE")
+        st.success(f"License: {st.session_state.license}")
         subject = st.selectbox("Subject", SUBJECTS)
-        class_level = st.selectbox("Class", CLASSES) # ALL CLASSES OPEN
+        available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" else CLASSES
+        class_level = st.selectbox("Class", available_classes)
         with st.expander(f"📖 {subject} {class_level} Topics"):
             for topic in get_topics(subject, class_level): st.write(f"• {topic}")
         mode = st.radio("Mode", MODES)
         st.markdown(f"[📞 WhatsApp Admin](https://wa.me/256{ADMIN_CONTACT[1:]})")
+
+    # LOCK CHECK - S5/S6 ALL SUBJECTS = GOLD ONLY
+    if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
+        show_gold_lock(subject); st.stop()
 
     # ===============================
     # ALL 12 MODES - UNCHANGED
