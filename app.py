@@ -1,15 +1,36 @@
 import streamlit as st
-import os, io, re, pytz, numpy as np, random
+import os, io, pytz, random
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
-from groq import Groq
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from PIL import Image
-from streamlit_mic_recorder import mic_recorder
-from gtts import gTTS
 from pathlib import Path
+
+# ===============================
+# LAZY IMPORTS + CACHING FOR SPEED
+# ===============================
+@st.cache_resource
+def get_client():
+    from groq import Groq
+    return Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+@st.cache_data
+def create_pdf(content, filename):
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4; c.setFont("Helvetica", 12); y = height - 50
+    for line in content.split('\n'):
+        c.drawString(50, y, line[:90]); y -= 20
+        if y < 50: c.showPage(); y = height - 50
+    c.save(); buffer.seek(0)
+    return buffer
+
+@st.cache_data
+def generate_graph(data, x_col, y_col, title):
+    import plotly.express as px
+    fig = px.line(data, x=x_col, y=y_col, title=title, markers=True)
+    fig.update_layout(template="plotly_white")
+    return fig
 
 # ===============================
 # HARDCODED APP BRANDING
@@ -23,7 +44,7 @@ st.set_page_config(
 )
 
 # ===============================
-# LICENSE CONTROL - HIDDEN IN SECRETS
+# LICENSE CONTROL
 # ===============================
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
@@ -40,7 +61,7 @@ GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 # ===============================
-# LOCKED NCDC S1-S6 CURRICULUM ENGINE - NO SUBJECTS.PY NEEDED
+# LOCKED NCDC S1-S6 CURRICULUM ENGINE - NO DATA LOST
 # ===============================
 CURRICULUM = {
     "Physics": {
@@ -81,7 +102,7 @@ def get_topics(subject, level):
     return CURRICULUM.get(subject, {}).get(level, [])
 
 # ===============================
-# 10 PRACTICALS PER SUBJECT - ALL RESTORED
+# 10 PRACTICALS PER SUBJECT - ALL RESTORED - NO DATA LOST
 # ===============================
 PRACTICALS = {
     "Physics": [
@@ -131,28 +152,10 @@ PRACTICALS = {
 # ===============================
 # CORE FUNCTIONS
 # ===============================
-def get_client():
-    return Groq(api_key=st.secrets["GROQ_API_KEY"])
-
 def generate_ai_response(client, prompt, subject, class_level):
     system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
     return resp.choices[0].message.content
-
-def create_pdf(content, filename):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4; c.setFont("Helvetica", 12); y = height - 50
-    for line in content.split('\n'):
-        c.drawString(50, y, line[:90]); y -= 20
-        if y < 50: c.showPage(); y = height - 50
-    c.save(); buffer.seek(0)
-    return buffer
-
-def generate_graph(data, x_col, y_col, title):
-    fig = px.line(data, x=x_col, y=y_col, title=title, markers=True)
-    fig.update_layout(template="plotly_white")
-    return fig
 
 def find_diagram(topic):
     if not DIAGRAMS_DIR.exists(): return None
@@ -175,13 +178,12 @@ def show_gold_lock(subject):
 # MAIN APP
 # ===============================
 def main():
-    client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "license" not in st.session_state: st.session_state.license = "FREE"
 
     st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
 
-    # LOGIN GATE - PASSWORDS FROM SECRETS
+    # LOGIN GATE
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
         st.title("🔒 Login")
@@ -193,6 +195,8 @@ def main():
             elif password == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
             else: st.error("Invalid Access Key. Contact Admin.")
         st.stop()
+
+    client = get_client() # Cached - loads once
 
     with st.sidebar:
         st.success(f"License: {st.session_state.license}")
@@ -208,11 +212,8 @@ def main():
     if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
         show_gold_lock(subject); st.stop()
 
-    # QUOTA CHECK
-    max_q = MAX_QUESTIONS_GOLD if st.session_state.license == "GOLD" else MAX_QUESTIONS_FREE
-
     # ===============================
-    # ALL 12 MODES - NO FEATURE LOST
+    # ALL 12 MODES - LAZY LOADED
     # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
@@ -240,6 +241,7 @@ def main():
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
+        from PIL import Image # LAZY LOAD
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
         if path and os.path.exists(path):
@@ -255,6 +257,7 @@ def main():
             st.write(f"**Aim:** {p['aim']}"); st.write(f"**Materials:** {p['materials']}"); st.write(f"**Procedure:** {p['procedure']}")
             if p["graph"]:
                 if st.button("Generate Sample Graph"):
+                    import numpy as np # LAZY LOAD
                     x = np.linspace(0,10,20); y = x * random.uniform(0.5,2)
                     fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
                     st.plotly_chart(fig)
@@ -289,6 +292,8 @@ def main():
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
+        from streamlit_mic_recorder import mic_recorder # LAZY LOAD
+        from gtts import gTTS # LAZY LOAD
         audio = mic_recorder(start_prompt="Record", stop_prompt="Stop")
         query = st.text_input("Or type question")
         if st.button("Send") and query:
