@@ -1,6 +1,7 @@
 import streamlit as st
 import os, io, pytz, random
 import pandas as pd
+import numpy as np # FIX 1: Added here for Practicals
 from datetime import datetime
 from pathlib import Path
 
@@ -241,11 +242,10 @@ def main():
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
-        # FIX: REMOVED PIL IMPORT. Streamlit can load path directly
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
         if path and os.path.exists(path):
-            st.image(path, caption=topic, use_container_width=True) # FIXED LINE
+            st.image(path, caption=topic, use_container_width=True)
         else: st.error("Diagram not found in /assets folder")
 
     elif mode == "Practicals Lab":
@@ -256,8 +256,7 @@ def main():
             st.write(f"**Aim:** {p['aim']}"); st.write(f"**Materials:** {p['materials']}"); st.write(f"**Procedure:** {p['procedure']}")
             if p["graph"]:
                 if st.button("Generate Sample Graph"):
-                    import numpy as np
-                    x = np.linspace(0,10,20); y = x * random.uniform(0.5,2)
+                    x = np.linspace(0,10,20); y = x * random.uniform(0.5,2) # FIX: np now global
                     fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
                     st.plotly_chart(fig)
             log_activity(f"Practical: {practical}", subject, class_level)
@@ -291,15 +290,18 @@ def main():
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
-        from streamlit_mic_recorder import mic_recorder
-        from gtts import gTTS
-        audio = mic_recorder(start_prompt="Record", stop_prompt="Stop")
-        query = st.text_input("Or type question")
-        if st.button("Send") and query:
-            resp = generate_ai_response(client, query, subject, class_level)
-            st.write(resp)
-            tts = gTTS(resp); tts.save("resp.mp3"); st.audio("resp.mp3")
-            log_activity(f"Voice: {query}", subject, class_level)
+        try: # FIX 2: Safe import
+            from streamlit_mic_recorder import mic_recorder
+            from gtts import gTTS
+            audio = mic_recorder(start_prompt="Record", stop_prompt="Stop")
+            query = st.text_input("Or type question")
+            if st.button("Send") and query:
+                resp = generate_ai_response(client, query, subject, class_level)
+                st.write(resp)
+                tts = gTTS(resp); tts.save("resp.mp3"); st.audio("resp.mp3")
+                log_activity(f"Voice: {query}", subject, class_level)
+        except Exception as e:
+            st.error("Voice Chat requires microphone. Error: " + str(e))
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
