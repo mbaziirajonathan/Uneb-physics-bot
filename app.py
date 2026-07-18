@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, difflib, re
+import os, io, pytz, random
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -58,42 +58,31 @@ def generate_ai_response(client, prompt, subject, class_level):
     return resp.choices[0].message.content
 
 def find_diagram(topic):
-    """Smart image finder: matches keywords even if names don't match exactly"""
+    """STRICT MATCH: Only return image if topic words are in filename"""
     if not DIAGRAMS_DIR.exists(): return None
     all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
     if not all_pngs: return None
 
-    topic_lower = topic.lower()
-    topic_words = set(re.findall(r'\w+', topic_lower)) # ['cells', 'structure']
+    topic_clean = topic.lower().replace(" ", "_").replace("/", "_")
     
-    # 1. EXACT MATCH FIRST
-    topic_clean = topic_lower.replace(" ", "_")
+    # 1. EXACT MATCH: topic == filename
+    for png_path in all_pngs:
+        if topic_clean == png_path.stem.lower():
+            return str(png_path)
+
+    # 2. CONTAINS MATCH: topic must be fully in filename
     for png_path in all_pngs:
         if topic_clean in png_path.name.lower():
             return str(png_path)
 
-    # 2. KEYWORD MATCH: Score images by how many topic words they contain
-    best_match = None
-    best_score = 0
+    # 3. PARTIAL MATCH: only if ALL words in topic are in filename
+    topic_words = topic_clean.split("_")
     for png_path in all_pngs:
         png_name = png_path.name.lower()
-        png_words = set(re.findall(r'\w+', png_name))
-        score = len(topic_words.intersection(png_words))
-        if score > best_score:
-            best_score = score
-            best_match = png_path
-
-    if best_score > 0: # At least 1 word matched
-        return str(best_match)
-
-    # 3. FUZZY MATCH FALLBACK
-    png_names = [p.stem.lower() for p in all_pngs]
-    matches = difflib.get_close_matches(topic_lower, png_names, n=1, cutoff=0.5)
-    if matches:
-        for png_path in all_pngs:
-            if matches[0] in png_path.stem.lower():
-                return str(png_path)
-    return None
+        if all(word in png_name for word in topic_words if len(word) > 2):
+            return str(png_path)
+            
+    return None # Return nothing if no real match
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -221,11 +210,11 @@ def main():
         
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-            st.success(f"✅ Found related diagram: {Path(path).name}")
+            st.success(f"✅ Exact match found: {Path(path).name}")
         else:
-            st.warning(f"No related diagram found for '{topic}'. Try naming images with topic keywords.")
+            st.warning(f"No diagram found for '{topic}'. Name your image exactly like: {topic.lower().replace(' ', '_')}.png")
             with st.expander("Show all images in assets"):
-                for img in all_images[:10]: st.write(img.name)
+                for img in sorted(all_images): st.write(img.name)
         ask_bar(client, subject, class_level, mode, "Explain this diagram")
 
     elif mode == "Practicals Lab":
