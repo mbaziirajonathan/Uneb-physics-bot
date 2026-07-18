@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from pathlib import Path
-from subjects import CURRICULUM, PRACTICALS, get_topics # IMPORT DATA
+from subjects import CURRICULUM, PRACTICALS, get_topics
 
 # ===============================
 # LAZY IMPORTS + CACHING FOR SPEED
@@ -54,7 +54,7 @@ st.set_page_config(
 )
 
 # ===============================
-# LICENSE CONTROL
+# LICENSE CONTROL - TEST MODE
 # ===============================
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
@@ -65,11 +65,11 @@ DIAGRAMS_DIR.mkdir(exist_ok=True)
 
 SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
-GOLD_LOCKED_CLASSES = ["S5", "S6"]
-GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
-# CORE FUNCTIONS
+# ===============================
+# CORE FUNCTIONS - NO DATA LOST
+# ===============================
 def generate_ai_response(client, prompt, subject, class_level):
     system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
@@ -85,71 +85,54 @@ def find_diagram(topic):
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
-    st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ).strftime("%Y-%m-%d %H:%M:%S"), "activity": activity, "subject": subject, "class": class_level, "license": st.session_state.license})
-
-def show_gold_lock(subject):
-    st.error(f"🔒 **GOLD PACKAGE REQUIRED**")
-    st.info(f"WhatsApp/Call **{ADMIN_CONTACT}** to get your access key")
-    st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
+    st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ).strftime("%Y-%m-%d %H:%M:%S"), "activity": activity, "subject": subject, "class": class_level, "license": "GOLD"})
 
 # ===============================
 # MAIN APP
 # ===============================
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
-    if "license" not in st.session_state: st.session_state.license = "FREE"
+    st.session_state.license = "GOLD" # FORCE GOLD FOR TESTING
 
-    st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
+    st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD - TEST MODE</h1></div>""", unsafe_allow_html=True)
 
-    # LOGIN GATE
-    if "authenticated" not in st.session_state: st.session_state.authenticated = False
-    if not st.session_state.authenticated:
-        st.title("🔒 Login")
-        password = st.text_input("Enter Access Key", type="password")
-        if st.button("Login", type="primary"):
-            FREE_PASS = st.secrets.get("FREE_PASSWORD")
-            GOLD_PASS = st.secrets.get("GOLD_PASSWORD")
-            if password == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
-            elif password == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
-            else: st.error("Invalid Access Key. Contact Admin.")
-        st.stop()
-
+    # LOGIN REMOVED FOR TROUBLESHOOTING
     client = get_client()
 
     with st.sidebar:
-        st.success(f"License: {st.session_state.license}")
+        st.success(f"License: GOLD TEST MODE")
         subject = st.selectbox("Subject", SUBJECTS)
-        available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" and subject in GOLD_LOCKED_SUBJECTS else CLASSES
-        class_level = st.selectbox("Class", available_classes)
+        class_level = st.selectbox("Class", CLASSES) # ALL CLASSES OPEN
         with st.expander(f"📖 {subject} {class_level} Topics"):
             for topic in get_topics(subject, class_level): st.write(f"• {topic}")
         mode = st.radio("Mode", MODES)
         st.markdown(f"[📞 WhatsApp Admin](https://wa.me/256{ADMIN_CONTACT[1:]})")
 
-    # LOCK CHECK
-    if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
-        show_gold_lock(subject); st.stop()
-
-    # ALL 12 MODES
+    # ===============================
+    # ALL 12 MODES - UNCHANGED
+    # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
         if st.button("Search") and query:
-            resp = generate_ai_response(client, f"Explain {query}", subject, class_level)
+            with st.spinner("Thinking..."):
+                resp = generate_ai_response(client, f"Explain {query}", subject, class_level)
             st.write(resp); log_activity(f"Smart: {query}", subject, class_level)
 
     elif mode == "Theory Mode":
         st.header("📘 Theory Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Notes"):
-            resp = generate_ai_response(client, f"Detailed NCDC 2026 notes on {topic} for {class_level}", subject, class_level)
+            with st.spinner("Generating notes..."):
+                resp = generate_ai_response(client, f"Detailed NCDC 2026 notes on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Theory: {topic}", subject, class_level)
 
     elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Lesson Plan + AoI"):
-            resp = generate_ai_response(client, f"40min competency-based lesson plan with AoI for {topic} in Ugandan context", subject, class_level)
+            with st.spinner("Generating lesson plan..."):
+                resp = generate_ai_response(client, f"40min competency-based lesson plan with AoI for {topic} in Ugandan context", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "lesson.pdf")
             st.download_button("Download PDF", pdf, "lesson.pdf")
@@ -161,7 +144,7 @@ def main():
         path = find_diagram(topic)
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-        else: st.warning("Diagram not found in /assets folder")
+        else: st.warning("Diagram not found in /assets folder. Upload PNG with name matching topic.")
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -183,7 +166,8 @@ def main():
         st.header("📝 Quiz Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate 5 MCQs"):
-            resp = generate_ai_response(client, f"Generate 5 competency-based MCQs with answers on {topic} for {class_level}", subject, class_level)
+            with st.spinner("Generating quiz..."):
+                resp = generate_ai_response(client, f"Generate 5 competency-based MCQs with answers on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Quiz: {topic}", subject, class_level)
 
     elif mode == "Bulk Revision Generator":
@@ -191,7 +175,8 @@ def main():
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         num_q = st.slider("Questions", 10, 50, 20)
         if st.button("Generate"):
-            resp = generate_ai_response(client, f"Generate {num_q} UCE/UACE revision questions with answers on {topic}", subject, class_level)
+            with st.spinner("Generating bulk questions..."):
+                resp = generate_ai_response(client, f"Generate {num_q} UCE/UACE revision questions with answers on {topic}", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "revision.pdf")
             st.download_button("Download PDF", pdf, "revision.pdf")
@@ -200,7 +185,8 @@ def main():
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
         if st.button("Predict Full Subject"):
-            resp = generate_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject} with Ugandan context", subject, class_level)
+            with st.spinner("Predicting paper..."):
+                resp = generate_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject} with Ugandan context", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "predict.pdf")
             st.download_button("Download PDF", pdf, "predict.pdf")
@@ -211,7 +197,8 @@ def main():
         st.info("Voice Chat disabled in Cloud. Use text input below.")
         query = st.text_input("Type your question")
         if st.button("Send") and query:
-            resp = generate_ai_response(client, query, subject, class_level)
+            with st.spinner("Thinking..."):
+                resp = generate_ai_response(client, query, subject, class_level)
             st.write(resp)
             log_activity(f"Voice: {query}", subject, class_level)
 
@@ -220,21 +207,24 @@ def main():
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df, use_container_width=True)
-        else: st.info("No activities yet")
+        else: st.info("No activities yet. Use any mode to start tracking.")
 
     elif mode == "Admin Dashboard":
         st.header("📈 Admin Dashboard")
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.metric("Total Activities", len(df))
+            st.metric("Subjects Used", df['subject'].nunique())
             st.dataframe(df, use_container_width=True)
-            st.download_button("Download CSV", df.to_csv().encode(), "log.csv")
+            st.download_button("Download CSV", df.to_csv(index=False).encode(), "log.csv")
+        else: st.info("No data yet")
 
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate AoI"):
-            resp = generate_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan household scenario", subject, class_level)
+            with st.spinner("Generating AoI..."):
+                resp = generate_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan household scenario", subject, class_level)
             st.write(resp)
             log_activity(f"AoI: {topic}", subject, class_level)
 
