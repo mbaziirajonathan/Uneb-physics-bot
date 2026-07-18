@@ -40,32 +40,32 @@ GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 # ===============================
-# SYLLABUS - S1-S6 ALL 4 SUBJECTS
+# LOCKED NCDC S1-S6 CURRICULUM ENGINE - NO SUBJECTS.PY NEEDED
 # ===============================
-SYLLABUS = {
+CURRICULUM = {
     "Physics": {
-        "S1": ["Introduction to Physics", "Matter", "Measurement", "Energy", "Light", "Sound", "Heat", "Electricity", "Magnetism", "Machines"],
-        "S2": ["Motion", "Forces", "Work Energy Power", "Pressure", "Waves", "Electrostatics", "Current Electricity", "Optics"],
-        "S3": ["Linear Motion", "Newton's Laws", "Momentum", "Gravitation", "Properties of Matter", "Thermal Physics", "Waves II", "Magnetism"],
-        "S4": ["Radioactivity", "Electronics", "AC/DC", "Nuclear Physics", "Astrophysics", "Advanced Mechanics"],
-        "S5": ["Unit 1: Mechanics", "Unit 2: Waves", "Unit 3: Thermal"],
-        "S6": ["Unit 4: Thermo 2", "Unit 5: E&M", "Unit 6: Modern Physics"]
+        "S1": ["Intro to Physics", "Measurement", "Force", "Mechanical Properties"],
+        "S2": ["Atmospheric/Fluid Pressure", "Work/Energy/Power", "Simple Machines", "Temperature/Heat Transfer"],
+        "S3": ["Light/Optics", "Electrostatics", "Current Electricity", "Wave Motion/Sound"],
+        "S4": ["Electromagnetism", "Electronics", "Radioactivity/Nuclear Physics"],
+        "S5": ["Unit 1: Mechanics/Matter", "Unit 2: Waves/Optics", "Unit 3: Thermal Properties/Thermodynamics I"],
+        "S6": ["Unit 4: Thermodynamics II", "Unit 5: Electricity/Magnetism", "Unit 6: Modern Physics/Electronics"],
     },
     "Chemistry": {
-        "S1": ["Introduction to Chemistry", "Matter", "Atoms", "Molecules", "Acids Bases", "Air", "Water", "Chemical Reactions"],
-        "S2": ["Periodic Table", "Chemical Bonding", "Acids Bases Salts", "Carbon", "Metals", "Non-metals", "Energy Changes"],
-        "S3": ["Chemical Kinetics", "Equilibrium", "Electrochemistry", "Organic Chemistry", "Industrial Processes"],
-        "S4": ["Advanced Organic", "Analytical Chemistry", "Environmental Chemistry", "Polymers"],
-        "S5": ["Unit 1: Moles", "Unit 2: Atomic Structure", "Unit 3: Bonding", "Unit 4: Periodicity", "Unit 5: Thermochemistry", "Unit 6: Organic"],
-        "S6": ["Unit 7: Equilibria", "Unit 8: Inorganic", "Unit 9: Advanced Organic", "Unit 10: Industrial"]
+        "S1": ["Chemistry/Society", "Experimental Techniques", "States of Matter", "Classification of Matter"],
+        "S2": ["Air/Burning/Rusting", "Water/Hydrogen", "Atomic Structure/Bonding", "Acids/Bases/Indicators"],
+        "S3": ["Chemical Equations/Formulae", "Mole Concept", "Carbon/Compounds", "Sulfur/Nitrogen Compounds"],
+        "S4": ["Periodicity", "Reactivity Series/Metal Extraction", "Organic Chemistry", "Thermochemistry", "Consumable Chemicals"],
+        "S5": ["Unit 1: Moles/Equations", "Unit 2: Atomic/Electronic Structure", "Unit 3: Bonding/Crystal Structure", "Unit 4: Periodicity I", "Unit 5: Thermochemistry", "Unit 6: Intro Organic/Hydrocarbons"],
+        "S6": ["Unit 7: Physical Equilibria/Kinetics", "Unit 8: Advanced Inorganic", "Unit 9: Advanced Organic", "Unit 10: Industrial/Environmental"],
     },
     "Biology": {
-        "S1": ["Introduction to Biology", "Cells", "Classification", "Nutrition", "Respiration", "Transport", "Ecology", "Transport in Plants"],
-        "S2": ["Reproduction", "Genetics", "Growth", "Human Body Systems", "Disease", "Immunity", "Respiratory System", "Alveolus", "Human Ear", "Human Eye"],
-        "S3": ["Ecology II", "Evolution", "Genetics II", "Physiology", "Microbiology"],
-        "S4": ["Molecular Biology", "Biotechnology", "Conservation", "Human Health"],
-        "S5": ["Unit 1: Cell Biology", "Unit 2: Nutrition", "Unit 3: Transport", "Unit 4: Respiration", "Unit 5: Homeostasis"],
-        "S6": ["Unit 6: Coordination", "Unit 7: Growth", "Unit 8: Genetics", "Unit 9: Ecology"]
+        "S1": ["Intro to Biology", "Cells", "Classification", "Interaction/Interdependence"],
+        "S2": ["Nutrition", "Transport", "Gas Exchange/Respiration"],
+        "S3": ["Excretion/Homeostasis", "Coordination/Response", "Locomotion/Support", "Reproduction"],
+        "S4": ["Growth/Development", "Genetics/Inheritance", "Evolution/Selection"],
+        "S5": ["Unit 1: Cell Bio/Biochem", "Unit 2: Nutrition/Autotrophic Systems", "Unit 3: Transport/Gas Exchange", "Unit 4: Cellular Respiration", "Unit 5: Homeostasis/Regulation"],
+        "S6": ["Unit 6: Coordination/Response", "Unit 7: Growth/Development/Reproduction", "Unit 8: Inheritance/Genetics/Evolution", "Unit 9: Ecology/Environmental Management"],
     },
     "Mathematics": {
         "S1": ["Unit 1: Number Bases", "Unit 2: Fractions", "Unit 3: Integers", "Unit 4: Sets", "Unit 5: Geometry", "Unit 6: Sequences", "Unit 7: Coordinates"],
@@ -76,6 +76,9 @@ SYLLABUS = {
         "S6": ["Paper 1: Permutations & Complex", "Paper 1: Conics & 3D", "Paper 1: Calculus II", "Paper 2: Probability", "Paper 2: Mechanics II", "Paper 2: Numerical Methods II"]
     }
 }
+
+def get_topics(subject, level):
+    return CURRICULUM.get(subject, {}).get(level, [])
 
 # ===============================
 # 10 PRACTICALS PER SUBJECT - ALL RESTORED
@@ -132,7 +135,7 @@ def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. NCDC 2026 only. Ugandan examples. Step by step."
+    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
     return resp.choices[0].message.content
 
@@ -154,7 +157,7 @@ def generate_graph(data, x_col, y_col, title):
 def find_diagram(topic):
     if not DIAGRAMS_DIR.exists(): return None
     all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
-    search_key = topic.lower().replace(" ", "_")
+    search_key = topic.lower().replace(" ", "_").replace("/", "_")
     for png_path in all_pngs:
         if search_key in png_path.name.lower(): return str(png_path)
     return None
@@ -197,7 +200,7 @@ def main():
         available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" and subject in GOLD_LOCKED_SUBJECTS else CLASSES
         class_level = st.selectbox("Class", available_classes)
         with st.expander(f"📖 {subject} {class_level} Topics"):
-            for topic in SYLLABUS[subject][class_level]: st.write(f"• {topic}")
+            for topic in get_topics(subject, class_level): st.write(f"• {topic}")
         mode = st.radio("Mode", MODES)
         st.markdown(f"[📞 WhatsApp Admin](https://wa.me/256{ADMIN_CONTACT[1:]})")
 
@@ -207,9 +210,6 @@ def main():
 
     # QUOTA CHECK
     max_q = MAX_QUESTIONS_GOLD if st.session_state.license == "GOLD" else MAX_QUESTIONS_FREE
-    student_id = "Guest"
-    if st.session_state.get("student_usage", {}).get(student_id, 0) >= max_q and mode not in ["Admin Dashboard"]:
-        st.error(f"Quota reached. WhatsApp {ADMIN_CONTACT} for GOLD"); st.stop()
 
     # ===============================
     # ALL 12 MODES - NO FEATURE LOST
@@ -223,16 +223,16 @@ def main():
 
     elif mode == "Theory Mode":
         st.header("📘 Theory Mode")
-        topic = st.selectbox("Topic", SYLLABUS[subject][class_level])
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Notes"):
-            resp = generate_ai_response(client, f"Detailed notes on {topic}", subject, class_level)
+            resp = generate_ai_response(client, f"Detailed NCDC 2026 notes on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Theory: {topic}", subject, class_level)
 
     elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
-        topic = st.selectbox("Topic", SYLLABUS[subject][class_level])
-        if st.button("Generate Lesson Plan"):
-            resp = generate_ai_response(client, f"40min lesson plan for {topic}", subject, class_level)
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        if st.button("Generate Lesson Plan + AoI"):
+            resp = generate_ai_response(client, f"40min competency-based lesson plan with AoI for {topic} in Ugandan context", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "lesson.pdf")
             st.download_button("Download PDF", pdf, "lesson.pdf")
@@ -240,12 +240,12 @@ def main():
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
-        topic = st.selectbox("Topic", SYLLABUS[subject][class_level])
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
         if path and os.path.exists(path):
             st.image(Image.open(path), caption=topic, use_column_width=True)
             with open(path, "rb") as f: st.download_button("Download PNG", f, os.path.basename(path))
-        else: st.error("Diagram not found")
+        else: st.error("Diagram not found in /assets folder")
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -262,17 +262,17 @@ def main():
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
-        topic = st.selectbox("Topic", SYLLABUS[subject][class_level])
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate 5 MCQs"):
-            resp = generate_ai_response(client, f"5 MCQs on {topic} with answers", subject, class_level)
+            resp = generate_ai_response(client, f"Generate 5 competency-based MCQs with answers on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Quiz: {topic}", subject, class_level)
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
-        topic = st.selectbox("Topic", SYLLABUS[subject][class_level])
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
         num_q = st.slider("Questions", 10, 50, 20)
         if st.button("Generate"):
-            resp = generate_ai_response(client, f"Generate {num_q} revision questions with answers on {topic}", subject, class_level)
+            resp = generate_ai_response(client, f"Generate {num_q} UCE/UACE revision questions with answers on {topic}", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "revision.pdf")
             st.download_button("Download PDF", pdf, "revision.pdf")
@@ -281,7 +281,7 @@ def main():
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
         if st.button("Predict Full Subject"):
-            resp = generate_ai_response(client, f"Predict UCE/UACE questions for {class_level} {subject}", subject, class_level)
+            resp = generate_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject} with Ugandan context", subject, class_level)
             st.write(resp)
             pdf = create_pdf(resp, "predict.pdf")
             st.download_button("Download PDF", pdf, "predict.pdf")
@@ -314,7 +314,11 @@ def main():
 
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
-        st.info("Competency-based lab guide generator")
+        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        if st.button("Generate AoI"):
+            resp = generate_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan household scenario", subject, class_level)
+            st.write(resp)
+            log_activity(f"AoI: {topic}", subject, class_level)
 
 if __name__ == "__main__":
     main()
