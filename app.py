@@ -1,14 +1,11 @@
 import streamlit as st
-import os, io, pytz, random
+import os, io, pytz, random, difflib
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from pathlib import Path
 from subjects import CURRICULUM, PRACTICALS, get_topics
 
-# ===============================
-# LAZY IMPORTS + CACHING FOR SPEED
-# ===============================
 @st.cache_resource
 def get_client():
     from groq import Groq
@@ -42,20 +39,9 @@ def generate_graph(data, x_col, y_col, title):
     fig.update_layout(template="plotly_white", height=400)
     return fig
 
-# ===============================
-# CONFIG
-# ===============================
-st.set_page_config(
-    page_title="UCE/UACE DIGITAL TUTOR 2026 GOLD",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={'Get Help': 'https://wa.me/256751040731', 'About': "NCDC S1-S6 Competency Based"}
-)
-
+st.set_page_config(page_title="UCE/UACE DIGITAL TUTOR 2026 GOLD", page_icon="📚", layout="wide")
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
-
 BASE_DIR = Path(__file__).parent.resolve()
 DIAGRAMS_DIR = BASE_DIR / "assets"
 DIAGRAMS_DIR.mkdir(exist_ok=True)
@@ -66,20 +52,31 @@ GOLD_LOCKED_CLASSES = ["S5", "S6"]
 GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
-# ===============================
-# CORE FUNCTIONS
-# ===============================
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
+    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY NCDC 2026 curriculum. Ugandan examples."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
     return resp.choices[0].message.content
 
 def find_diagram(topic):
     if not DIAGRAMS_DIR.exists(): return None
     all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
-    search_key = topic.lower().replace(" ", "_").replace("/", "_")
+    if not all_pngs: return None
+
+    # Clean topic for matching
+    topic_clean = topic.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
+
+    # 1. Exact match first
     for png_path in all_pngs:
-        if search_key in png_path.name.lower(): return str(png_path)
+        if topic_clean in png_path.name.lower():
+            return str(png_path)
+
+    # 2. Fuzzy match if no exact
+    png_names = [p.stem.lower() for p in all_pngs]
+    matches = difflib.get_close_matches(topic_clean, png_names, n=1, cutoff=0.6)
+    if matches:
+        for png_path in all_pngs:
+            if matches[0] in png_path.stem.lower():
+                return str(png_path)
     return None
 
 def log_activity(activity, subject, class_level):
@@ -100,16 +97,12 @@ def ask_bar(client, subject, class_level, mode, default_label="Ask a follow-up q
             resp = generate_ai_response(client, user_q, subject, class_level)
         st.success(resp)
 
-# ===============================
-# MAIN APP
-# ===============================
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "license" not in st.session_state: st.session_state.license = "FREE"
 
     st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
 
-    # LOGIN GATE - CASE INSENSITIVE
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
         st.title("🔒 Login")
@@ -120,7 +113,7 @@ def main():
             user_input = password.upper().strip()
             if user_input == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
             elif user_input == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
-            else: st.error("Invalid Access Key. Contact Admin on WhatsApp.")
+            else: st.error("Invalid Access Key. Contact Admin.")
         st.stop()
 
     client = get_client()
@@ -133,7 +126,6 @@ def main():
                 st.write("Unlock S5/S6 + All Features")
                 st.markdown(f"**Call/WhatsApp: {ADMIN_CONTACT}**")
                 st.link_button("Get Gold Key", f"https://wa.me/{ADMIN_CONTACT}")
-
         subject = st.selectbox("Subject", SUBJECTS)
         available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" else CLASSES
         class_level = st.selectbox("Class", available_classes)
@@ -144,15 +136,11 @@ def main():
         st.markdown(f"[📞 Call {ADMIN_CONTACT}](tel:{ADMIN_CONTACT})")
         st.markdown(f"[💬 WhatsApp {ADMIN_CONTACT}](https://wa.me/{ADMIN_CONTACT})")
 
-    # LOCK CHECK - S5/S6 ALL SUBJECTS = GOLD ONLY
     if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
         st.error(f"🔒 **GOLD PACKAGE REQUIRED FOR {class_level} {subject}**")
         show_gold_upgrade()
         st.stop()
 
-    # ===============================
-    # ALL 12 MODES + ASK BAR IN EACH
-    # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
@@ -189,24 +177,29 @@ def main():
         path = find_diagram(topic)
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-        else: st.warning("Diagram not found in /assets folder. Upload PNG with name matching topic.")
+            st.success(f"✅ Found diagram: {Path(path).name}")
+        else:
+            st.warning(f"Diagram not found for '{topic}'. Add PNG to /assets folder. Name it like: {topic.lower().replace(' ', '_')}.png")
+            st.info(f"Found {len(list(DIAGRAMS_DIR.glob('*.png')))} images in assets folder")
         ask_bar(client, subject, class_level, mode, "Explain this diagram")
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
-        practical = st.selectbox("Select Practical", [p["name"] for p in PRACTICALS[subject]])
-        if st.button("Show Practical"):
-            p = next(p for p in PRACTICALS[subject] if p["name"] == practical)
-            st.write(f"**Aim:** {p['aim']}")
-            st.write(f"**Materials:** {p['materials']}")
-            st.write(f"**Procedure:** {p['procedure']}")
-            if p["graph"]:
-                if st.button("Generate Sample Graph"):
-                    x = np.linspace(0,10,20)
-                    y = x * random.uniform(0.5,2) + np.random.randn(20)*2
-                    fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
-                    st.plotly_chart(fig, use_container_width=True)
-            log_activity(f"Practical: {practical}", subject, class_level)
+        if subject in PRACTICALS:
+            practical = st.selectbox("Select Practical", [p["name"] for p in PRACTICALS[subject]])
+            if st.button("Show Practical"):
+                p = next(p for p in PRACTICALS[subject] if p["name"] == practical)
+                st.write(f"**Aim:** {p['aim']}")
+                st.write(f"**Materials:** {p['materials']}")
+                st.write(f"**Procedure:** {p['procedure']}")
+                if p["graph"]:
+                    if st.button("Generate Sample Graph"):
+                        x = np.linspace(0,10,20)
+                        y = x * random.uniform(0.5,2) + np.random.randn(20)*2
+                        fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
+                        st.plotly_chart(fig, use_container_width=True)
+                log_activity(f"Practical: {practical}", subject, class_level)
+        else: st.info("No practicals for Mathematics yet.")
         ask_bar(client, subject, class_level, mode, "Ask about this practical")
 
     elif mode == "Quiz Mode":
@@ -258,7 +251,7 @@ def main():
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df, use_container_width=True)
-        else: st.info("No activities yet. Use any mode to start tracking.")
+        else: st.info("No activities yet.")
         ask_bar(client, subject, class_level, mode, "How can I improve?")
 
     elif mode == "Admin Dashboard":
