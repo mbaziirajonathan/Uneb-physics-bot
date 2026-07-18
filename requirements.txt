@@ -4,6 +4,4 @@ pandas==2.2.2
 numpy==1.26.4
 plotly==5.23.0
 reportlab==4.2.2
-gtts==2.5.4
-streamlit-mic-recorder==0.0.8
 pytz==2024.1
