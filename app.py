@@ -65,12 +65,12 @@ DIAGRAMS_DIR.mkdir(exist_ok=True)
 
 SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
-GOLD_LOCKED_CLASSES = ["S5", "S6"] # LOCKED
-GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"] # ALL SUBJECTS LOCKED
+GOLD_LOCKED_CLASSES = ["S5", "S6"]
+GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 # ===============================
-# CORE FUNCTIONS - NO DATA LOST
+# CORE FUNCTIONS
 # ===============================
 def generate_ai_response(client, prompt, subject, class_level):
     system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
@@ -104,16 +104,18 @@ def main():
 
     st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD</h1></div>""", unsafe_allow_html=True)
 
-    # LOGIN GATE - RESTORED
+    # LOGIN GATE - CASE INSENSITIVE - NEW PASSWORD
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
         st.title("🔒 Login")
         password = st.text_input("Enter Access Key", type="password")
         if st.button("Login", type="primary"):
-            FREE_PASS = st.secrets.get("FREE_PASSWORD")
-            GOLD_PASS = st.secrets.get("GOLD_PASSWORD")
-            if password == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
-            elif password == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
+            FREE_PASS = st.secrets.get("FREE_PASSWORD", "UNEB_TEST_2026").upper().strip()
+            GOLD_PASS = st.secrets.get("GOLD_PASSWORD", "GOLD2026").upper().strip()
+            user_input = password.upper().strip()
+
+            if user_input == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
+            elif user_input == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
             else: st.error("Invalid Access Key. Contact Admin on WhatsApp.")
         st.stop()
 
@@ -134,7 +136,7 @@ def main():
         show_gold_lock(subject); st.stop()
 
     # ===============================
-    # ALL 12 MODES - UNCHANGED
+    # ALL 12 MODES - FULL CODE
     # ===============================
     if mode == "Smart Search":
         st.header("🧠 Smart Search")
