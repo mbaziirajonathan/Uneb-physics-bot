@@ -44,7 +44,7 @@ else:
     SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
     CLASSES = ["S1", "S2", "S3", "S4", "S5", "S6"]
 
-MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker"]
+MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard"]
 
 # SYLLABUS TOPICS - NCDC 2026 ONLY
 SYLLABUS = {
@@ -201,6 +201,14 @@ def find_diagram(topic):
     if best_score >= 1: return str(best_match), debug_info + all_filenames
     return None, debug_info + all_filenames
 
+def log_activity(activity, subject, class_level):
+    st.session_state.activities_log.append({
+        "time": datetime.now(UGANDA_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+        "activity": activity,
+        "subject": subject,
+        "class": class_level
+    })
+
 def main():
     client = get_client()
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -240,7 +248,7 @@ def main():
             prompt = f"Explain {query} for {class_level} {subject} in Uganda according to NCDC 2026 syllabus. Give examples."
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
-            st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Smart Search: {query}"})
+            log_activity(f"Smart Search: {query}", subject, class_level)
 
     elif mode == "Theory Mode":
         st.header("📘 Theory Mode")
@@ -252,13 +260,13 @@ def main():
                 prompt = f"Give detailed theory notes on {query} for {class_level} {subject} Uganda NCDC 2026 syllabus. Include definitions, examples, formulas."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory Ask: {query}"})
+                log_activity(f"Theory Ask: {query}", subject, class_level)
         with col2:
             if st.button("Explain Selected Topic", key="btn_theory_topic"):
                 prompt = f"Give detailed theory notes on {topic_dropdown} for {class_level} {subject} Uganda NCDC 2026 syllabus. Include definitions, examples, formulas."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Theory: {topic_dropdown}"})
+                log_activity(f"Theory: {topic_dropdown}", subject, class_level)
 
     elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
@@ -272,7 +280,7 @@ def main():
                 st.write(response)
                 pdf = create_pdf(response, "lesson_plan.pdf")
                 st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_ask")
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan Ask: {query}"})
+                log_activity(f"Lesson Plan Ask: {query}", subject, class_level)
         with col2:
             if st.button("Generate for Selected Topic", key="btn_lesson_topic"):
                 prompt = f"Prepare a 40-minute lesson plan for {topic_dropdown} for {class_level} {subject} in Uganda according to NCDC 2026. Include objectives, materials, introduction, procedure, activities, conclusion, assessment."
@@ -280,7 +288,7 @@ def main():
                 st.write(response)
                 pdf = create_pdf(response, "lesson_plan.pdf")
                 st.download_button("Download Lesson Plan PDF", pdf, "lesson_plan.pdf", key="dl_lesson_topic")
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Lesson Plan: {topic_dropdown}"})
+                log_activity(f"Lesson Plan: {topic_dropdown}", subject, class_level)
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
@@ -299,7 +307,7 @@ def main():
             st.markdown("**DEBUG INFO:**")
             st.code("\n".join(debug_list))
 
-        st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Diagram: {topic}"})
+        log_activity(f"Diagram: {topic}", subject, class_level)
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -311,7 +319,7 @@ def main():
                 prompt = f"Explain the practical '{query}' for {class_level} {subject} according to NCDC 2026. Give aim, materials, procedure, precautions."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical Ask: {query}"})
+                log_activity(f"Practical Ask: {query}", subject, class_level)
         with col2:
             if st.button("Show Selected Practical", key="btn_practical_show"):
                 p_data = next(p for p in PRACTICALS[subject] if p["name"] == practical)
@@ -327,7 +335,7 @@ def main():
                         df = pd.DataFrame({"X": x, "Y": y})
                         fig = generate_graph(df, "X", "Y", p_data["graph"])
                         st.plotly_chart(fig)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Practical: {practical}"})
+                log_activity(f"Practical: {practical}", subject, class_level)
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
@@ -339,13 +347,13 @@ def main():
                 prompt = f"Generate 5 MCQ questions on {query} for {class_level} {subject} based on NCDC 2026 syllabus. Include answers."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz Ask: {query}"})
+                log_activity(f"Quiz Ask: {query}", subject, class_level)
         with col2:
             if st.button("Generate for Selected Topic", key="btn_quiz_topic"):
                 prompt = f"Generate 5 MCQ questions on {topic_dropdown} for {class_level} {subject} based on NCDC 2026 syllabus. Include answers."
                 response = generate_ai_response(client, prompt, subject, class_level)
                 st.write(response)
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Quiz: {topic_dropdown}"})
+                log_activity(f"Quiz: {topic_dropdown}", subject, class_level)
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
@@ -358,7 +366,7 @@ def main():
                 st.write(response)
                 pdf = create_pdf(response, "prediction.pdf")
                 st.download_button("Download PDF", pdf, "prediction.pdf", key="dl_predict_ask")
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Predict Ask: {query}"})
+                log_activity(f"Predict Ask: {query}", subject, class_level)
         with col2:
             if st.button("Predict Full Subject", key="btn_predict_full"):
                 prompt = f"Predict likely exam questions for {class_level} {subject} UCE/UACE based on NCDC 2026 syllabus only."
@@ -366,7 +374,7 @@ def main():
                 st.write(response)
                 pdf = create_pdf(response, "prediction.pdf")
                 st.download_button("Download PDF", pdf, "prediction.pdf", key="dl_predict_full")
-                st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": "Predict Paper"})
+                log_activity("Predict Paper", subject, class_level)
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
@@ -379,7 +387,7 @@ def main():
             tts = gTTS(response)
             tts.save("response.mp3")
             st.audio("response.mp3")
-            st.session_state.activities_log.append({"time": datetime.now(UGANDA_TZ), "activity": f"Voice Ask: {query}"})
+            log_activity(f"Voice Ask: {query}", subject, class_level)
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
@@ -388,11 +396,63 @@ def main():
             prompt = f"A student is using UCE/UACE DIGITAL TUTOR for {subject} {class_level} NCDC 2026. They ask: {query}. Give helpful advice."
             response = generate_ai_response(client, prompt, subject, class_level)
             st.write(response)
+            log_activity(f"Progress Ask: {query}", subject, class_level)
         if st.session_state.activities_log:
             st.subheader("Activity Log")
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df)
         else: st.info("No activities yet")
+
+    elif mode == "Admin Dashboard":
+        st.header("📈 Admin Dashboard")
+        st.write("Overview of all student and teacher activity in the app")
+
+        if not st.session_state.activities_log:
+            st.warning("No activity logged yet. Use other modes first.")
+            st.stop()
+
+        df = pd.DataFrame(st.session_state.activities_log)
+        df['time'] = pd.to_datetime(df['time'])
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Activities", len(df))
+        with col2:
+            st.metric("Unique Subjects", df['subject'].nunique())
+        with col3:
+            st.metric("Unique Classes", df['class'].nunique())
+
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Activities by Subject")
+            subj_counts = df['subject'].value_counts().reset_index()
+            subj_counts.columns = ['Subject', 'Count']
+            fig1 = px.bar(subj_counts, x='Subject', y='Count', color='Subject', template="plotly_white")
+            st.plotly_chart(fig1, use_container_width=True)
+
+        with col2:
+            st.subheader("Activities by Class")
+            class_counts = df['class'].value_counts().reset_index()
+            class_counts.columns = ['Class', 'Count']
+            fig2 = px.pie(class_counts, names='Class', values='Count')
+            st.plotly_chart(fig2, use_container_width=True)
+
+        st.subheader("Top 10 Most Asked Activities")
+        top_activities = df['activity'].value_counts().head(10).reset_index()
+        top_activities.columns = ['Activity', 'Count']
+        st.dataframe(top_activities, use_container_width=True)
+
+        st.subheader("Full Activity Log")
+        st.dataframe(df.sort_values('time', ascending=False), use_container_width=True)
+
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("⬇️ Download Full Log as CSV", csv, "activity_log.csv", "text/csv")
+
+        if st.button("🗑️ Clear Activity Log"):
+            st.session_state.activities_log = []
+            st.rerun()
 
 if __name__ == "__main__":
     main()
