@@ -196,7 +196,7 @@ def main():
             else: st.error("Invalid Access Key. Contact Admin.")
         st.stop()
 
-    client = get_client() # Cached - loads once
+    client = get_client()
 
     with st.sidebar:
         st.success(f"License: {st.session_state.license}")
@@ -241,12 +241,11 @@ def main():
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
-        from PIL import Image # LAZY LOAD
+        # FIX: REMOVED PIL IMPORT. Streamlit can load path directly
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
         if path and os.path.exists(path):
-            st.image(Image.open(path), caption=topic, use_column_width=True)
-            with open(path, "rb") as f: st.download_button("Download PNG", f, os.path.basename(path))
+            st.image(path, caption=topic, use_container_width=True) # FIXED LINE
         else: st.error("Diagram not found in /assets folder")
 
     elif mode == "Practicals Lab":
@@ -257,7 +256,7 @@ def main():
             st.write(f"**Aim:** {p['aim']}"); st.write(f"**Materials:** {p['materials']}"); st.write(f"**Procedure:** {p['procedure']}")
             if p["graph"]:
                 if st.button("Generate Sample Graph"):
-                    import numpy as np # LAZY LOAD
+                    import numpy as np
                     x = np.linspace(0,10,20); y = x * random.uniform(0.5,2)
                     fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
                     st.plotly_chart(fig)
@@ -292,8 +291,8 @@ def main():
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
-        from streamlit_mic_recorder import mic_recorder # LAZY LOAD
-        from gtts import gTTS # LAZY LOAD
+        from streamlit_mic_recorder import mic_recorder
+        from gtts import gTTS
         audio = mic_recorder(start_prompt="Record", stop_prompt="Stop")
         query = st.text_input("Or type question")
         if st.button("Send") and query:
