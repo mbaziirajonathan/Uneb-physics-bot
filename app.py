@@ -7,7 +7,7 @@ from pathlib import Path
 from subjects import CURRICULUM, PRACTICALS, get_topics
 
 # ===============================
-# LAZY IMPORTS + CACHING
+# LAZY IMPORTS + CACHING FOR SPEED
 # ===============================
 @st.cache_resource
 def get_client():
@@ -45,9 +45,17 @@ def generate_graph(data, x_col, y_col, title):
 # ===============================
 # CONFIG
 # ===============================
-st.set_page_config(page_title="UCE/UACE DIGITAL TUTOR 2026 GOLD", page_icon="📚", layout="wide")
+st.set_page_config(
+    page_title="UCE/UACE DIGITAL TUTOR 2026 GOLD",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={'Get Help': 'https://wa.me/256751040731', 'About': "NCDC S1-S6 Competency Based"}
+)
+
 ADMIN_CONTACT = "256751040731"
 UGANDA_TZ = pytz.timezone("Africa/Kampala")
+
 BASE_DIR = Path(__file__).parent.resolve()
 DIAGRAMS_DIR = BASE_DIR / "assets"
 DIAGRAMS_DIR.mkdir(exist_ok=True)
@@ -59,10 +67,10 @@ GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
 # ===============================
-# HELPER FUNCTIONS
+# CORE FUNCTIONS
 # ===============================
 def generate_ai_response(client, prompt, subject, class_level):
-    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY NCDC 2026 curriculum. Ugandan examples. Step by step."
+    system_prompt = f"You are UCE/UACE DIGITAL TUTOR 2026. Teach {subject} for {class_level} Uganda. Use ONLY the NCDC 2026 curriculum. Ugandan examples. Step by step. No hallucination."
     resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.3, max_tokens=1024)
     return resp.choices[0].message.content
 
@@ -84,10 +92,10 @@ def show_gold_upgrade():
     st.markdown(f"**WhatsApp/Call: {ADMIN_CONTACT}** to get your GOLD Access Key")
     st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
 
-def ask_bar(client, subject, class_level, default_label="Ask a follow-up question"):
+def ask_bar(client, subject, class_level, mode, default_label="Ask a follow-up question"):
     st.markdown("---")
-    user_q = st.text_input(f"💬 {default_label}", key=f"ask_{mode}")
-    if st.button("Ask AI", key=f"ask_btn_{mode}") and user_q:
+    user_q = st.text_input(f"💬 {default_label}", key=f"ask_{mode}_{subject}")
+    if st.button("Ask AI", key=f"ask_btn_{mode}_{subject}") and user_q:
         with st.spinner("AI is answering..."):
             resp = generate_ai_response(client, user_q, subject, class_level)
         st.success(resp)
@@ -112,7 +120,7 @@ def main():
             user_input = password.upper().strip()
             if user_input == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
             elif user_input == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
-            else: st.error("Invalid Access Key. Contact Admin.")
+            else: st.error("Invalid Access Key. Contact Admin on WhatsApp.")
         st.stop()
 
     client = get_client()
@@ -125,7 +133,7 @@ def main():
                 st.write("Unlock S5/S6 + All Features")
                 st.markdown(f"**Call/WhatsApp: {ADMIN_CONTACT}**")
                 st.link_button("Get Gold Key", f"https://wa.me/{ADMIN_CONTACT}")
-        
+
         subject = st.selectbox("Subject", SUBJECTS)
         available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" else CLASSES
         class_level = st.selectbox("Class", available_classes)
@@ -136,7 +144,7 @@ def main():
         st.markdown(f"[📞 Call {ADMIN_CONTACT}](tel:{ADMIN_CONTACT})")
         st.markdown(f"[💬 WhatsApp {ADMIN_CONTACT}](https://wa.me/{ADMIN_CONTACT})")
 
-    # LOCK CHECK
+    # LOCK CHECK - S5/S6 ALL SUBJECTS = GOLD ONLY
     if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
         st.error(f"🔒 **GOLD PACKAGE REQUIRED FOR {class_level} {subject}**")
         show_gold_upgrade()
@@ -152,7 +160,7 @@ def main():
             with st.spinner("Thinking..."):
                 resp = generate_ai_response(client, f"Explain {query}", subject, class_level)
             st.write(resp); log_activity(f"Smart: {query}", subject, class_level)
-        ask_bar(client, subject, class_level, "Ask another question")
+        ask_bar(client, subject, class_level, mode, "Ask another question")
 
     elif mode == "Theory Mode":
         st.header("📘 Theory Mode")
@@ -161,7 +169,7 @@ def main():
             with st.spinner("Generating notes..."):
                 resp = generate_ai_response(client, f"Detailed NCDC 2026 notes on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Theory: {topic}", subject, class_level)
-        ask_bar(client, subject, class_level, "Ask about this topic")
+        ask_bar(client, subject, class_level, mode, "Ask about this topic")
 
     elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
@@ -173,7 +181,7 @@ def main():
             pdf = create_pdf(resp, "lesson.pdf")
             st.download_button("Download PDF", pdf, "lesson.pdf")
             log_activity(f"Lesson: {topic}", subject, class_level)
-        ask_bar(client, subject, class_level, "Modify this lesson plan")
+        ask_bar(client, subject, class_level, mode, "Modify this lesson plan")
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
@@ -181,8 +189,8 @@ def main():
         path = find_diagram(topic)
         if path and os.path.exists(path):
             st.image(path, caption=topic, use_container_width=True)
-        else: st.warning("Diagram not found in /assets folder.")
-        ask_bar(client, subject, class_level, "Explain this diagram")
+        else: st.warning("Diagram not found in /assets folder. Upload PNG with name matching topic.")
+        ask_bar(client, subject, class_level, mode, "Explain this diagram")
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -199,7 +207,7 @@ def main():
                     fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
                     st.plotly_chart(fig, use_container_width=True)
             log_activity(f"Practical: {practical}", subject, class_level)
-        ask_bar(client, subject, class_level, "Ask about this practical")
+        ask_bar(client, subject, class_level, mode, "Ask about this practical")
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
@@ -208,7 +216,7 @@ def main():
             with st.spinner("Generating quiz..."):
                 resp = generate_ai_response(client, f"Generate 5 competency-based MCQs with answers on {topic} for {class_level}", subject, class_level)
             st.write(resp); log_activity(f"Quiz: {topic}", subject, class_level)
-        ask_bar(client, subject, class_level, "Explain any answer")
+        ask_bar(client, subject, class_level, mode, "Explain any answer")
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
@@ -221,7 +229,7 @@ def main():
             pdf = create_pdf(resp, "revision.pdf")
             st.download_button("Download PDF", pdf, "revision.pdf")
             log_activity(f"Bulk: {topic}", subject, class_level)
-        ask_bar(client, subject, class_level, "Generate more questions")
+        ask_bar(client, subject, class_level, mode, "Generate more questions")
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
@@ -232,7 +240,7 @@ def main():
             pdf = create_pdf(resp, "predict.pdf")
             st.download_button("Download PDF", pdf, "predict.pdf")
             log_activity("Predict", subject, class_level)
-        ask_bar(client, subject, class_level, "Explain question 1")
+        ask_bar(client, subject, class_level, mode, "Explain question 1")
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat")
@@ -243,15 +251,15 @@ def main():
                 resp = generate_ai_response(client, query, subject, class_level)
             st.write(resp)
             log_activity(f"Voice: {query}", subject, class_level)
-        ask_bar(client, subject, class_level, "Ask another question")
+        ask_bar(client, subject, class_level, mode, "Ask another question")
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
         if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df, use_container_width=True)
-        else: st.info("No activities yet.")
-        ask_bar(client, subject, class_level, "How can I improve?")
+        else: st.info("No activities yet. Use any mode to start tracking.")
+        ask_bar(client, subject, class_level, mode, "How can I improve?")
 
     elif mode == "Admin Dashboard":
         st.header("📈 Admin Dashboard")
@@ -262,7 +270,7 @@ def main():
             st.dataframe(df, use_container_width=True)
             st.download_button("Download CSV", df.to_csv(index=False).encode(), "log.csv")
         else: st.info("No data yet")
-        ask_bar(client, subject, class_level, "Give admin insights")
+        ask_bar(client, subject, class_level, mode, "Give admin insights")
 
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
@@ -272,7 +280,7 @@ def main():
                 resp = generate_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan household scenario", subject, class_level)
             st.write(resp)
             log_activity(f"AoI: {topic}", subject, class_level)
-        ask_bar(client, subject, class_level, "Make AoI harder/easier")
+        ask_bar(client, subject, class_level, mode, "Make AoI harder/easier")
 
 if __name__ == "__main__":
     main()
