@@ -8,3 +8,6 @@ reportlab
 pytz
 sympy
 streamlit-mic-recorder
+gTTS
+Pillow
+matplotlib
