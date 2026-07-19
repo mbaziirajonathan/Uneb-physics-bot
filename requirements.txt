@@ -7,3 +7,4 @@ reportlab
 pytz
 sympy
 pydantic
+streamlit-mic-recorder
