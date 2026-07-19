@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, ast, numpy as np, difflib
+import os, io, json, re, ast, numpy as np, difflib, time
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -13,19 +13,49 @@ import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
+LOG_FILE = "usage_log.json"
+ADMIN_PASSWORD = "ADMIN256"
+CONTACT = "256751040731"
+
+# ============ LOGGING SYSTEM ============
+def load_logs():
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "r") as f:
+            try: return json.load(f)
+            except: return []
+    return []
+
+def save_log(entry):
+    logs = load_logs()
+    logs.append(entry)
+    with open(LOG_FILE, "w") as f: json.dump(logs, f, indent=2)
+
+def log_activity(user_type, action, details):
+    entry = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "user": user_type,
+        "action": action,
+        "details": details
+    }
+    save_log(entry)
+
 # ============ PASSWORD GATE ============
 def check_password():
     def password_entered():
-        correct_pw = st.secrets.get("APP_PASSWORD", "UNEB2026")
-        if st.session_state["password"] == correct_pw:
+        pw = st.session_state["password"]
+        if pw == st.secrets.get("APP_PASSWORD", "UNEB2026"):
+            st.session_state["user_type"] = "Student"
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+        elif pw == ADMIN_PASSWORD:
+            st.session_state["user_type"] = "Admin"
+            st.session_state["password_correct"] = True
         else:
             st.session_state["password_correct"] = False
+        if "password" in st.session_state: del st.session_state["password"]
 
     if "password_correct" not in st.session_state:
         st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
-        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
+        st.text_input(f"Students: UNEB2026 | Admin: {ADMIN_PASSWORD}", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
@@ -37,19 +67,19 @@ def check_password():
 
 if not check_password():
     st.stop()
-# ============ END PASSWORD GATE ============
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
-
-# ============ DISCLAIMER ============
-st.markdown("""
-<div style='background:#fff3cd; padding:10px; border-left:5px solid #ffc107; margin-bottom:10px'>
+# ============ DISCLAIMER + CONTACT ============
+st.markdown(f"""
+<div style='background:#fff3cd; padding:12px; border-left:5px solid #ffc107; margin-bottom:15px'>
 <b>⚠️ DISCLAIMER:</b> This AI Tutor is for learning support only.
 For any confusion, exam guidance, or official clarification, students MUST confirm with their Head Teacher / Class Teacher / Subject Teacher.
+<br><b>📞 Support/Contact:</b> {CONTACT}
 </div>
 """, unsafe_allow_html=True)
 
-# ============ FULL NCDC S1-S6 ============
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
+
+# ============ FULL OFFICIAL NCDC CBC SYLLABUS S1-S6 ============
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {
         "S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"],
@@ -64,7 +94,7 @@ UNEB_CURRICULUM_MAP = {
         "S2": ["Light: Reflection and Refraction", "Thermal Physics", "Static Electricity", "Current Electricity I", "Waves I"],
         "S3": ["Current Electricity II", "Magnetism", "Waves II: Sound", "Mechanics Continued", "Specific Heat Capacity"],
         "S4": ["Electromagnetism", "Electronics", "Modern Physics", "Nuclear Processes", "A.C Theory", "Astrophysics"],
-        "S5": ["Mechanics: Motion and Dynamics", "Gravitation", "Thermal Physics Advanced", "Waves III", "Optics", "Fluid Mechanics"],
+        "S5": ["Mechanics: Motion and Dynamics", "Gravitation", "Thermal Physics Advanced", "Waves III: Interference and Diffraction", "Optics", "Fluid Mechanics"],
         "S6": ["Electric Fields", "Magnetic Fields", "Electromagnetic Induction", "Quantum Physics", "Radioactivity", "Solid State and Electronics"]
     },
     "Chemistry": {
@@ -87,36 +117,36 @@ UNEB_CURRICULUM_MAP = {
 
 PRACTICAL_TOPICS = {
     "Mathematics": {
-        "S1": ["Scale Drawing", "Data Collection Survey", "Geometric Construction", "Cartesian Plotting"],
-        "S2": ["Budgeting Project", "Mapping with Bearings", "Market Data Tracking", "Patterns"],
-        "S3": ["PAYE Simulation", "Probability Models", "Vector Navigation", "Quadratic Graphs"],
-        "S4": ["Linear Programming", "3D Models", "Census Data", "Statistical Survey"],
-        "S5": ["Optimization", "Area by Integration", "Circular Motion", "Binomial Applications"],
-        "S6": ["Differential Equations", "Projectile Motion", "Normal Distribution", "Advanced LP"]
+        "S1": ["Scale Drawing and Measurement", "Data Collection Survey Project", "Geometric Construction of Angles and Triangles", "Cartesian Plane Plotting Activity"],
+        "S2": ["Real-life Budgeting Project", "Mapping School Compound using Bearings", "Tracking Local Market Price Data", "Building Patterns with Matchsticks"],
+        "S3": ["Simulating PAYE and Mobile Money Charges", "Building Probability Models with Dice/Coins", "Vector Navigation Mapping of School", "Quadratic Equation Graphical Solution"],
+        "S4": ["Linear Programming for Business Optimization", "Building 3D Geometric Models", "Processing Census Data", "Statistical Survey and Report Writing"],
+        "S5": ["Optimization using Differentiation", "Area under Curves by Integration", "Modeling Circular Motion", "Binomial Expansion Applications"],
+        "S6": ["Solving Differential Equations Numerically", "Projectile and Circular Motion Lab", "Normal Distribution Data Analysis", "Linear Programming for Industries"]
     },
     "Physics": {
-        "S1": ["Measuring Volume", "Finding Density", "Capillary Action", "Surface Tension", "Hooke's Law"],
-        "S2": ["Laws of Reflection", "Refraction Glass Block", "Pinhole Camera", "Static Electricity", "Thermometer Calibration"],
-        "S3": ["Series and Parallel Circuits", "Ohm's Law", "Magnetic Fields", "Speed of Sound", "Simple Pendulum", "Specific Heat"],
-        "S4": ["Electromagnetic Induction", "Transformers", "Logic Gates", "Cathode Rays", "Rectification", "Radioactivity"],
-        "S5": ["Projectile Motion", "Gravitation", "Thermal Conductivity", "Wave Interference", "Lens Experiments"],
-        "S6": ["Electric Field Mapping", "Magnetic Force", "Faraday's Law", "Photoelectric Effect", "Half-life", "Diodes"]
+        "S1": ["Measuring Volume using Measuring Cylinders", "Finding Density of Regular and Irregular Objects", "Demonstrating Capillary Action", "Surface Tension Experiments", "Hooke's Law - Stretching Springs"],
+        "S2": ["Laws of Reflection using Plane Mirrors", "Refraction through Glass Block", "Construction of Pinhole Camera", "Charging by Friction and Induction", "Gold-leaf Electroscope", "Thermometer Calibration"],
+        "S3": ["Series and Parallel Circuits", "Verifying Ohm's Law V=IR", "Mapping Magnetic Fields", "Speed of Sound using Resonance", "Simple Pendulum", "Specific Heat Capacity"],
+        "S4": ["Electromagnetic Induction", "Transformers Step-up/down", "Logic Gates AND OR NOT", "Properties of Cathode Rays", "Rectification using Diodes", "Radioactivity Simulation"],
+        "S5": ["Projectile Motion Experiment", "Verification of Laws of Gravitation", "Thermal Conductivity of Metals", "Wave Interference using Ripple Tank", "Lens and Mirror Experiments"],
+        "S6": ["Electric Field Mapping", "Magnetic Force on Current Carrying Wire", "Faraday's Law Induction", "Photoelectric Effect Demo", "Half-life of Radioactive Material", "Semiconductor Diode Characteristics"]
     },
     "Chemistry": {
-        "S1": ["Purity Tests", "Filtration", "Distillation", "Chromatography", "Heating CuSO4", "Air Components"],
-        "S2": ["Litmus and pH", "pH Scale", "Soluble Salts", "Insoluble Salts", "Carbonates", "Reactivity Series"],
-        "S3": ["Conductivity", "Titrations", "Molarity", "Rates of Reaction", "Hard Water", "Metal Extraction"],
-        "S4": ["Cation Tests", "Anion Tests", "Gas Tests", "Saponification", "Fermentation", "Heat of Reaction"],
-        "S5": ["Enthalpy Change", "Rate of Reaction", "Equilibrium", "Esterification", "Buffers", "Electrolysis"],
-        "S6": ["Redox Titrations", "Complex Ions", "Organic Synthesis", "Gravimetric Analysis", "Water Quality", "Polymerization"]
+        "S1": ["Criteria for Purity", "Filtration and Evaporation", "Simple and Fractional Distillation", "Paper Chromatography", "Heating Copper(II) Sulfate", "Testing for Air Components"],
+        "S2": ["Testing with Litmus and pH Indicators", "Investigating pH Scale", "Preparation of Soluble Salts", "Preparation of Insoluble Salts", "Effect of Heat on Carbonates", "Reactivity Series"],
+        "S3": ["Conductivity of Ionic vs Covalent", "Acid-Base Volumetric Titrations", "Calculating Molarity", "Rates of Reaction", "Testing for Hard Water", "Extraction of Metals"],
+        "S4": ["Qualitative Analysis: Cations", "Qualitative Analysis: Anions", "Testing for Gases", "Saponification: Making Soap", "Fermentation of Sugar", "Heat of Reaction"],
+        "S5": ["Enthalpy Change Experiments", "Rate of Reaction: Collision Theory", "Equilibrium and Le Chatelier", "Organic Preparation: Esterification", "Buffer Solutions", "Electrolysis"],
+        "S6": ["Redox Titrations", "Complex Ion Formation", "Organic Synthesis: Aspirin", "Gravimetric and Volumetric Analysis", "Water Quality Testing", "Polymerization"]
     },
     "Biology": {
-        "S1": ["Using Microscope", "Cell Slides", "Drawing Specimens", "Dichotomous Keys", "Flower Dissection"],
-        "S2": ["Soil Water Retention", "Soil Capillarity", "Soil Organic Matter", "Food Tests", "Photosynthesis Factors", "Vitamin C Test"],
-        "S3": ["Osmosis", "Transpiration", "Respiratory Structures", "Pulse Rate", "Urine Tests", "Mitosis"],
-        "S4": ["Reflex Tests", "Tropism", "Growth Curves", "Quadrats", "DNA Extraction", "Blood Grouping"],
-        "S5": ["Enzyme Activity", "Xylem/Phloem", "Gas Exchange", "Digestive System", "Cellular Respiration"],
-        "S6": ["Hormone Effects", "Reflex Arc", "Population Sampling", "Bacterial Culture", "DNA Model", "Antibody Reaction"]
+        "S1": ["Using Light Microscope", "Preparing Onion and Cheek Cell Slides", "Drawing Biological Specimens", "Dichotomous Keys", "Dissection of Flower"],
+        "S2": ["Soil Water Retention", "Soil Capillarity", "Soil Organic Matter", "Food Tests: Sugars, Starch, Protein, Lipids", "Factors Affecting Photosynthesis", "Testing for Vitamin C"],
+        "S3": ["Osmosis using Potato Osmometers", "Transpiration using Potometer", "Examining Gills and Lungs", "Pulse Rate Before/After Exercise", "Testing Urine for Glucose", "Observing Mitosis"],
+        "S4": ["Knee-jerk and Pupillary Reflex", "Geotropism and Phototropism", "Growth Curves in Plants", "Quadrats and Line Transects", "DNA Extraction", "Blood Grouping"],
+        "S5": ["Enzyme Activity: Amylase", "Transport in Plants: Xylem/Phloem", "Gas Exchange in Leaf", "Human Digestive System Dissection", "Cellular Respiration Experiment"],
+        "S6": ["Hormone Effect on Plants", "Reflex Arc Model", "Population Sampling Techniques", "Bacterial Culture and Staining", "DNA Model Building", "Antibody-Antigen Reaction Demo"]
     }
 }
 
@@ -139,10 +169,16 @@ DIAGRAM_MAP = {
 def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# ============ MEMORY SYSTEM ============
+# ============ MEMORY + PERFORMANCE ============
 def add_to_memory(role, content):
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
     st.session_state.chat_memory.append({"role": role, "content": content, "time": datetime.now().strftime("%H:%M")})
+
+def add_performance(subject, topic, score):
+    today = datetime.now().strftime("%Y-%m-%d")
+    if "performance" not in st.session_state: st.session_state.performance = {}
+    if today not in st.session_state.performance: st.session_state.performance[today] = []
+    st.session_state.performance[today].append({"subject":subject, "topic":topic, "score":score})
 
 def get_memory_context():
     if "chat_memory" not in st.session_state: return ""
@@ -154,14 +190,17 @@ def get_memory_context():
 def fuzzy_find_diagram(topic):
     topic_lower = topic.lower()
     matches = difflib.get_close_matches(topic_lower, DIAGRAM_MAP.keys(), n=1, cutoff=0.4)
-    if matches: return DIAGRAM_MAP[matches[0]]
+    if matches and os.path.exists(DIAGRAM_MAP[matches[0]]):
+        return DIAGRAM_MAP[matches[0]]
     return None
 
 def text_to_speech(text):
-    tts = gTTS(text[:500])
-    fp = "temp_audio.mp3"; tts.save(fp)
-    audio_bytes = open(fp, "rb").read(); os.remove(fp)
-    return audio_bytes
+    try:
+        tts = gTTS(text[:500])
+        fp = "temp_audio.mp3"; tts.save(fp)
+        audio_bytes = open(fp, "rb").read(); os.remove(fp)
+        return audio_bytes
+    except: return None
 
 def create_pdf(content, title):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4)
@@ -174,11 +213,21 @@ def create_pdf(content, title):
 
 def display_with_pdf(content, name):
     st.markdown(content)
+    formulas = re.findall(r'\$(.*?)\$', content)
+    if formulas:
+        st.markdown("### 🔑 Key Formula")
+        for f in formulas: st.latex(f)
     pdf = create_pdf(content, name)
     st.download_button("📥 Download PDF", pdf, f"{name}.pdf")
     if st.button("🔊 Read Aloud", key=f"tts_{name}"):
         audio = text_to_speech(content)
-        st.audio(audio, format="audio/mp3")
+        if audio: st.audio(audio, format="audio/mp3")
+
+def safe_json_extract(text):
+    match = re.search(r'```json(.*?)```', text, re.DOTALL)
+    if not match: return None, None
+    try: return json.loads(match.group(1).strip()), match.group(0)
+    except: return None, match.group(0)
 
 # ============ AI FUNCTIONS ============
 def get_ai_response(client, user_query, subject, class_level, topic, mode="Theory"):
@@ -188,10 +237,10 @@ Mode: {mode}
 Topic: {topic}
 Student Question: {user_query}
 
-Follow NCDC Guidelines:
+Follow NCDC Competency-Based Guidelines:
 ### 1. Definition and Key Competencies
 ### 2. Detailed Explanation with 3 Learner Activities
-### 3. Uganda Context Example
+### 3. Uganda Context Example: use local examples like boda boda, markets, farming, Nile
 ### 4. Formula and Worked Example if applicable
 ### 5. Activity of Integration: {AOI_FRAMEWORK[class_level]}
 Write at least 500 words."""
@@ -200,29 +249,79 @@ Write at least 500 words."""
     answer = res.choices[0].message.content
     add_to_memory("Student", user_query)
     add_to_memory("Tutor", answer)
+    log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
     return answer
 
 def generate_graph_data(client, subject, topic, level):
-    prompt = f"For {level} {subject} topic {topic}, generate sample data for a graph. Return JSON: {{\"x_label\": \"Time\", \"y_label\": \"Distance\", \"data\": [[1,2],[2,4],[3,6]]}}"
+    prompt = f"For {level} {subject} topic {topic}, generate sample data for a graph. Return JSON: {{\"x_label\": \"Time\", \"y_label\": \"Distance\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10]]}}"
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=500)
-    match = re.search(r'```json(.*?)```', res.choices[0].message.content, re.DOTALL)
-    if match: return json.loads(match.group(1).strip())
-    return None
+    data, _ = safe_json_extract(res.choices[0].message.content)
+    return data
 
-def math_workout(client, query):
-    prompt = f"Solve this {query} step by step. Show formula, substitution, working, final answer. Use LaTeX for math."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=1500)
+def generate_practical(client, subject, level, topic):
+    prompt = f"Generate full NCDC {level} {subject} practical for: {topic}. Include AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. End with JSON data."
+    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=2500)
     return res.choices[0].message.content
+
+def generate_bulk_revision(client, subject, level):
+    topics = UNEB_CURRICULUM_MAP[subject][level]
+    prompt = f"Generate 20 revision questions covering all these {level} {subject} topics: {', '.join(topics)}. Mix MCQ, Theory, and Practical. Provide answers."
+    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=3000)
+    return res.choices[0].message.content
+
+def generate_mock_paper(client, subject, level, paper):
+    prompts = {
+        "P1": f"Generate 40 MCQ for {subject} {level} Paper 1. Cover all topics. 4 options A-D. Include answers.",
+        "P2": f"Generate 5 Theory questions for {subject} {level} Paper 2. 10 marks each. Include calculations.",
+        "P3": f"Generate 3 Practical scenarios for {subject} {level} Paper 3. Include apparatus and method."
+    }
+    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], max_tokens=2000)
+    return res.choices[0].message.content
+
+# ============ ADMIN DASHBOARD ============
+def admin_dashboard():
+    st.title("👨‍💼 ADMIN DASHBOARD - Real Time Monitoring")
+    logs = load_logs()
+    if not logs: st.warning("No activity yet"); return
+
+    df = pd.DataFrame(logs)
+    col1,col2,col3 = st.columns(3)
+    col1.metric("Total Activities", len(df))
+    col2.metric("Today", len(df[df['timestamp'].str.startswith(datetime.now().strftime("%Y-%m-%d"))]))
+    col3.metric("Users", df['user'].nunique())
+
+    st.subheader("Live Activity Feed")
+    st.dataframe(df.tail(30), use_container_width=True)
+
+    st.subheader("Activity by Subject")
+    if 'details' in df.columns:
+        subj_counts = df['details'].str.split().str[0].value_counts()
+        st.bar_chart(subj_counts)
 
 # ============ MAIN APP ============
 def main():
     client = get_client()
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
+    if "performance" not in st.session_state: st.session_state.performance = {}
 
     st.markdown("<h1 style='text-align:center; background:gold; color:black; padding:10px'>📚 DIGITAL UNEB TUTOR 2026 - NCDC CBC S1 TO S6</h1>", unsafe_allow_html=True)
 
     with st.sidebar:
-        st.success(f"Chat Memory: {len(st.session_state.chat_memory)} messages")
+        st.success(f"Logged in as: {st.session_state.user_type}")
+        if st.session_state.user_type == "Admin":
+            admin_dashboard()
+            if st.button("Logout Admin"): st.session_state.clear(); st.rerun()
+            return
+
+        # STUDENT SIDEBAR
+        st.header("📊 Daily Performance Review")
+        today = datetime.now().strftime("%Y-%m-%d")
+        if today in st.session_state.performance:
+            for p in st.session_state.performance[today]:
+                st.write(f"- {p['subject']}: {p['topic']} | Score: {p['score']}/10")
+        else: st.info("No lessons done today yet")
+
+        st.divider()
         if st.button("🗑️ Clear Memory"): st.session_state.chat_memory = []; st.rerun()
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", ["S1","S2","S3","S4","S5","S6"])
@@ -233,7 +332,7 @@ def main():
             "🔐 Math Workouts", "🎙️ Voice Ask/Chat"
         ])
 
-    # UNIVERSAL ASK BOX
+    # UNIVERSAL ASK BOX - ON EVERY PAGE
     st.subheader("❓ Ask Anything About This Topic")
     ask_q = st.text_input("Type your question here", key="universal_ask")
     if st.button("Ask AI", key="ask_btn"):
@@ -256,19 +355,29 @@ def main():
         if st.button("Generate Full NCDC Notes", type="primary"):
             raw = get_ai_response(client, "Explain fully", subject, level, topic)
             display_with_pdf(raw, f"Theory_{topic}")
+            add_performance(subject, topic, 8)
 
     elif mode == "🧠 AOI/Research":
-        research_q = st.text_area("Describe a real-life problem to solve")
+        st.header(f"🧠 AOI Research: {subject} {level}")
+        st.warning(f"**Current AOI Theme**: {AOI_FRAMEWORK[level]}")
+        research_q = st.text_area("Describe a real-life problem you want to solve using this topic")
         if st.button("Generate AOI Project"):
-            prompt = f"Design full Activity of Integration for {level} {subject} on {topic}. Problem: {research_q}"
+            prompt = f"Design a full Activity of Integration for {level} {subject} on topic {topic}. Problem: {research_q}. Include: Problem statement, Learner tasks, Resources needed, Assessment criteria."
             raw = get_ai_response(client, prompt, subject, level, topic, "AOI")
             display_with_pdf(raw, f"AOI_{topic}")
 
     elif mode == "🧪 Practicals Lab":
-        prac = st.selectbox("Select Practical", PRACTICAL_TOPICS[subject][level])
-        if st.button("Generate Practical"):
-            report = get_ai_response(client, "Generate full practical", subject, level, prac, "Practical")
-            display_with_pdf(report, f"Practical_{prac}")
+        st.header(f"Practical: {subject} {level}")
+        prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS[subject][level])
+        if st.button("Generate Full Practical"):
+            report = generate_practical(client,subject,level,prac)
+            data, json_block = safe_json_extract(report)
+            if data:
+                df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]])
+                st.dataframe(df)
+                fig = px.scatter(df, x=data["x_label"], y=data["y_label"], trendline="ols")
+                st.plotly_chart(fig)
+            display_with_pdf(report.replace(json_block,"") if json_block else report, f"Practical_{prac}")
 
     elif mode == "📈 Graph Generator":
         st.header("📈 Graph Explainer")
@@ -288,32 +397,38 @@ def main():
 
     elif mode == "📝 Quiz Mode":
         if st.button("Generate 10 MCQ"):
-            quiz = get_ai_response(client, "Generate 10 MCQ", subject, level, topic, "Quiz")
+            quiz = get_ai_response(client, "Generate 10 competency-based MCQ with 1 AOI scenario", subject, level, topic, "Quiz")
             display_with_pdf(quiz, f"Quiz_{topic}")
+            add_performance(subject, topic, 7)
 
     elif mode == "📚 Bulk Revision":
+        st.header(f"📚 Bulk Revision: {subject} {level}")
+        st.info(f"Will generate 20 questions covering: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}")
         if st.button("Generate 20 Revision Questions", type="primary"):
-            topics = ", ".join(UNEB_CURRICULUM_MAP[subject][level])
-            bulk = get_ai_response(client, f"Generate 20 revision Qs for: {topics}", subject, level, "All Topics", "Revision")
-            display_with_pdf(bulk, f"Bulk_{subject}_{level}")
+            bulk = generate_bulk_revision(client, subject, level)
+            display_with_pdf(bulk, f"BulkRevision_{subject}_{level}")
 
     elif mode == "📄 Mock Exams":
+        st.header(f"📄 Mock Exams: {subject} {level}")
         col1,col2,col3 = st.columns(3)
         with col1:
-            if st.button("Generate P1 MCQ"): mock = get_ai_response(client, "40 MCQ P1", subject, level, "All", "Mock")
-            display_with_pdf(mock, "MockP1")
+            if st.button("Generate P1 MCQ", use_container_width=True):
+                mock = generate_mock_paper(client, subject, level, "P1")
+                display_with_pdf(mock, "MockP1")
         with col2:
-            if st.button("Generate P2 Theory"): mock = get_ai_response(client, "5 Theory P2", subject, level, "All", "Mock")
-            display_with_pdf(mock, "MockP2")
+            if st.button("Generate P2 Theory", use_container_width=True):
+                mock = generate_mock_paper(client, subject, level, "P2")
+                display_with_pdf(mock, "MockP2")
         with col3:
-            if st.button("Generate P3 Practical"): mock = get_ai_response(client, "3 Practical P3", subject, level, "All", "Mock")
-            display_with_pdf(mock, "MockP3")
+            if st.button("Generate P3 Practical", use_container_width=True):
+                mock = generate_mock_paper(client, subject, level, "P3")
+                display_with_pdf(mock, "MockP3")
 
     elif mode == "🔐 Math Workouts":
-        st.header("🔐 Mathematics Calculations Page")
+        st.header("🔐 Mathematics/Calculations Workouts Page")
         calc_q = st.text_area("Enter Math/Physics/Chemistry calculation")
         if st.button("Work it Out Step by Step"):
-            steps = math_workout(client, calc_q)
+            steps = get_ai_response(client, f"Solve step by step with LaTeX: {calc_q}", subject, level, topic, "Calculation")
             display_with_pdf(steps, "Workout")
 
     elif mode == "🎙️ Voice Ask/Chat":
@@ -321,8 +436,8 @@ def main():
         audio = mic_recorder(start_prompt="🎤 Ask", stop_prompt="⏹️ Stop", key='recorder')
         if audio:
             st.audio(audio['bytes'])
-            st.success("Voice recorded. AI will answer in text below and you can click Read Aloud")
-            voice_ans = get_ai_response(client, "Explain this topic", subject, level, topic)
+            st.success("Voice recorded. Answer below:")
+            voice_ans = get_ai_response(client, "Explain this topic in detail", subject, level, topic)
             display_with_pdf(voice_ans, "VoiceResponse")
 
     with st.expander("💾 View Chat Memory"):
