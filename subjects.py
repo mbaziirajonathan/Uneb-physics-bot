@@ -1,4 +1,4 @@
-# subjects.py - NCDC DATA ONLY
+# subjects.py - NCDC 2026 DATA ONLY
 
 CURRICULUM = {
     "Physics": {
@@ -35,50 +35,76 @@ CURRICULUM = {
     }
 }
 
+# PRACTICALS NOW SEPARATED BY LEVEL
 PRACTICALS = {
-    "Physics": [
-        {"name": "Measuring Length and Time", "aim": "Use rulers and stopwatches", "materials": "Meter rule", "procedure": "Measure 10 times", "graph": "Length vs Time"},
-        {"name": "Density of Regular Object", "aim": "Determine density", "materials": "Beam balance", "procedure": "Mass and Volume", "graph": "Mass vs Volume"},
-        {"name": "Simple Pendulum", "aim": "Investigate period", "materials": "String", "procedure": "Vary length", "graph": "T^2 vs L"},
-        {"name": "Ohm's Law", "aim": "Verify V = IR", "materials": "Battery", "procedure": "Vary V", "graph": "V vs I"},
-        {"name": "Focal Length of Lens", "aim": "Find focal length", "materials": "Lens", "procedure": "u and v", "graph": "1/u vs 1/v"},
-        {"name": "Specific Heat Capacity", "aim": "Find specific heat", "materials": "Calorimeter", "procedure": "Heat transfer", "graph": "Temp vs Time"},
-        {"name": "Refraction of Light", "aim": "Find refractive index", "materials": "Glass block", "procedure": "Snell's Law", "graph": "sin i vs sin r"},
-        {"name": "Surface Tension", "aim": "Capillary rise", "materials": "Tube", "procedure": "Measure h", "graph": "h vs 1/r"},
-        {"name": "Resonance in Air Column", "aim": "Speed of sound", "materials": "Tube", "procedure": "Find resonance", "graph": "L vs 1/f"},
-        {"name": "Magnetic Field of Coil", "aim": "Field strength", "materials": "Coil", "procedure": "Vary current", "graph": "Deflection vs Current"}
-    ],
-    "Chemistry": [
-        {"name": "Testing for Cations", "aim": "Identify metal ions", "materials": "NaOH", "procedure": "Add reagents", "graph": None},
-        {"name": "Testing for Anions", "aim": "Identify acid radicals", "materials": "BaCl2", "procedure": "Add reagents", "graph": None},
-        {"name": "Titration - Acid Base", "aim": "Find concentration", "materials": "Burette", "procedure": "Titrate", "graph": "Volume vs pH"},
-        {"name": "Rate of Reaction", "aim": "Effect of concentration", "materials": "HCl", "procedure": "Vary conc", "graph": "Volume vs Time"},
-        {"name": "Electrolysis of Water", "aim": "Decompose water", "materials": "Apparatus", "procedure": "Electrolyze", "graph": "H2 vs O2"},
-        {"name": "Solubility Curve", "aim": "Solubility vs T", "materials": "KNO3", "procedure": "Dissolve", "graph": "Solubility vs T"},
-        {"name": "Organic Preparation - Ethene", "aim": "Prepare ethene", "materials": "Ethanol", "procedure": "Heat", "graph": None},
-        {"name": "Chromatography", "aim": "Separate ink", "materials": "Paper", "procedure": "Spot", "graph": None},
-        {"name": "Enthalpy Change", "aim": "Heat of reaction", "materials": "Calorimeter", "procedure": "Mix", "graph": "Temp vs Time"},
-        {"name": "Redox Titration", "aim": "Find Fe2+", "materials": "KMnO4", "procedure": "Titrate", "graph": None}
-    ],
-    "Biology": [
-        {"name": "Microscope Use", "aim": "Observe cells", "materials": "Microscope", "procedure": "Prepare slide", "graph": None},
-        {"name": "Food Tests", "aim": "Test nutrients", "materials": "Iodine", "procedure": "Add reagents", "graph": None},
-        {"name": "Osmosis in Potato", "aim": "Investigate osmosis", "materials": "Potato", "procedure": "Soak", "graph": "Conc vs % Change"},
-        {"name": "Transpiration Rate", "aim": "Measure water loss", "materials": "Potometer", "procedure": "Measure bubble", "graph": "Time vs Distance"},
-        {"name": "Photosynthesis", "aim": "Test for starch", "materials": "Leaf", "procedure": "Destarch", "graph": None},
-        {"name": "Heart Rate Response", "aim": "Effect of exercise", "materials": "Stopwatch", "procedure": "Measure", "graph": "Time vs HR"},
-        {"name": "Germination Factors", "aim": "Effect of water", "materials": "Seeds", "procedure": "Set conditions", "graph": "% vs Days"},
-        {"name": "Enzyme Activity", "aim": "Effect of pH", "materials": "Amylase", "procedure": "Vary pH", "graph": "pH vs Time"},
-        {"name": "Ecological Sampling", "aim": "Quadrat method", "materials": "Quadrat", "procedure": "Sample", "graph": "Species vs Freq"},
-        {"name": "Blood Smear", "aim": "Identify blood cells", "materials": "Slide", "procedure": "Observe", "graph": None}
-    ],
-    "Mathematics": [
-        {"name": "Budgeting Project", "aim": "Use fractions and %", "materials": "Paper", "procedure": "Share money", "graph": None},
-        {"name": "Business Analysis", "aim": "Profit and Loss", "materials": "Receipts", "procedure": "Calculate profit", "graph": "Sales vs Profit"},
-        {"name": "Linear Programming", "aim": "Maximize profit", "materials": "Graph paper", "procedure": "Plot feasible region", "graph": "Feasible Region"},
-        {"name": "Network Project", "aim": "Critical path", "materials": "Paper", "procedure": "Draw network", "graph": "Network Graph"}
-    ]
+    "Physics": {
+        "S1-S4": [
+            {"name": "Measuring Length and Time", "aim": "Use rulers and stopwatches", "materials": "Meter rule, Stopwatch", "procedure": "Measure 10 times and average", "graph": "Length vs Time"},
+            {"name": "Density of Regular Object", "aim": "Determine density", "materials": "Beam balance, Ruler", "procedure": "Measure Mass and Volume", "graph": "Mass vs Volume"},
+            {"name": "Simple Pendulum", "aim": "Investigate period", "materials": "String, Bob", "procedure": "Vary length, time 20 oscillations", "graph": "T^2 vs L"},
+            {"name": "Ohm's Law", "aim": "Verify V = IR", "materials": "Battery, Resistor, Ammeter, Voltmeter", "procedure": "Vary V and record I", "graph": "V vs I"},
+            {"name": "Focal Length of Lens", "aim": "Find focal length", "materials": "Convex Lens, Screen", "procedure": "Find u and v", "graph": "1/u vs 1/v"},
+        ],
+        "S5-S6": [
+            {"name": "Specific Heat Capacity by Electrical Method", "aim": "Find specific heat capacity of metal", "materials": "Calorimeter, Heater, Ammeter, Voltmeter", "procedure": "Measure electrical energy and temperature rise", "graph": "Temp vs Time"},
+            {"name": "Refractive Index by Snell's Law", "aim": "Determine refractive index of glass", "materials": "Glass block, Ray box", "procedure": "Measure angles i and r", "graph": "sin i vs sin r"},
+            {"name": "Surface Tension by Capillary Rise", "aim": "Determine surface tension of water", "materials": "Capillary tubes", "procedure": "Measure height of rise", "graph": "h vs 1/r"},
+            {"name": "Speed of Sound by Resonance", "aim": "Find velocity of sound in air", "materials": "Resonance tube", "procedure": "Find first and second resonance", "graph": "L vs 1/f"},
+            {"name": "Magnetic Field of a Solenoid", "aim": "Investigate B vs Current", "materials": "Solenoid, Power supply", "procedure": "Vary current, measure deflection", "graph": "Deflection vs Current"},
+            {"name": "Charging and Discharging of a Capacitor", "aim": "Determine time constant RC", "materials": "Capacitor, Resistor", "procedure": "Record voltage vs time", "graph": "lnV vs Time"}
+        ]
+    },
+    "Chemistry": {
+        "S1-S4": [
+            {"name": "Testing for Cations", "aim": "Identify metal ions", "materials": "NaOH, NH3", "procedure": "Add reagents and observe ppt", "graph": None},
+            {"name": "Testing for Anions", "aim": "Identify acid radicals", "materials": "BaCl2, AgNO3", "procedure": "Add reagents", "graph": None},
+            {"name": "Titration - Acid Base", "aim": "Find concentration of acid", "materials": "Burette, Pipette", "procedure": "Titrate with standard base", "graph": "Volume vs pH"},
+            {"name": "Rate of Reaction", "aim": "Effect of concentration", "materials": "HCl, Marble chips", "procedure": "Vary conc, collect gas", "graph": "Volume vs Time"},
+        ],
+        "S5-S6": [
+            {"name": "Redox Titration - Permanganate", "aim": "Determine concentration of Fe2+ ions", "materials": "KMnO4, Burette", "procedure": "Titrate in acidic medium", "graph": None},
+            {"name": "Enthalpy Change by Calorimetry", "aim": "Find heat of neutralization", "materials": "Calorimeter, NaOH, HCl", "procedure": "Mix and measure temp change", "graph": "Temp vs Time"},
+            {"name": "Solubility Curve of KNO3", "aim": "Determine solubility vs temperature", "materials": "KNO3, Water bath", "procedure": "Dissolve at different T", "graph": "Solubility vs T"},
+            {"name": "Rate of Reaction - Iodine Clock", "aim": "Determine order of reaction", "materials": "KI, K2S2O8", "procedure": "Vary concentration", "graph": "1/Time vs Concentration"},
+            {"name": "Electrolysis - Faraday's Law", "aim": "Verify Faraday's laws", "materials": "Copper electrodes", "procedure": "Electrolyze CuSO4", "graph": "Mass vs Charge"},
+            {"name": "Organic Preparation - Ester", "aim": "Prepare and purify ethyl ethanoate", "materials": "Ethanol, Ethanoic acid", "procedure": "Reflux and distill", "graph": None}
+        ]
+    },
+    "Biology": {
+        "S1-S4": [
+            {"name": "Microscope Use", "aim": "Observe plant and animal cells", "materials": "Microscope, Slides", "procedure": "Prepare wet mount", "graph": None},
+            {"name": "Food Tests", "aim": "Test for nutrients", "materials": "Iodine, Benedict's", "procedure": "Add reagents to food", "graph": None},
+            {"name": "Osmosis in Potato", "aim": "Investigate osmosis", "materials": "Potato, Sucrose solutions", "procedure": "Soak and measure mass", "graph": "Conc vs % Change"},
+            {"name": "Transpiration Rate", "aim": "Measure water loss", "materials": "Potometer", "procedure": "Measure bubble movement", "graph": "Time vs Distance"},
+        ],
+        "S5-S6": [
+            {"name": "Enzyme Activity - Effect of pH", "aim": "Determine optimum pH for amylase", "materials": "Amylase, Starch", "procedure": "Vary pH, test for starch", "graph": "pH vs Rate"},
+            {"name": "Photosynthesis - Limiting Factors", "aim": "Investigate effect of light intensity", "materials": "Aquatic plant, Lamp", "procedure": "Count bubbles", "graph": "Light Intensity vs Rate"},
+            {"name": "Ecological Sampling - Quadrats", "aim": "Determine population density", "materials": "Quadrat, Tape", "procedure": "Sample area", "graph": "Species vs Frequency"},
+            {"name": "Respiration - Gas Exchange", "aim": "Measure CO2 production", "materials": "Yeast, Lime water", "procedure": "Ferment and observe", "graph": "Time vs CO2"},
+            {"name": "Chromatography of Plant Pigments", "aim": "Separate leaf pigments", "materials": "Solvent, Filter paper", "procedure": "Spot and develop", "graph": None},
+            {"name": "Heart Rate Response to Exercise", "aim": "Investigate recovery time", "materials": "Stopwatch", "procedure": "Measure HR before and after", "graph": "Time vs HR"}
+        ]
+    },
+    "Mathematics": {
+        "S1-S4": [
+            {"name": "Budgeting Project", "aim": "Use fractions and %", "materials": "Paper", "procedure": "Share money in ratios", "graph": None},
+            {"name": "Business Analysis", "aim": "Profit and Loss", "materials": "Receipts", "procedure": "Calculate profit", "graph": "Sales vs Profit"},
+            {"name": "Linear Programming", "aim": "Maximize profit", "materials": "Graph paper", "procedure": "Plot feasible region", "graph": "Feasible Region"},
+        ],
+        "S5-S6": [
+            {"name": "Statistical Data Analysis", "aim": "Use mean, median, SD", "materials": "Calculator", "procedure": "Analyze given data", "graph": "Histogram"},
+            {"name": "Mechanics - Projectile Motion", "aim": "Model projectile", "materials": "Graph paper", "procedure": "Plot trajectory", "graph": "y vs x"},
+            {"name": "Numerical Methods - Newton Raphson", "aim": "Find roots of equation", "materials": "Calculator", "procedure": "Iterate to solution", "graph": "Iteration vs Error"},
+            {"name": "Vectors in 3D", "aim": "Find angle between vectors", "materials": "Ruler", "procedure": "Calculate dot product", "graph": None}
+        ]
+    }
 }
 
 def get_topics(subject, level):
     return CURRICULUM.get(subject, {}).get(level, [])
+
+def get_practicals(subject, level):
+    """Return correct practicals based on level"""
+    level_group = "S5-S6" if level in ["S5", "S6"] else "S1-S4"
+    return PRACTICALS.get(subject, {}).get(level_group, [])
