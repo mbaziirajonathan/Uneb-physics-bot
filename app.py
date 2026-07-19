@@ -15,6 +15,7 @@ from gtts import gTTS
 
 LOG_FILE = "usage_log.json"
 CONTACT = "256751040731"
+AI_MODEL = "llama-3.3-70b-versatile" # FIX 1: SWITCHED FOR PRACTICALS + GRAPH
 
 # ============ LOGGING SYSTEM ============
 def load_logs():
@@ -202,7 +203,7 @@ def create_pdf(content, title):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4)
     p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title)
     y=770; p.setFont("Helvetica", 10)
-    for line in content.split('\n')[:65]:
+    for line in content.split('\n')[:70]:
         p.drawString(50,y,line[:95]); y-=14
         if y<50: p.showPage(); y=750
     p.save(); buffer.seek(0); return buffer
@@ -225,7 +226,7 @@ def safe_json_extract(text):
     try: return json.loads(match.group(1).strip()), match.group(0)
     except: return None, match.group(0)
 
-# ============ AI FUNCTIONS ============
+# ============ AI FUNCTIONS - FIXED FOR 70B ============
 def get_ai_response(client, user_query, subject, class_level, topic, mode="Theory"):
     memory = get_memory_context()
     prompt = f"""{memory}You are a Senior NCDC {subject} teacher for {class_level} Uganda.
@@ -239,9 +240,9 @@ Follow NCDC Competency-Based Guidelines:
 ### 3. Uganda Context Example: use local examples like boda boda, markets, farming, Nile
 ### 4. Formula and Worked Example if applicable
 ### 5. Activity of Integration: {AOI_FRAMEWORK[class_level]}
-Write at least 500 words. Use simple English for secondary students."""
+Write at least 600 words. Use simple English for secondary students."""
 
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.7, max_tokens=3500)
+    res = client.chat.completions.create(model=AI_MODEL, messages=[{"role":"user","content":prompt}], temperature=0.7, max_tokens=4000) # FIX: 70B + 4000
     answer = res.choices[0].message.content
     add_to_memory("Student", user_query)
     add_to_memory("Tutor", answer)
@@ -249,20 +250,21 @@ Write at least 500 words. Use simple English for secondary students."""
     return answer
 
 def generate_graph_data(client, subject, topic, level):
-    prompt = f"For {level} {subject} topic {topic}, generate sample data for a graph. Return JSON: {{\"x_label\": \"Time (s)\", \"y_label\": \"Distance (m)\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10]]}}"
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=500)
+    prompt = f"For {level} {subject} topic {topic}, generate 6 sample data points for a graph. Return ONLY valid JSON: {{\"x_label\": \"X-Axis\", \"y_label\": \"Y-Axis\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10],[6,12]]}}"
+    res = client.chat.completions.create(model=AI_MODEL, messages=[{"role":"user","content":prompt}], max_tokens=600, temperature=0.3)
     data, _ = safe_json_extract(res.choices[0].message.content)
     return data
 
+# FIX 2: STRONGER PROMPT FOR PRACTICALS + MORE TOKENS
 def generate_practical(client, subject, level, topic):
-    prompt = f"Generate full NCDC {level} {subject} practical for: {topic}. Include AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. End with JSON data for graph."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=2500)
+    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE step by step, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY PRECAUTIONS. 800 words minimum."
+    res = client.chat.completions.create(model=AI_MODEL, messages=[{"role":"user","content":prompt}], max_tokens=4000, temperature=0.5)
     return res.choices[0].message.content
 
 def generate_bulk_revision(client, subject, level):
     topics = UNEB_CURRICULUM_MAP[subject][level]
     prompt = f"Generate 20 revision questions covering all these {level} {subject} topics: {', '.join(topics)}. Mix MCQ, Theory, and Practical. Provide answers with explanations."
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=3000)
+    res = client.chat.completions.create(model=AI_MODEL, messages=[{"role":"user","content":prompt}], max_tokens=4000)
     return res.choices[0].message.content
 
 def generate_mock_paper(client, subject, level, paper):
@@ -271,7 +273,7 @@ def generate_mock_paper(client, subject, level, paper):
         "P2": f"Generate 5 Theory questions for {subject} {level} Paper 2. 10 marks each. Include calculations and diagrams.",
         "P3": f"Generate 3 Practical scenarios for {subject} {level} Paper 3. Include apparatus, method, data table, and questions."
     }
-    res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], max_tokens=2000)
+    res = client.chat.completions.create(model=AI_MODEL, messages=[{"role":"user","content":prompts[paper]}], max_tokens=4000)
     return res.choices[0].message.content
 
 # ============ ADMIN DASHBOARD ============
@@ -301,6 +303,7 @@ def main():
     if "performance" not in st.session_state: st.session_state.performance = {}
 
     st.markdown("<h1 style='text-align:center; background:gold; color:black; padding:10px'>📚 DIGITAL UNEB TUTOR 2026 - S1 TO S6</h1>", unsafe_allow_html=True)
+    st.caption(f"AI Engine: {AI_MODEL}") # QC TAG
 
     with st.sidebar:
         # DARK MODE FRIENDLY DISCLAIMER IN SIDEBAR
@@ -376,7 +379,8 @@ def main():
         st.header(f"Practical: {subject} {level}")
         prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS[subject][level])
         if st.button("Generate Full Practical"):
-            report = generate_practical(client,subject,level,prac)
+            with st.spinner("Generating detailed practical with 70B..."):
+                report = generate_practical(client,subject,level,prac) # FIX APPLIED
             data, json_block = safe_json_extract(report)
             if data:
                 df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]])
@@ -399,7 +403,9 @@ def main():
                 elif graph_type == "Scatter": fig = px.scatter(df, x=data["x_label"], y=data["y_label"], trendline="ols")
                 else: fig = px.histogram(df, x=data["x_label"])
                 st.plotly_chart(fig)
-                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic}. What does it show?", subject, level, topic)
+                # FIX 3: SEND DATA TO AI TO EXPLAIN PROPERLY
+                data_str = df.to_string()
+                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} in detail. Interpret the trend and what it means. Data:\n{data_str}", subject, level, topic)
                 display_with_pdf(explanation, f"Graph_{topic}")
 
     elif mode == "📝 Quiz Mode":
@@ -441,11 +447,13 @@ def main():
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Ask and Chat")
         st.info("Click 🎤 to record. Speak clearly for 5-10 seconds")
-        audio = mic_recorder(start_prompt="🎤 Start Recording", stop_prompt="⏹️ Stop Recording", key='recorder', format="webm")
+        audio = mic_recorder(start_prompt="🎤 Start Recording", stop_prompt="⏹️ Stop Recording", key='recorder') # FIX: removed format lock
         if audio:
             try:
-                st.audio(audio['bytes'], format="audio/webm")
-                with st.spinner("AI is thinking..."):
+                # FIX 4: FALLBACK FOR BROWSER AUDIO FORMAT
+                if 'bytes' in audio: st.audio(audio['bytes'], format="audio/webm")
+                else: st.audio(audio['wav'])
+                with st.spinner("AI is thinking with 70B..."):
                     voice_ans = get_ai_response(client, f"Explain {topic} in detail with Uganda examples", subject, level, topic)
                 display_with_pdf(voice_ans, "VoiceResponse")
             except Exception as e:
