@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, json, sympy as sp, re, difflib, base64
+import os, io, pytz, random, json, sympy as sp, re, difflib, base64, tempfile
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -13,8 +13,8 @@ def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ==========================================
-# STRICT CONCEPT MAP: SUBJECT LOCKED
-# No cross-subject borrowing allowed
+# STRICT SUBJECT-LOCKED CONCEPT MAP
+# No cross-subject diagram borrowing
 # ==========================================
 CONCEPT_MAP = {
     "Physics": {
@@ -67,30 +67,30 @@ CONCEPT_MAP = {
         "growth": ["human_growth_cycle.png"],
         "transport": ["transport_in_plants.png"]
     },
-    "Mathematics": {} # No diagrams yet
+    "Mathematics": {}
 }
 
 class CurriculumStep(BaseModel):
-    step_number: int = Field(description="Sequential step index starting at 1.")
-    curriculum_level: str = Field(description="Target S1-S6 level mapping e.g. 'S4 Physics'.")
-    core_concept: str = Field(description="The scientific theory or mathematical axiom being applied.")
-    explanation: str = Field(description="Pedagogical step-by-step reasoning using NCDC 2026 approved terms.")
-    python_calculation_code: str = Field(description="EXCLUSIVE calculation code. Use sympy or math. Must set variable 'result'.")
+    step_number: int
+    curriculum_level: str
+    core_concept: str
+    explanation: str
+    python_calculation_code: str
 
 class LockedCurriculumResponse(BaseModel):
-    detected_topic: str = Field(description="Standardized curriculum topic string.")
-    is_within_syllabus: bool = Field(description="True if topic is within S1-S6 NCDC 2026, False otherwise.")
-    pedagogical_steps: list[CurriculumStep] = Field(description="Chronological step-by-step breakdown with theory.")
-    final_answer_formula: str = Field(description="The final raw LaTeX formula or scientific outcome.")
+    detected_topic: str
+    is_within_syllabus: bool
+    pedagogical_steps: list[CurriculumStep]
+    final_answer_formula: str
 
 SYSTEM_PROMPT = """
 You are UCE/UACE DIGITAL TUTOR 2026: A deterministic NCDC 2026 Secondary School S1-S6 Curriculum Engine.
 CRITICAL LAWS:
 1. Grounding: Answer ONLY using NCDC 2026 Uganda syllabus for S1-S6 Physics, Chemistry, Biology, Mathematics.
-2. Anti-Hallucination: Do NOT compute numbers in text. For ANY number or formula, you MUST put exact sympy/python code in `python_calculation_code` and set variable `result`.
-3. Variable Declaration: In python_calculation_code, FIRST line MUST be `var1, var2 = sp.symbols('var1 var2')`. Never use undefined variables like W, F, v.
-4. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
-5. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
+2. Anti-Hallucination: For ANY number or formula, you MUST put exact sympy/python code in `python_calculation_code` and set variable `result`.
+3. Variable Declaration: In python_calculation_code, FIRST line MUST be `var1, var2 = sp.symbols('var1 var2')`.
+4. Full Explanation: In `explanation` field, write full theory as ONE string. Use \\n for new lines. Do NOT use " inside the string. Use ' instead.
+5. OUTPUT FORMAT: You MUST output ONLY valid JSON with keys: detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. No other text.
 """
 
 def execute_deterministic_math(code_string: str) -> str:
@@ -112,38 +112,59 @@ def clean_json(raw):
     raw = raw.strip()
     raw = re.sub(r"```json", "", raw)
     raw = re.sub(r"```", "", raw)
+    raw = raw.replace('\n', '\\n').replace('\r', '') # FIX: Escape newlines for JSON
     return raw.strip()
 
 def get_locked_ai_response(client, user_query, subject, class_level):
-    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}. Remember to define all variables in python_calculation_code."
-    for attempt in range(2):
+    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}"
+
+    for attempt in range(3):
         resp = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}],
             response_format={"type": "json_object"},
             temperature=0.0,
-            max_tokens=2048
+            max_tokens=4096 # FIX: Was 2048. Theory needs more
         )
         raw = resp.choices[0].message.content
         raw = clean_json(raw)
+
         try:
             return LockedCurriculumResponse.model_validate_json(raw)
         except Exception as e:
-            if attempt == 0:
-                full_prompt = f"ERROR: Previous response was invalid JSON or missing fields. MUST include detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. Subject: {subject}. Class: {class_level}. Query: {user_query}"
+            if attempt < 2:
+                full_prompt = f"JSON ERROR: {str(e)}. Return ONLY valid JSON with all 4 keys. Subject: {subject}. Class: {class_level}. Query: {user_query}"
                 continue
             else:
                 return LockedCurriculumResponse(
-                    detected_topic=f"{subject} - {user_query[:50]}",
+                    detected_topic=f"{subject}: {user_query[:60]}",
                     is_within_syllabus=True,
                     pedagogical_steps=[CurriculumStep(
-                        step_number=1, curriculum_level=f"{class_level} {subject}",
-                        core_concept="System Notice",
-                        explanation=f"AI response parsing failed. Please rephrase.",
+                        step_number=1,
+                        curriculum_level=f"{class_level} {subject}",
+                        core_concept="AI Response",
+                        explanation=f"The AI generated an answer but it failed to format. Preview: {raw[:400]}... \n\nPlease try: 'Explain {user_query} step by step'",
                         python_calculation_code=""
                     )],
-                    final_answer_formula="N/A"
+                    final_answer_formula="See explanation above"
                 )
+
+def transcribe_audio_with_groq(client, audio_bytes):
+    """Instant transcription using Groq Whisper"""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+        with open(tmp_path, "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                file=audio_file,
+                model="whisper-large-v3",
+                response_format="text"
+            )
+        os.remove(tmp_path)
+        return transcription.strip()
+    except Exception as e:
+        return f"Transcription Error: {str(e)}"
 
 @st.cache_data
 def create_pdf(content, filename):
@@ -210,28 +231,16 @@ def get_all_diagrams():
     return [p.name for p in DIAGRAMS_DIR.glob("*.png")]
 
 def find_diagram(topic, subject):
-    """STRICT SUBJECT MATCH: Only searches CONCEPT_MAP[subject]. No cross-borrowing"""
+    """STRICT: Only returns diagrams from the selected subject"""
     all_pngs = get_all_diagrams()
     if not all_pngs: return None
     topic_lower = topic.lower()
-
-    # 1. STRICT CONCEPT MAP: Only this subject's keywords
     if subject in CONCEPT_MAP:
         for keyword, files in CONCEPT_MAP[subject].items():
             if keyword in topic_lower:
                 for f in files:
                     if f in all_pngs:
                         return str(DIAGRAMS_DIR / f)
-
-    # 2. STRICT filename match within this subject's map only
-    if subject in CONCEPT_MAP:
-        subject_files = [f for files in CONCEPT_MAP[subject].values() for f in files]
-        topic_clean = topic_lower.replace(" ", "_")
-        for f in subject_files:
-            if f in all_pngs and topic_clean in f.lower():
-                return str(DIAGRAMS_DIR / f)
-
-    # If no match in this subject, return None. DO NOT borrow from other subjects
     return None
 
 def log_activity(activity, subject, class_level):
@@ -349,8 +358,8 @@ def main():
         st.header("📘 Theory Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Notes"):
-            with st.spinner("Generating notes..."):
-                locked = get_locked_ai_response(client, f"Detailed NCDC 2026 notes on {topic} with definitions and examples", subject, class_level)
+            with st.spinner("Generating detailed NCDC notes..."):
+                locked = get_locked_ai_response(client, f"Give detailed NCDC 2026 theory notes on {topic}. Include definitions, 2 examples, and key formulas.", subject, class_level)
                 if locked: display_locked_response(locked, f"theory_{topic}")
         ask_bar(client, subject, class_level, mode)
 
@@ -366,7 +375,7 @@ def main():
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        path = find_diagram(topic, subject) # STRICT SUBJECT ONLY
+        path = find_diagram(topic, subject)
         st.info(f"Found {len(get_all_diagrams())} images in assets folder")
         if path:
             try:
@@ -377,7 +386,7 @@ def main():
             except Exception as e:
                 st.error(f"Could not load image: {e}")
         else:
-            st.warning(f"❌ No diagram available for '{topic}' in {subject}. Not borrowing from other subjects.")
+            st.warning(f"❌ No diagram available for '{topic}' in {subject}.")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Practicals Lab":
@@ -446,22 +455,25 @@ def main():
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat - Talk to AI")
-        st.info("Click microphone, speak, then click stop. AI will transcribe and answer.")
-
+        st.info("Click microphone, speak for 5-10s, click stop. Transcription is instant.")
         try:
             from streamlit_mic_recorder import mic_recorder
-            audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", key="voice_rec")
+            audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", key="voice_rec", format="wav")
             if audio and "bytes" in audio:
                 st.audio(audio["bytes"])
-                st.success("Transcribing...")
-                # Simple transcription: send to Groq Whisper
-                transcript = "Voice input received. Please type if transcription fails."
-                user_q = st.text_input("Edit transcript if needed", value=transcript, key="voice_text")
-                if st.button("Send Voice Question"):
-                    locked = get_locked_ai_response(client, user_q, subject, class_level)
-                    if locked: display_locked_response(locked, f"voice_{subject}")
+                with st.spinner("Transcribing with Groq Whisper..."):
+                    transcript = transcribe_audio_with_groq(client, audio["bytes"])
+                if "Error" not in transcript:
+                    st.success(f"**You said:** {transcript}")
+                    user_q = st.text_input("Edit if needed", value=transcript, key="voice_text")
+                    if st.button("Send Voice Question", type="primary"):
+                        with st.spinner("AI is answering..."):
+                            locked = get_locked_ai_response(client, user_q, subject, class_level)
+                            if locked: display_locked_response(locked, f"voice_{subject}")
+                else:
+                    st.error(transcript)
         except ImportError:
-            st.error("Voice module not installed. Run: `pip install streamlit-mic-recorder`")
+            st.error("Voice module not installed. Add `streamlit-mic-recorder` to requirements.txt")
             user_q = st.text_input("Type your question", key="voice_fallback")
             if st.button("Send"): ask_bar(client, subject, class_level, mode)
 
