@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, json, sympy as sp
+import os, io, pytz, random, json, sympy as sp, re
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -13,7 +13,7 @@ def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ==========================================
-# ANTI-HALLUCINATION LOCK SYSTEM
+# ANTI-HALLUCINATION LOCK SYSTEM - DEBUGGED
 # ==========================================
 class CurriculumStep(BaseModel):
     step_number: int = Field(description="Sequential step index starting at 1.")
@@ -36,7 +36,14 @@ CRITICAL LAWS:
 3. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
 4. Program of Thought: Each step must have valid python code.
 5. Boundaries: If query is outside S1-S6 NCDC 2026, set `is_within_syllabus` = false and halt.
-OUTPUT ONLY raw JSON matching schema. No markdown.
+6. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
+OUTPUT JSON SCHEMA:
+{
+  "detected_topic": "string",
+  "is_within_syllabus": true,
+  "pedagogical_steps": [{"step_number": 1, "curriculum_level": "S4 Physics", "core_concept": "string", "explanation": "string", "python_calculation_code": "result =..."}],
+  "final_answer_formula": "string"
+}
 """
 
 def execute_deterministic_math(code_string: str) -> str:
@@ -50,21 +57,49 @@ def execute_deterministic_math(code_string: str) -> str:
     except Exception as e:
         return f"Execution Error: {str(e)}"
 
+def clean_json(raw):
+    """Remove markdown ```json and ``` from LLM output"""
+    raw = raw.strip()
+    raw = re.sub(r"```json", "", raw)
+    raw = re.sub(r"```", "", raw)
+    return raw.strip()
+
 def get_locked_ai_response(client, user_query, subject, class_level):
+    """Calls LLM with repair logic if JSON fails"""
     full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}"
-    resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}],
-        response_format={"type": "json_object"},
-        temperature=0.0,
-        max_tokens=2048
-    )
-    raw = resp.choices[0].message.content
-    try:
-        return LockedCurriculumResponse.model_validate_json(raw)
-    except Exception as e:
-        st.error(f"JSON Parse Error: {e}")
-        return None
+
+    for attempt in range(2): # Try twice
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+            max_tokens=2048
+        )
+        raw = resp.choices[0].message.content
+        raw = clean_json(raw)
+
+        try:
+            return LockedCurriculumResponse.model_validate_json(raw)
+        except Exception as e:
+            if attempt == 0:
+                # Retry with even stricter instruction
+                full_prompt = f"ERROR: Previous response was invalid JSON. MUST include all 4 fields: detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. Subject: {subject}. Class: {class_level}. Query: {user_query}"
+                continue
+            else:
+                # FINAL FALLBACK: Build a safe object so app doesn't crash
+                return LockedCurriculumResponse(
+                    detected_topic=f"{subject} - {user_query[:50]}",
+                    is_within_syllabus=False,
+                    pedagogical_steps=[CurriculumStep(
+                        step_number=1,
+                        curriculum_level=f"{class_level} {subject}",
+                        core_concept="Parse Error",
+                        explanation=f"The AI failed to return valid JSON. Raw: {raw[:200]}... Please rephrase your question.",
+                        python_calculation_code=""
+                    )],
+                    final_answer_formula="N/A"
+                )
 
 @st.cache_data
 def create_pdf(content, filename):
@@ -93,7 +128,6 @@ def create_pdf(content, filename):
     return buffer
 
 def build_text_from_locked(locked):
-    """Convert locked JSON to plain text for PDF download"""
     text = f"Topic: {locked.detected_topic}\n\n"
     for step in locked.pedagogical_steps:
         text += f"Step {step.step_number}: {step.curriculum_level}\n"
@@ -152,12 +186,11 @@ def show_gold_upgrade():
     st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
 
 def display_locked_response(locked, download_name="notes"):
-    """Display + Download button"""
     if not locked: return
     st.success(f"✅ Topic Verified: {locked.detected_topic}")
-    
+
     full_text = build_text_from_locked(locked)
-    
+
     for step in locked.pedagogical_steps:
         with st.container(border=True):
             st.markdown(f"### Step {step.step_number}: {step.curriculum_level}")
@@ -167,12 +200,11 @@ def display_locked_response(locked, download_name="notes"):
                 st.code(step.python_calculation_code, language="python")
                 res = execute_deterministic_math(step.python_calculation_code)
                 st.success(f"**Exact Calculation Result:** `{res}`")
-    
+
     st.markdown("---")
     st.markdown("### Final Answer")
     st.latex(locked.final_answer_formula)
-    
-    # DOWNLOAD BUTTON ADDED TO ALL LOCKED RESPONSES
+
     pdf = create_pdf(full_text, f"{download_name}.pdf")
     st.download_button("📥 Download Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
 
@@ -240,7 +272,6 @@ def main():
         show_gold_upgrade()
         st.stop()
 
-    # ALL 15 MODES WITH DOWNLOAD
     if mode == "Locked Calculation Mode":
         st.header("🔐 Locked Calculation Mode - No Hallucinations")
         query = st.text_area("Enter your Physics/Chem/Math question")
@@ -284,9 +315,8 @@ def main():
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic)
         st.info(f"Found {len(list(DIAGRAMS_DIR.glob('*.png')))} images in assets folder")
-        if path: 
+        if path:
             st.image(path, caption=topic, use_container_width=True); st.success(f"✅ Match: {Path(path).name}")
-            # DOWNLOAD IMAGE OPTION
             with open(path, "rb") as f:
                 st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
         else: st.warning(f"No diagram found for '{topic}'")
@@ -306,7 +336,6 @@ def main():
                     st.markdown(f"**Materials/Apparatus:** {p['materials']}")
                     st.markdown(f"**Procedure:** {p['procedure']}")
                     st.info("Follow NCDC 2026 safety guidelines")
-                # DOWNLOAD PRACTICAL PDF
                 pdf = create_pdf(text, f"practical_{p['name']}.pdf")
                 st.download_button("📥 Download Practical as PDF", pdf, f"practical_{p['name']}.pdf", use_container_width=True)
                 if p["graph"]:
@@ -364,14 +393,14 @@ def main():
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
-        if st.session_state.activities_log: 
+        if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df, use_container_width=True)
             st.download_button("📥 Download Progress CSV", df.to_csv(index=False).encode(), "progress.csv")
 
     elif mode == "Admin Dashboard":
         st.header("📈 Admin Dashboard")
-        if st.session_state.activities_log: 
+        if st.session_state.activities_log:
             df = pd.DataFrame(st.session_state.activities_log)
             st.dataframe(df, use_container_width=True)
             st.download_button("📥 Download Admin Log CSV", df.to_csv(index=False).encode(), "admin_log.csv")
