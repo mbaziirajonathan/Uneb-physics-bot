@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel, Field
-from subjects import CURRICULUM, PRACTICALS, get_topics
+from subjects import CURRICULUM, get_topics, get_practicals # CHANGED: use get_practicals instead of PRACTICALS
 
 @st.cache_resource
 def get_client():
@@ -216,7 +216,7 @@ def main():
         if st.button("Solve with Python Lock", type="primary") and query:
             with st.spinner("Running Anti-Hallucination Engine..."):
                 locked = get_locked_ai_response(client, query, subject, class_level)
-            
+
             if not locked:
                 st.error("Failed to parse AI response. Try rephrasing.")
             elif not locked.is_within_syllabus:
@@ -273,12 +273,22 @@ def main():
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
-        if subject in PRACTICALS:
-            practical = st.selectbox("Select Practical", [p["name"] for p in PRACTICALS[subject]])
+        practicals_list = get_practicals(subject, class_level) # FIX: now level-specific
+        if practicals_list:
+            practical = st.selectbox("Select Practical", [p["name"] for p in practicals_list])
             if st.button("Show Practical"):
-                p = next(p for p in PRACTICALS[subject] if p["name"] == practical)
-                st.write(f"**Aim:** {p['aim']}"); st.write(f"**Materials:** {p['materials']}"); st.write(f"**Procedure:** {p['procedure']}")
-        else: st.info("No practicals for Mathematics yet.")
+                p = next(p for p in practicals_list if p["name"] == practical)
+                st.write(f"**Aim:** {p['aim']}")
+                st.write(f"**Materials:** {p['materials']}")
+                st.write(f"**Procedure:** {p['procedure']}")
+                if p["graph"]:
+                    if st.button("Generate Sample Graph"):
+                        x = np.linspace(0,10,20); y = x * random.uniform(0.5,2) + np.random.randn(20)*2
+                        fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
+                        st.plotly_chart(fig, use_container_width=True)
+                log_activity(f"Practical: {practical}", subject, class_level)
+        else:
+            st.info(f"No practicals defined for {subject} {class_level}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Quiz Mode":
