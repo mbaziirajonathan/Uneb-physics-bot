@@ -14,8 +14,6 @@ from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
 LOG_FILE = "usage_log.json"
-ADMIN_PASSWORD = "ADMIN256"
-CONTACT = "256751040731"
 
 # ============ LOGGING SYSTEM ============
 def load_logs():
@@ -39,14 +37,17 @@ def log_activity(user_type, action, details):
     }
     save_log(entry)
 
-# ============ PASSWORD GATE ============
+# ============ PASSWORD GATE - HIDDEN IN SECRETS ============
 def check_password():
+    APP_PW = st.secrets.get("APP_PASSWORD", "UNEB2026")
+    ADMIN_PW = st.secrets.get("ADMIN_PASSWORD", "ADMIN256")
+
     def password_entered():
         pw = st.session_state["password"]
-        if pw == st.secrets.get("APP_PASSWORD", "UNEB2026"):
+        if pw == APP_PW:
             st.session_state["user_type"] = "Student"
             st.session_state["password_correct"] = True
-        elif pw == ADMIN_PASSWORD:
+        elif pw == ADMIN_PW:
             st.session_state["user_type"] = "Admin"
             st.session_state["password_correct"] = True
         else:
@@ -55,7 +56,7 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
-        st.text_input(f"Students: UNEB2026 | Admin: {ADMIN_PASSWORD}", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.title("🔒 DIGITAL UNEB TUTOR 2026 - Login")
@@ -108,16 +109,16 @@ UNEB_CURRICULUM_MAP = {
 
 PRACTICAL_TOPICS = {
     "Mathematics": {
-        "S1": ["Scale Drawing and Measurement", "Data Collection Survey Project", "Geometric Construction", "Cartesian Plane Plotting"],
-        "S2": ["Real-life Budgeting Project", "Mapping School Compound using Bearings", "Tracking Local Market Price Data", "Building Patterns"],
-        "S3": ["Simulating PAYE and Mobile Money Charges", "Building Probability Models", "Vector Navigation Mapping", "Quadratic Equation Graphical Solution"],
-        "S4": ["Linear Programming for Business Optimization", "Building 3D Geometric Models", "Processing Census Data", "Statistical Survey"],
+        "S1": ["Scale Drawing and Measurement", "Data Collection Survey Project", "Geometric Construction of Angles and Triangles", "Cartesian Plane Plotting Activity"],
+        "S2": ["Real-life Budgeting Project", "Mapping School Compound using Bearings", "Tracking Local Market Price Data", "Building Patterns with Matchsticks"],
+        "S3": ["Simulating PAYE and Mobile Money Charges", "Building Probability Models with Dice/Coins", "Vector Navigation Mapping of School", "Quadratic Equation Graphical Solution"],
+        "S4": ["Linear Programming for Business Optimization", "Building 3D Geometric Models", "Processing Census Data", "Statistical Survey and Report Writing"],
         "S5": ["Optimization using Differentiation", "Area under Curves by Integration", "Modeling Circular Motion", "Binomial Expansion Applications"],
         "S6": ["Solving Differential Equations Numerically", "Projectile and Circular Motion Lab", "Normal Distribution Data Analysis", "Linear Programming for Industries"]
     },
     "Physics": {
-        "S1": ["Measuring Volume using Measuring Cylinders", "Finding Density of Regular and Irregular Objects", "Demonstrating Capillary Action", "Surface Tension Experiments", "Hooke's Law"],
-        "S2": ["Laws of Reflection using Plane Mirrors", "Refraction through Glass Block", "Construction of Pinhole Camera", "Charging by Friction and Induction", "Gold-leaf Electroscope"],
+        "S1": ["Measuring Volume using Measuring Cylinders", "Finding Density of Regular and Irregular Objects", "Demonstrating Capillary Action", "Surface Tension Experiments", "Hooke's Law - Stretching Springs"],
+        "S2": ["Laws of Reflection using Plane Mirrors", "Refraction through Glass Block", "Construction of Pinhole Camera", "Charging by Friction and Induction", "Gold-leaf Electroscope", "Thermometer Calibration"],
         "S3": ["Series and Parallel Circuits", "Verifying Ohm's Law V=IR", "Mapping Magnetic Fields", "Speed of Sound using Resonance", "Simple Pendulum", "Specific Heat Capacity"],
         "S4": ["Electromagnetic Induction", "Transformers Step-up/down", "Logic Gates AND OR NOT", "Properties of Cathode Rays", "Rectification using Diodes", "Radioactivity Simulation"],
         "S5": ["Projectile Motion Experiment", "Verification of Laws of Gravitation", "Thermal Conductivity of Metals", "Wave Interference using Ripple Tank", "Lens and Mirror Experiments"],
@@ -150,12 +151,12 @@ AOI_FRAMEWORK = {
     "S6": "Professional Level: Data analysis for policy, Engineering design, Medical diagnostics."
 }
 
-# SUBJECT SPECIFIC DIAGRAMS - NO CROSS MATCHING
+# SUBJECT LOCKED DIAGRAMS - NO CROSS MATCHING
 DIAGRAM_MAP = {
-    "Biology": {"cell": "assets/cell.png", "microscope": "assets/microscope.png", "heart": "assets/heart.png", "dna": "assets/dna.png", "plant": "assets/plant.png"},
-    "Physics": {"circuit": "assets/circuit.png", "pendulum": "assets/pendulum.png", "wave": "assets/wave.png", "magnet": "assets/magnet.png"},
-    "Chemistry": {"atom": "assets/atom.png", "molecule": "assets/molecule.png", "beaker": "assets/beaker.png"},
-    "Mathematics": {"graph": "assets/graph.png", "triangle": "assets/triangle.png", "circle": "assets/circle.png"}
+    "Biology": {"cell": "assets/cell.png", "microscope": "assets/microscope.png", "heart": "assets/heart.png", "dna": "assets/dna.png", "plant": "assets/plant.png", "flower": "assets/flower.png"},
+    "Physics": {"circuit": "assets/circuit.png", "pendulum": "assets/pendulum.png", "wave": "assets/wave.png", "magnet": "assets/magnet.png", "lens": "assets/lens.png"},
+    "Chemistry": {"atom": "assets/atom.png", "molecule": "assets/molecule.png", "beaker": "assets/beaker.png", "bunsen": "assets/bunsen.png"},
+    "Mathematics": {"graph": "assets/graph.png", "triangle": "assets/triangle.png", "circle": "assets/circle.png", "matrix": "assets/matrix.png"}
 }
 
 @st.cache_resource
@@ -183,7 +184,7 @@ def get_memory_context():
 def fuzzy_find_diagram(topic, subject):
     topic_lower = topic.lower()
     subject_diagrams = DIAGRAM_MAP.get(subject, {})
-    matches = difflib.get_close_matches(topic_lower, subject_diagrams.keys(), n=1, cutoff=0.4)
+    matches = difflib.get_close_matches(topic_lower, subject_diagrams.keys(), n=1, cutoff=0.35)
     if matches and os.path.exists(subject_diagrams[matches[0]]):
         return subject_diagrams[matches[0]]
     return None
@@ -234,10 +235,10 @@ Student Question: {user_query}
 Follow NCDC Competency-Based Guidelines:
 ### 1. Definition and Key Competencies
 ### 2. Detailed Explanation with 3 Learner Activities
-### 3. Uganda Context Example
+### 3. Uganda Context Example: use local examples like boda boda, markets, farming, Nile
 ### 4. Formula and Worked Example if applicable
 ### 5. Activity of Integration: {AOI_FRAMEWORK[class_level]}
-Write at least 500 words."""
+Write at least 500 words. Use simple English for secondary students."""
 
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], temperature=0.7, max_tokens=3500)
     answer = res.choices[0].message.content
@@ -247,27 +248,27 @@ Write at least 500 words."""
     return answer
 
 def generate_graph_data(client, subject, topic, level):
-    prompt = f"For {level} {subject} topic {topic}, generate sample data for a graph. Return JSON: {{\"x_label\": \"Time\", \"y_label\": \"Distance\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10]]}}"
+    prompt = f"For {level} {subject} topic {topic}, generate sample data for a graph. Return JSON: {{\"x_label\": \"Time (s)\", \"y_label\": \"Distance (m)\", \"data\": [[1,2],[2,4],[3,6],[4,8],[5,10]]}}"
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=500)
     data, _ = safe_json_extract(res.choices[0].message.content)
     return data
 
 def generate_practical(client, subject, level, topic):
-    prompt = f"Generate full NCDC {level} {subject} practical for: {topic}. Include AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. End with JSON data."
+    prompt = f"Generate full NCDC {level} {subject} practical for: {topic}. Include AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. End with JSON data for graph."
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=2500)
     return res.choices[0].message.content
 
 def generate_bulk_revision(client, subject, level):
     topics = UNEB_CURRICULUM_MAP[subject][level]
-    prompt = f"Generate 20 revision questions covering all these {level} {subject} topics: {', '.join(topics)}. Mix MCQ, Theory, and Practical. Provide answers."
+    prompt = f"Generate 20 revision questions covering all these {level} {subject} topics: {', '.join(topics)}. Mix MCQ, Theory, and Practical. Provide answers with explanations."
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=3000)
     return res.choices[0].message.content
 
 def generate_mock_paper(client, subject, level, paper):
     prompts = {
-        "P1": f"Generate 40 MCQ for {subject} {level} Paper 1. Cover all topics. 4 options A-D. Include answers.",
-        "P2": f"Generate 5 Theory questions for {subject} {level} Paper 2. 10 marks each. Include calculations.",
-        "P3": f"Generate 3 Practical scenarios for {subject} {level} Paper 3. Include apparatus and method."
+        "P1": f"Generate 40 MCQ for {subject} {level} Paper 1. Cover all topics. 4 options A-D. Include answers at end.",
+        "P2": f"Generate 5 Theory questions for {subject} {level} Paper 2. 10 marks each. Include calculations and diagrams.",
+        "P3": f"Generate 3 Practical scenarios for {subject} {level} Paper 3. Include apparatus, method, data table, and questions."
     }
     res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompts[paper]}], max_tokens=2000)
     return res.choices[0].message.content
@@ -285,7 +286,7 @@ def admin_dashboard():
     col3.metric("Users", df['user'].nunique())
 
     st.subheader("Live Activity Feed")
-    st.dataframe(df.tail(30), use_container_width=True)
+    st.dataframe(df.tail(50), use_container_width=True)
 
     st.subheader("Activity by Subject")
     if 'details' in df.columns:
@@ -307,7 +308,7 @@ def main():
         <b>⚠️ DISCLAIMER</b><br>
         This AI Tutor is for learning support only.<br>
         For any confusion, confirm with Head Teacher / Class Teacher.<br>
-        <b>📞 Support:</b> {CONTACT}
+        <b>📞 Support:</b> 256751040731
         </div>
         """, unsafe_allow_html=True)
 
@@ -336,7 +337,7 @@ def main():
             "🔐 Math Workouts", "🎙️ Voice Ask/Chat"
         ])
 
-    # UNIVERSAL ASK BOX
+    # UNIVERSAL ASK BOX - ON EVERY PAGE
     st.subheader("❓ Ask Anything About This Topic")
     ask_q = st.text_input("Type your question here", key="universal_ask")
     if st.button("Ask AI", key="ask_btn"):
@@ -354,7 +355,7 @@ def main():
     elif mode == "📖 Theory + AOI":
         st.header(f"{subject} {level}: {topic}")
         st.info(f"**AOI Focus**: {AOI_FRAMEWORK[level]}")
-        diagram = fuzzy_find_diagram(topic, subject) # SUBJECT LOCKED
+        diagram = fuzzy_find_diagram(topic, subject)
         if diagram: st.image(diagram, caption=f"Diagram: {topic}")
         if st.button("Generate Full NCDC Notes", type="primary"):
             raw = get_ai_response(client, "Explain fully", subject, level, topic)
@@ -382,6 +383,7 @@ def main():
                 fig = px.scatter(df, x=data["x_label"], y=data["y_label"], trendline="ols")
                 st.plotly_chart(fig)
             display_with_pdf(report.replace(json_block,"") if json_block else report, f"Practical_{prac}")
+            add_performance(subject, prac, 9)
 
     elif mode == "📈 Graph Generator":
         st.header("📈 Graph Explainer")
@@ -396,12 +398,12 @@ def main():
                 elif graph_type == "Scatter": fig = px.scatter(df, x=data["x_label"], y=data["y_label"], trendline="ols")
                 else: fig = px.histogram(df, x=data["x_label"])
                 st.plotly_chart(fig)
-                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic}", subject, level, topic)
+                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic}. What does it show?", subject, level, topic)
                 display_with_pdf(explanation, f"Graph_{topic}")
 
     elif mode == "📝 Quiz Mode":
         if st.button("Generate 10 MCQ"):
-            quiz = get_ai_response(client, "Generate 10 competency-based MCQ with 1 AOI scenario", subject, level, topic, "Quiz")
+            quiz = get_ai_response(client, "Generate 10 competency-based MCQ with 1 AOI scenario question. Provide answers.", subject, level, topic, "Quiz")
             display_with_pdf(quiz, f"Quiz_{topic}")
             add_performance(subject, topic, 7)
 
@@ -432,7 +434,7 @@ def main():
         st.header("🔐 Mathematics/Calculations Workouts Page")
         calc_q = st.text_area("Enter Math/Physics/Chemistry calculation")
         if st.button("Work it Out Step by Step"):
-            steps = get_ai_response(client, f"Solve step by step with LaTeX: {calc_q}", subject, level, topic, "Calculation")
+            steps = get_ai_response(client, f"Solve step by step with LaTeX: {calc_q}. Show formula, substitution, answer.", subject, level, topic, "Calculation")
             display_with_pdf(steps, "Workout")
 
     elif mode == "🎙️ Voice Ask/Chat":
@@ -441,7 +443,7 @@ def main():
         if audio:
             st.audio(audio['bytes'])
             st.success("Voice recorded. Answer below:")
-            voice_ans = get_ai_response(client, "Explain this topic in detail", subject, level, topic)
+            voice_ans = get_ai_response(client, "Explain this topic in detail with examples", subject, level, topic)
             display_with_pdf(voice_ans, "VoiceResponse")
 
     with st.expander("💾 View Chat Memory"):
