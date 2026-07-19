@@ -70,44 +70,45 @@ CONCEPT_MAP = {
 
 ADMIN_CONTACT = "256751040731" # WhatsApp Support
 
-def execute_deterministic_math(code_string: str) -> str:
-    local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math'), "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
+def safe_execute_math(code_string: str) -> str:
+    """Run code internally. Never show code or errors to student"""
+    local_env = {"sp": sp, "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
     try:
-        if "__import__" in code_string or "os." in code_string: return "Execution Blocked"
-        common_symbols = "g, m, v, u, a, t, s, F, W, P, E, k, n, i, r, R, V, I, Q, T, L, f, lambda, theta, rho"
-        exec(f"{common_symbols} = sp.symbols('{common_symbols}')", {}, local_env)
+        if not code_string or "result" not in code_string: return None
+        if "__import__" in code_string or "os." in code_string: return None
+        exec(f"g, m, v, u, a, t, s, F, W, P, E, c, delta_T, Q, n, k = sp.symbols('g m v u a t s F W P E c delta_T Q n k')", {}, local_env)
         exec(f"{code_string}", {}, local_env)
-        result = local_env.get("result", "No result set")
+        result = local_env.get("result", None)
+        if result is None: return None
         if hasattr(result, 'free_symbols'): return str(sp.simplify(result).evalf(4))
         return str(result)
-    except Exception as e: return f"Execution Error: {str(e)}"
+    except:
+        return None # Fail silently. Don't scare student
 
 def get_human_ai_response(client, user_query, subject, class_level):
-    """FIX: Ask for PLAIN TEXT not JSON"""
+    """Ask for text only. Tell AI not to output code to student"""
     system_prompt = f"""
 You are UCE/UACE DIGITAL TUTOR 2026: An expert NCDC 2026 Uganda Teacher for {class_level} {subject}.
-CRITICAL RULES:
-1. Write like a real human teacher. Use headings with ###, paragraphs, bullet points with -, and examples.
-2. If there is math, write the formula in LaTeX like $F = ma$ and also give python code in a ```python``` code block that sets variable result.
-3. Ground only in S1-S6 NCDC 2026 Uganda syllabus. If outside, say "This is outside S1-S6 NCDC 2026".
-4. DO NOT return JSON. DO NOT return {{"key": "value"}}. Return only readable notes.
+CRITICAL RULES FOR STUDENTS:
+1. Write like a human teacher. Use ### Headings, paragraphs, and bullet points with -.
+2. For calculations: First state the Formula in LaTeX like $Q = mc\\Delta T$. Then explain in words. Then state the Final Answer with units. DO NOT show python code to the student.
+3. If you do calculations, you may include python code in ```python``` block but it will be hidden from the student. Only the final number will be shown.
+4. Ground only in S1-S6 NCDC 2026 Uganda syllabus. If outside say "This topic is outside S1-S6 NCDC 2026".
+5. DO NOT return JSON. DO NOT return {{"key": "value"}}. DO NOT explain syntax errors.
 """
-    full_prompt = f"Teach this topic in detail: {user_query}"
-
+    full_prompt = f"Teach this topic in detail for a secondary school student: {user_query}"
     try:
         stream = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt}],
-            temperature=0.2,
-            max_tokens=8192,
-            stream=True
+            temperature=0.2, max_tokens=8192, stream=True
         )
         raw = ""
         for chunk in stream:
             if chunk.choices[0].delta.content:
                 raw += chunk.choices[0].delta.content
     except Exception as e:
-        raw = f"API Error: {str(e)}"
+        raw = f"Sorry, I could not generate an answer. Please try again. If problem persists WhatsApp {ADMIN_CONTACT}"
     return raw
 
 def transcribe_audio_with_groq(client, audio_bytes):
@@ -116,7 +117,7 @@ def transcribe_audio_with_groq(client, audio_bytes):
         with open(tmp_path, "rb") as audio_file:
             transcription = client.audio.transcriptions.create(file=audio_file, model="whisper-large-v3", response_format="text")
         os.remove(tmp_path); return transcription.strip()
-    except Exception as e: return f"Transcription Error: {str(e)}"
+    except: return "Could not transcribe audio"
 
 @st.cache_data
 def create_pdf(content, filename):
@@ -127,9 +128,10 @@ def create_pdf(content, filename):
     c.setFont("Helvetica-Bold", 14); c.drawString(50, y, f"UCE/UACE DIGITAL TUTOR 2026 - {filename}"); y -= 30
     c.setFont("Helvetica", 10)
     for line in content.split('\n'):
-        for chunk in [line[i:i+95] for i in range(0, len(line), 95)]:
-            c.drawString(50, y, chunk); y -= 15
-            if y < 50: c.showPage(); c.setFont("Helvetica", 10); y = height - 50
+        if "```" not in line: # Don't put code in PDF
+            for chunk in [line[i:i+95] for i in range(0, len(line), 95)]:
+                c.drawString(50, y, chunk); y -= 15
+                if y < 50: c.showPage(); c.setFont("Helvetica", 10); y = height - 50
     c.save(); buffer.seek(0); return buffer
 
 @st.cache_data
@@ -177,26 +179,29 @@ def show_gold_upgrade():
     st.markdown(f"**WhatsApp/Support: {ADMIN_CONTACT}**")
     st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
 
-def display_human_notes(raw_text, download_name="notes"):
-    """Render raw text as human notes. No JSON"""
-    st.markdown(raw_text)
+def display_student_notes(raw_text, download_name="notes"):
+    """Student view: Hide code, show only text + final answer + formula"""
+    # Remove all ```python... ``` blocks before showing
+    clean_text = re.sub(r'```python(.*?)```', '', raw_text, flags=re.DOTALL)
+    clean_text = clean_text.replace("```", "")
+    
+    st.markdown(clean_text)
 
     # Extract and render any LaTeX formulas
     formulas = re.findall(r'\$(.*?)\$', raw_text)
     if formulas:
-        st.markdown("### 🔑 Key Formulas")
+        st.markdown("### 🔑 Key Formula")
         for f in formulas: st.latex(f)
 
-    # Extract and run any python code blocks
+    # Extract and run any python code blocks internally
     code_blocks = re.findall(r'```python(.*?)```', raw_text, re.DOTALL)
     for code in code_blocks:
-        if 'result' in code:
-            st.markdown("**Worked Example:**")
-            st.code(code, language="python")
-            res = execute_deterministic_math(code)
-            st.success(f"**Answer:** `{res}`")
+        res = safe_execute_math(code)
+        if res:
+            st.success(f"**Final Answer: {res}**")
 
-    pdf = create_pdf(raw_text, f"{download_name}.pdf")
+    # PDF also without code
+    pdf = create_pdf(clean_text, f"{download_name}.pdf")
     st.download_button("📥 Download Full Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
 
 def ask_bar(client, subject, class_level, mode):
@@ -205,7 +210,7 @@ def ask_bar(client, subject, class_level, mode):
     if st.button("Ask AI", key=f"ask_btn_{mode}_{subject}") and user_q:
         with st.spinner("AI is answering..."):
             raw = get_human_ai_response(client, user_q, subject, class_level)
-            display_human_notes(raw, f"followup_{subject}")
+            display_student_notes(raw, f"followup_{subject}")
 
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -259,27 +264,27 @@ def main():
 
     # ========= ALL 15 MODULES RESTORED =========
     if mode == "Locked Calculation Mode":
-        st.header("🔐 Locked Calculation Mode - No Hallucinations")
+        st.header("🔐 Calculation Mode")
         query = st.text_area("Enter your Physics/Chemistry/Mathematics question")
-        if st.button("Solve with Python Lock", type="primary") and query:
-            with st.spinner("Running Anti-Hallucination Engine..."):
-                raw = get_human_ai_response(client, f"Solve this step by step with python code: {query}", subject, class_level)
-                display_human_notes(raw, f"calc_{subject}_{class_level}")
-                log_activity(f"LockedCalc: {query}", subject, class_level)
+        if st.button("Solve with Steps", type="primary") and query:
+            with st.spinner("Calculating..."):
+                raw = get_human_ai_response(client, f"Solve this step by step: {query}. Show formula, explanation, and final answer only. Hide all code.", subject, class_level)
+                display_student_notes(raw, f"calc_{subject}_{class_level}")
+                log_activity(f"Calc: {query}", subject, class_level)
 
     elif mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
-        if st.button("Search") and query: display_human_notes(get_human_ai_response(client, f"Explain {query} with theory and examples", subject, class_level), f"search_{subject}")
+        if st.button("Search") and query: display_student_notes(get_human_ai_response(client, f"Explain {query} with theory and examples", subject, class_level), f"search_{subject}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Theory Mode":
-        st.header("📘 Theory Mode - Detailed Human Notes")
+        st.header("📘 Theory Mode - Detailed Notes")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Notes", type="primary"):
             with st.spinner("Generating detailed NCDC notes..."):
                 raw = get_human_ai_response(client, f"Write detailed NCDC 2026 theory notes on {topic}. Include definitions, 3 examples, and key formulas.", subject, class_level)
-                display_human_notes(raw, f"theory_{topic}")
+                display_student_notes(raw, f"theory_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Lesson Preparation":
@@ -287,7 +292,7 @@ def main():
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Lesson Plan + AoI"):
             raw = get_human_ai_response(client, f"Write a 40min competency-based lesson plan with Activity of Integration for {topic} in Ugandan context", subject, class_level)
-            display_human_notes(raw, f"lesson_{topic}")
+            display_student_notes(raw, f"lesson_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Diagrams Library":
@@ -327,7 +332,7 @@ def main():
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate 5 MCQs"): display_human_notes(get_human_ai_response(client, f"Generate 5 competency-based MCQs with answers and explanations on {topic}", subject, class_level), f"quiz_{topic}")
+        if st.button("Generate 5 MCQs"): display_student_notes(get_human_ai_response(client, f"Generate 5 competency-based MCQs with answers and explanations on {topic}", subject, class_level), f"quiz_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Graph Generator":
@@ -342,16 +347,16 @@ def main():
     elif mode == "Explainer Mode":
         st.header("🎓 Explainer Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Explain Topic"): display_human_notes(get_human_ai_response(client, f"Explain {topic} with 3 worked examples and common mistakes", subject, class_level), f"explainer_{topic}")
+        if st.button("Explain Topic"): display_student_notes(get_human_ai_response(client, f"Explain {topic} with 3 worked examples and common mistakes", subject, class_level), f"explainer_{topic}")
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate"): display_human_notes(get_human_ai_response(client, f"Generate 20 revision questions with answers on {topic}", subject, class_level), f"revision_{topic}")
+        if st.button("Generate"): display_student_notes(get_human_ai_response(client, f"Generate 20 revision questions with answers on {topic}", subject, class_level), f"revision_{topic}")
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
-        if st.button("Predict Full Subject"): display_human_notes(get_human_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject}", subject, class_level), f"predict_{subject}_{class_level}")
+        if st.button("Predict Full Subject"): display_student_notes(get_human_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject}", subject, class_level), f"predict_{subject}_{class_level}")
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat - Talk to AI")
@@ -361,7 +366,7 @@ def main():
             if audio and "bytes" in audio:
                 with st.spinner("Transcribing with Groq Whisper..."): transcript = transcribe_audio_with_groq(client, audio["bytes"])
                 st.success(f"You said: {transcript}")
-                display_human_notes(get_human_ai_response(client, transcript, subject, class_level), "voice")
+                display_student_notes(get_human_ai_response(client, transcript, subject, class_level), "voice")
         except: st.info("Install: pip install streamlit-mic-recorder")
 
     elif mode == "Progress Tracker":
@@ -381,7 +386,7 @@ def main():
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate AoI"): display_human_notes(get_human_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan scenario", subject, class_level), f"aoi_{topic}")
+        if st.button("Generate AoI"): display_student_notes(get_human_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan scenario", subject, class_level), f"aoi_{topic}")
 
 if __name__ == "__main__":
     main()
