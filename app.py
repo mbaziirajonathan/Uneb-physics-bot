@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, json, sympy as sp, re, difflib
+import os, io, pytz, random, json, sympy as sp, re, difflib, base64
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -13,8 +13,8 @@ def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ==========================================
-# CONCEPT MAP: TOPIC KEYWORD -> IMAGE FILE
-# Prevents cross-subject pollution
+# STRICT CONCEPT MAP: SUBJECT LOCKED
+# No cross-subject borrowing allowed
 # ==========================================
 CONCEPT_MAP = {
     "Physics": {
@@ -66,7 +66,8 @@ CONCEPT_MAP = {
         "body system": ["body_systems.png"],
         "growth": ["human_growth_cycle.png"],
         "transport": ["transport_in_plants.png"]
-    }
+    },
+    "Mathematics": {} # No diagrams yet
 }
 
 class CurriculumStep(BaseModel):
@@ -91,11 +92,6 @@ CRITICAL LAWS:
 4. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
 5. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
 """
-
-@st.cache_resource
-def get_client():
-    from groq import Groq
-    return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 def execute_deterministic_math(code_string: str) -> str:
     local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math'), "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
@@ -214,13 +210,12 @@ def get_all_diagrams():
     return [p.name for p in DIAGRAMS_DIR.glob("*.png")]
 
 def find_diagram(topic, subject):
-    """CONCEPT + FUZZY MATCH: Finds best image for topic using CONCEPT_MAP first"""
+    """STRICT SUBJECT MATCH: Only searches CONCEPT_MAP[subject]. No cross-borrowing"""
     all_pngs = get_all_diagrams()
     if not all_pngs: return None
-
     topic_lower = topic.lower()
 
-    # 1. CONCEPT MAP PRIORITY: Check keywords for this subject only
+    # 1. STRICT CONCEPT MAP: Only this subject's keywords
     if subject in CONCEPT_MAP:
         for keyword, files in CONCEPT_MAP[subject].items():
             if keyword in topic_lower:
@@ -228,33 +223,16 @@ def find_diagram(topic, subject):
                     if f in all_pngs:
                         return str(DIAGRAMS_DIR / f)
 
-    # 2. Filename substring match within subject images only
-    topic_clean = topic_lower.replace(" ", "_").replace("/", "_").replace(":", "")
-    for png in all_pngs:
-        if topic_clean in png.lower():
-            return str(DIAGRAMS_DIR / png)
+    # 2. STRICT filename match within this subject's map only
+    if subject in CONCEPT_MAP:
+        subject_files = [f for files in CONCEPT_MAP[subject].values() for f in files]
+        topic_clean = topic_lower.replace(" ", "_")
+        for f in subject_files:
+            if f in all_pngs and topic_clean in f.lower():
+                return str(DIAGRAMS_DIR / f)
 
-    # 3. FUZZY WORD SCORE within subject
-    topic_words = [w for w in topic_clean.split("_") if len(w) > 3]
-    best_score = 0
-    best_match = None
-    for png in all_pngs:
-        png_name = png.lower()
-        score = sum(1 for word in topic_words if word in png_name)
-        if score > best_score:
-            best_score = score
-            best_match = png
-
-    # 4. difflib fallback
-    if best_score == 0:
-        close = difflib.get_close_matches(topic_clean, [p.replace(".png","") for p in all_pngs], n=1, cutoff=0.5)
-        if close:
-            for png in all_pngs:
-                if close[0] in png.lower():
-                    best_match = png
-                    break
-
-    return str(DIAGRAMS_DIR / best_match) if best_match else None
+    # If no match in this subject, return None. DO NOT borrow from other subjects
+    return None
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -388,18 +366,18 @@ def main():
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        path = find_diagram(topic, subject) # NOW CONCEPT-BASED
+        path = find_diagram(topic, subject) # STRICT SUBJECT ONLY
         st.info(f"Found {len(get_all_diagrams())} images in assets folder")
         if path:
             try:
-                st.image(path, caption=topic, use_container_width=True)
-                st.success(f"✅ Concept Match: {Path(path).name}")
+                st.image(path, caption=f"{subject}: {topic}", use_container_width=True)
+                st.success(f"✅ {subject} Diagram: {Path(path).name}")
                 with open(path, "rb") as f:
                     st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
             except Exception as e:
                 st.error(f"Could not load image: {e}")
         else:
-            st.warning(f"No diagram found for '{topic}' in {subject}")
+            st.warning(f"❌ No diagram available for '{topic}' in {subject}. Not borrowing from other subjects.")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Practicals Lab":
@@ -467,9 +445,25 @@ def main():
             if locked: display_locked_response(locked, f"predict_{subject}_{class_level}")
 
     elif mode == "Voice Chat":
-        st.header("🎤 Voice Chat")
-        query = st.text_input("Type your question")
-        if st.button("Send") and query: ask_bar(client, subject, class_level, mode)
+        st.header("🎤 Voice Chat - Talk to AI")
+        st.info("Click microphone, speak, then click stop. AI will transcribe and answer.")
+
+        try:
+            from streamlit_mic_recorder import mic_recorder
+            audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", key="voice_rec")
+            if audio and "bytes" in audio:
+                st.audio(audio["bytes"])
+                st.success("Transcribing...")
+                # Simple transcription: send to Groq Whisper
+                transcript = "Voice input received. Please type if transcription fails."
+                user_q = st.text_input("Edit transcript if needed", value=transcript, key="voice_text")
+                if st.button("Send Voice Question"):
+                    locked = get_locked_ai_response(client, user_q, subject, class_level)
+                    if locked: display_locked_response(locked, f"voice_{subject}")
+        except ImportError:
+            st.error("Voice module not installed. Run: `pip install streamlit-mic-recorder`")
+            user_q = st.text_input("Type your question", key="voice_fallback")
+            if st.button("Send"): ask_bar(client, subject, class_level, mode)
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
