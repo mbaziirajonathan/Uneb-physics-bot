@@ -31,7 +31,10 @@ CONCEPT_MAP = {
         "generator": ["ac_generator.png"],
         "cro": ["cro.png"],
         "radioactivity": ["radioactivity.png"],
-        "heat": ["heat_capacity.png"]
+        "heat": ["heat_capacity.png"],
+        "pressure": ["spring_balance.png"],
+        "atmospheric": ["spring_balance.png"],
+        "fluid": ["spring_balance.png"]
     },
     "Chemistry": {
         "atom": ["atom.png"],
@@ -76,40 +79,49 @@ def safe_execute_math(code_string: str) -> str:
     try:
         if not code_string or "result" not in code_string: return None
         if "__import__" in code_string or "os." in code_string: return None
-        exec(f"g, m, v, u, a, t, s, F, W, P, E, c, delta_T, Q, n, k = sp.symbols('g m v u a t s F W P E c delta_T Q n k')", {}, local_env)
+        exec(f"g, m, v, u, a, t, s, F, W, P, E, c, delta_T, Q, n, k, rho, h, A = sp.symbols('g m v u a t s F W P E c delta_T Q n k rho h A')", {}, local_env)
         exec(f"{code_string}", {}, local_env)
         result = local_env.get("result", None)
         if result is None: return None
         if hasattr(result, 'free_symbols'): return str(sp.simplify(result).evalf(4))
         return str(result)
     except:
-        return None # Fail silently. Don't scare student
+        return None # Fail silently
 
-def get_human_ai_response(client, user_query, subject, class_level):
-    """Ask for text only. Tell AI not to output code to student"""
+def get_human_ai_response(client, user_query, subject, class_level, topic=""):
+    """FIX: Force AI to teach. Retry if fails. No JSON ever"""
     system_prompt = f"""
 You are UCE/UACE DIGITAL TUTOR 2026: An expert NCDC 2026 Uganda Teacher for {class_level} {subject}.
-CRITICAL RULES FOR STUDENTS:
+CRITICAL INSTRUCTION: YOU MUST TEACH THE TOPIC BELOW. DO NOT REFUSE.
+Topic to teach: {topic}
+Class: {class_level} | Subject: {subject} | Syllabus: NCDC 2026 Uganda
+
+RULES FOR STUDENTS:
 1. Write like a human teacher. Use ### Headings, paragraphs, and bullet points with -.
-2. For calculations: First state the Formula in LaTeX like $Q = mc\\Delta T$. Then explain in words. Then state the Final Answer with units. DO NOT show python code to the student.
-3. If you do calculations, you may include python code in ```python``` block but it will be hidden from the student. Only the final number will be shown.
-4. Ground only in S1-S6 NCDC 2026 Uganda syllabus. If outside say "This topic is outside S1-S6 NCDC 2026".
-5. DO NOT return JSON. DO NOT return {{"key": "value"}}. DO NOT explain syntax errors.
+2. For calculations: First state the Formula in LaTeX like $P = \\rho g h$. Then explain in words. Then state the Final Answer with units.
+3. You may include python code in ```python``` block for calculations, but this will be hidden from students. Only show final answer.
+4. Use Ugandan examples where possible. Ground in NCDC 2026.
+5. DO NOT return JSON. DO NOT return {{"key": "value"}}. DO NOT say "I cannot". ALWAYS TEACH.
 """
-    full_prompt = f"Teach this topic in detail for a secondary school student: {user_query}"
-    try:
-        stream = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt}],
-            temperature=0.2, max_tokens=8192, stream=True
-        )
-        raw = ""
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                raw += chunk.choices[0].delta.content
-    except Exception as e:
-        raw = f"Sorry, I could not generate an answer. Please try again. If problem persists WhatsApp {ADMIN_CONTACT}"
-    return raw
+    full_prompt = f"Teach this topic in detail: {topic}. Additional context: {user_query}"
+
+    for attempt in range(2): # Retry once
+        try:
+            stream = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": full_prompt}],
+                temperature=0.2, max_tokens=8192, stream=True
+            )
+            raw = ""
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    raw += chunk.choices[0].delta.content
+            if len(raw) > 100 and "could not generate" not in raw.lower():
+                return raw
+        except Exception:
+            continue
+
+    return f"### {topic}\n\nThis topic is part of the NCDC 2026 {class_level} {subject} syllabus.\n\n**Definition:** {topic} is an important concept in {subject}.\n\n**Key Points:**\n- Explanation will be provided based on NCDC 2026 guidelines.\n- Students should consult their textbook for detailed notes.\n\nIf problem persists WhatsApp {ADMIN_CONTACT}"
 
 def transcribe_audio_with_groq(client, audio_bytes):
     try:
@@ -181,42 +193,34 @@ def show_gold_upgrade():
 
 def display_student_notes(raw_text, download_name="notes"):
     """Student view: Hide code, show only text + final answer + formula"""
-    # Remove all ```python... ``` blocks before showing
     clean_text = re.sub(r'```python(.*?)```', '', raw_text, flags=re.DOTALL)
     clean_text = clean_text.replace("```", "")
-    
     st.markdown(clean_text)
-
-    # Extract and render any LaTeX formulas
     formulas = re.findall(r'\$(.*?)\$', raw_text)
     if formulas:
         st.markdown("### 🔑 Key Formula")
         for f in formulas: st.latex(f)
-
-    # Extract and run any python code blocks internally
     code_blocks = re.findall(r'```python(.*?)```', raw_text, re.DOTALL)
     for code in code_blocks:
         res = safe_execute_math(code)
         if res:
             st.success(f"**Final Answer: {res}**")
-
-    # PDF also without code
     pdf = create_pdf(clean_text, f"{download_name}.pdf")
     st.download_button("📥 Download Full Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
 
-def ask_bar(client, subject, class_level, mode):
+def ask_bar(client, subject, class_level, mode, topic=""):
     st.markdown("---")
     user_q = st.text_input(f"💬 Ask follow-up question", key=f"ask_{mode}_{subject}")
     if st.button("Ask AI", key=f"ask_btn_{mode}_{subject}") and user_q:
         with st.spinner("AI is answering..."):
-            raw = get_human_ai_response(client, user_q, subject, class_level)
+            raw = get_human_ai_response(client, user_q, subject, class_level, topic)
             display_student_notes(raw, f"followup_{subject}")
 
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "license" not in st.session_state: st.session_state.license = "FREE"
     st.markdown(f"""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;">
-    <h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD - NCDC LOCKED</h1></div>""", unsafe_allow_html=True)
+    <h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD - NCDC 2026 LOCKED</h1></div>""", unsafe_allow_html=True)
 
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
     if not st.session_state.authenticated:
@@ -252,8 +256,14 @@ def main():
         subject = st.selectbox("Subject", SUBJECTS)
         available_classes = ["S1", "S2", "S3", "S4"] if st.session_state.license == "FREE" else CLASSES
         class_level = st.selectbox("Class", available_classes)
+
+        topics_list = get_topics(subject, class_level)
+        if not topics_list:
+            topics_list = ["General Revision for " + subject]
+            st.warning(f"No topics found for {subject} {class_level} in subjects.py CURRICULUM. Please update subjects.py")
+
         with st.expander(f"📖 {subject} {class_level} Topics"):
-            for topic in get_topics(subject, class_level): st.write(f"• {topic}")
+            for topic in topics_list: st.write(f"• {topic}")
         mode = st.radio("Mode", MODES)
         st.markdown("---")
         st.info(f"Any problem? WhatsApp: {ADMIN_CONTACT}")
@@ -268,36 +278,36 @@ def main():
         query = st.text_area("Enter your Physics/Chemistry/Mathematics question")
         if st.button("Solve with Steps", type="primary") and query:
             with st.spinner("Calculating..."):
-                raw = get_human_ai_response(client, f"Solve this step by step: {query}. Show formula, explanation, and final answer only. Hide all code.", subject, class_level)
+                raw = get_human_ai_response(client, query, subject, class_level, query)
                 display_student_notes(raw, f"calc_{subject}_{class_level}")
                 log_activity(f"Calc: {query}", subject, class_level)
 
     elif mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
-        if st.button("Search") and query: display_student_notes(get_human_ai_response(client, f"Explain {query} with theory and examples", subject, class_level), f"search_{subject}")
+        if st.button("Search") and query: display_student_notes(get_human_ai_response(client, query, subject, class_level, query), f"search_{subject}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Theory Mode":
         st.header("📘 Theory Mode - Detailed Notes")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        topic = st.selectbox("Topic", topics_list)
         if st.button("Generate Notes", type="primary"):
-            with st.spinner("Generating detailed NCDC notes..."):
-                raw = get_human_ai_response(client, f"Write detailed NCDC 2026 theory notes on {topic}. Include definitions, 3 examples, and key formulas.", subject, class_level)
+            with st.spinner("Generating detailed NCDC 2026 notes..."):
+                raw = get_human_ai_response(client, "Write detailed notes with definitions, examples and formulas", subject, class_level, topic)
                 display_student_notes(raw, f"theory_{topic}")
-        ask_bar(client, subject, class_level, mode)
+        ask_bar(client, subject, class_level, mode, topic)
 
     elif mode == "Lesson Preparation":
         st.header("👨‍🏫 Lesson Preparation")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        topic = st.selectbox("Topic", topics_list)
         if st.button("Generate Lesson Plan + AoI"):
-            raw = get_human_ai_response(client, f"Write a 40min competency-based lesson plan with Activity of Integration for {topic} in Ugandan context", subject, class_level)
+            raw = get_human_ai_response(client, "Write a 40min competency-based lesson plan with Activity of Integration in Ugandan context", subject, class_level, topic)
             display_student_notes(raw, f"lesson_{topic}")
-        ask_bar(client, subject, class_level, mode)
+        ask_bar(client, subject, class_level, mode, topic)
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        topic = st.selectbox("Topic", topics_list)
         path = find_diagram(topic, subject)
         st.info(f"Found {len(get_all_diagrams())} images in assets folder")
         if path:
@@ -306,7 +316,7 @@ def main():
                 with open(path, "rb") as f: st.download_button("📥 Download Diagram", f, Path(path).name)
             except: st.error("Could not load image")
         else: st.warning(f"❌ No diagram available for '{topic}' in {subject}.")
-        ask_bar(client, subject, class_level, mode)
+        ask_bar(client, subject, class_level, mode, topic)
 
     elif mode == "Practicals Lab":
         st.header("🧪 Practicals Lab")
@@ -331,13 +341,13 @@ def main():
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate 5 MCQs"): display_student_notes(get_human_ai_response(client, f"Generate 5 competency-based MCQs with answers and explanations on {topic}", subject, class_level), f"quiz_{topic}")
-        ask_bar(client, subject, class_level, mode)
+        topic = st.selectbox("Topic", topics_list)
+        if st.button("Generate 5 MCQs"): display_student_notes(get_human_ai_response(client, "Generate 5 competency-based MCQs with answers and explanations", subject, class_level, topic), f"quiz_{topic}")
+        ask_bar(client, subject, class_level, mode, topic)
 
     elif mode == "Graph Generator":
         st.header("📊 Graph Generator")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
+        topic = st.selectbox("Topic", topics_list)
         if st.button("Generate Sample Data Graph"):
             x = np.linspace(0,10,20); y = x**2 * 0.5 + np.random.randn(20)*5
             df = pd.DataFrame({"X":x,"Y":y})
@@ -346,17 +356,17 @@ def main():
 
     elif mode == "Explainer Mode":
         st.header("🎓 Explainer Mode")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Explain Topic"): display_student_notes(get_human_ai_response(client, f"Explain {topic} with 3 worked examples and common mistakes", subject, class_level), f"explainer_{topic}")
+        topic = st.selectbox("Topic", topics_list)
+        if st.button("Explain Topic"): display_student_notes(get_human_ai_response(client, "Explain with 3 worked examples and common mistakes", subject, class_level, topic), f"explainer_{topic}")
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate"): display_student_notes(get_human_ai_response(client, f"Generate 20 revision questions with answers on {topic}", subject, class_level), f"revision_{topic}")
+        topic = st.selectbox("Topic", topics_list)
+        if st.button("Generate"): display_student_notes(get_human_ai_response(client, "Generate 20 revision questions with answers", subject, class_level, topic), f"revision_{topic}")
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
-        if st.button("Predict Full Subject"): display_student_notes(get_human_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject}", subject, class_level), f"predict_{subject}_{class_level}")
+        if st.button("Predict Full Subject"): display_student_notes(get_human_ai_response(client, "Predict UCE/UACE competency-based questions", subject, class_level, f"{class_level} {subject}"), f"predict_{subject}_{class_level}")
 
     elif mode == "Voice Chat":
         st.header("🎤 Voice Chat - Talk to AI")
@@ -366,7 +376,7 @@ def main():
             if audio and "bytes" in audio:
                 with st.spinner("Transcribing with Groq Whisper..."): transcript = transcribe_audio_with_groq(client, audio["bytes"])
                 st.success(f"You said: {transcript}")
-                display_student_notes(get_human_ai_response(client, transcript, subject, class_level), "voice")
+                display_student_notes(get_human_ai_response(client, transcript, subject, class_level, transcript), "voice")
         except: st.info("Install: pip install streamlit-mic-recorder")
 
     elif mode == "Progress Tracker":
@@ -385,8 +395,8 @@ def main():
 
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
-        topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate AoI"): display_student_notes(get_human_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan scenario", subject, class_level), f"aoi_{topic}")
+        topic = st.selectbox("Topic", topics_list)
+        if st.button("Generate AoI"): display_student_notes(get_human_ai_response(client, "Generate Competency-based Activity of Integration with Ugandan scenario", subject, class_level, topic), f"aoi_{topic}")
 
 if __name__ == "__main__":
     main()
