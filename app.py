@@ -68,18 +68,9 @@ def check_password():
 if not check_password():
     st.stop()
 
-# ============ DISCLAIMER + CONTACT ============
-st.markdown(f"""
-<div style='background:#fff3cd; padding:12px; border-left:5px solid #ffc107; margin-bottom:15px'>
-<b>⚠️ DISCLAIMER:</b> This AI Tutor is for learning support only.
-For any confusion, exam guidance, or official clarification, students MUST confirm with their Head Teacher / Class Teacher / Subject Teacher.
-<br><b>📞 Support/Contact:</b> {CONTACT}
-</div>
-""", unsafe_allow_html=True)
-
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
-# ============ FULL OFFICIAL NCDC CBC SYLLABUS S1-S6 ============
+# ============ FULL OFFICIAL NCDC SYLLABUS S1-S6 ============
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {
         "S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"],
@@ -117,16 +108,16 @@ UNEB_CURRICULUM_MAP = {
 
 PRACTICAL_TOPICS = {
     "Mathematics": {
-        "S1": ["Scale Drawing and Measurement", "Data Collection Survey Project", "Geometric Construction of Angles and Triangles", "Cartesian Plane Plotting Activity"],
-        "S2": ["Real-life Budgeting Project", "Mapping School Compound using Bearings", "Tracking Local Market Price Data", "Building Patterns with Matchsticks"],
-        "S3": ["Simulating PAYE and Mobile Money Charges", "Building Probability Models with Dice/Coins", "Vector Navigation Mapping of School", "Quadratic Equation Graphical Solution"],
-        "S4": ["Linear Programming for Business Optimization", "Building 3D Geometric Models", "Processing Census Data", "Statistical Survey and Report Writing"],
+        "S1": ["Scale Drawing and Measurement", "Data Collection Survey Project", "Geometric Construction", "Cartesian Plane Plotting"],
+        "S2": ["Real-life Budgeting Project", "Mapping School Compound using Bearings", "Tracking Local Market Price Data", "Building Patterns"],
+        "S3": ["Simulating PAYE and Mobile Money Charges", "Building Probability Models", "Vector Navigation Mapping", "Quadratic Equation Graphical Solution"],
+        "S4": ["Linear Programming for Business Optimization", "Building 3D Geometric Models", "Processing Census Data", "Statistical Survey"],
         "S5": ["Optimization using Differentiation", "Area under Curves by Integration", "Modeling Circular Motion", "Binomial Expansion Applications"],
         "S6": ["Solving Differential Equations Numerically", "Projectile and Circular Motion Lab", "Normal Distribution Data Analysis", "Linear Programming for Industries"]
     },
     "Physics": {
-        "S1": ["Measuring Volume using Measuring Cylinders", "Finding Density of Regular and Irregular Objects", "Demonstrating Capillary Action", "Surface Tension Experiments", "Hooke's Law - Stretching Springs"],
-        "S2": ["Laws of Reflection using Plane Mirrors", "Refraction through Glass Block", "Construction of Pinhole Camera", "Charging by Friction and Induction", "Gold-leaf Electroscope", "Thermometer Calibration"],
+        "S1": ["Measuring Volume using Measuring Cylinders", "Finding Density of Regular and Irregular Objects", "Demonstrating Capillary Action", "Surface Tension Experiments", "Hooke's Law"],
+        "S2": ["Laws of Reflection using Plane Mirrors", "Refraction through Glass Block", "Construction of Pinhole Camera", "Charging by Friction and Induction", "Gold-leaf Electroscope"],
         "S3": ["Series and Parallel Circuits", "Verifying Ohm's Law V=IR", "Mapping Magnetic Fields", "Speed of Sound using Resonance", "Simple Pendulum", "Specific Heat Capacity"],
         "S4": ["Electromagnetic Induction", "Transformers Step-up/down", "Logic Gates AND OR NOT", "Properties of Cathode Rays", "Rectification using Diodes", "Radioactivity Simulation"],
         "S5": ["Projectile Motion Experiment", "Verification of Laws of Gravitation", "Thermal Conductivity of Metals", "Wave Interference using Ripple Tank", "Lens and Mirror Experiments"],
@@ -159,10 +150,12 @@ AOI_FRAMEWORK = {
     "S6": "Professional Level: Data analysis for policy, Engineering design, Medical diagnostics."
 }
 
+# SUBJECT SPECIFIC DIAGRAMS - NO CROSS MATCHING
 DIAGRAM_MAP = {
-    "cell": "assets/cell.png", "microscope": "assets/microscope.png", "heart": "assets/heart.png",
-    "circuit": "assets/circuit.png", "atom": "assets/atom.png", "dna": "assets/dna.png",
-    "graph": "assets/graph.png", "plant": "assets/plant.png", "pendulum": "assets/pendulum.png"
+    "Biology": {"cell": "assets/cell.png", "microscope": "assets/microscope.png", "heart": "assets/heart.png", "dna": "assets/dna.png", "plant": "assets/plant.png"},
+    "Physics": {"circuit": "assets/circuit.png", "pendulum": "assets/pendulum.png", "wave": "assets/wave.png", "magnet": "assets/magnet.png"},
+    "Chemistry": {"atom": "assets/atom.png", "molecule": "assets/molecule.png", "beaker": "assets/beaker.png"},
+    "Mathematics": {"graph": "assets/graph.png", "triangle": "assets/triangle.png", "circle": "assets/circle.png"}
 }
 
 @st.cache_resource
@@ -187,11 +180,12 @@ def get_memory_context():
     return f"Previous conversation:\n{context}\n\n"
 
 # ============ UTILS ============
-def fuzzy_find_diagram(topic):
+def fuzzy_find_diagram(topic, subject):
     topic_lower = topic.lower()
-    matches = difflib.get_close_matches(topic_lower, DIAGRAM_MAP.keys(), n=1, cutoff=0.4)
-    if matches and os.path.exists(DIAGRAM_MAP[matches[0]]):
-        return DIAGRAM_MAP[matches[0]]
+    subject_diagrams = DIAGRAM_MAP.get(subject, {})
+    matches = difflib.get_close_matches(topic_lower, subject_diagrams.keys(), n=1, cutoff=0.4)
+    if matches and os.path.exists(subject_diagrams[matches[0]]):
+        return subject_diagrams[matches[0]]
     return None
 
 def text_to_speech(text):
@@ -232,7 +226,7 @@ def safe_json_extract(text):
 # ============ AI FUNCTIONS ============
 def get_ai_response(client, user_query, subject, class_level, topic, mode="Theory"):
     memory = get_memory_context()
-    prompt = f"""{memory}You are a Senior NCDC CBC {subject} teacher for {class_level} Uganda.
+    prompt = f"""{memory}You are a Senior NCDC {subject} teacher for {class_level} Uganda.
 Mode: {mode}
 Topic: {topic}
 Student Question: {user_query}
@@ -240,7 +234,7 @@ Student Question: {user_query}
 Follow NCDC Competency-Based Guidelines:
 ### 1. Definition and Key Competencies
 ### 2. Detailed Explanation with 3 Learner Activities
-### 3. Uganda Context Example: use local examples like boda boda, markets, farming, Nile
+### 3. Uganda Context Example
 ### 4. Formula and Worked Example if applicable
 ### 5. Activity of Integration: {AOI_FRAMEWORK[class_level]}
 Write at least 500 words."""
@@ -304,9 +298,19 @@ def main():
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
     if "performance" not in st.session_state: st.session_state.performance = {}
 
-    st.markdown("<h1 style='text-align:center; background:gold; color:black; padding:10px'>📚 DIGITAL UNEB TUTOR 2026 - NCDC CBC S1 TO S6</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; background:gold; color:black; padding:10px'>📚 DIGITAL UNEB TUTOR 2026 - S1 TO S6</h1>", unsafe_allow_html=True)
 
     with st.sidebar:
+        # DARK MODE FRIENDLY DISCLAIMER IN SIDEBAR
+        st.markdown(f"""
+        <div style='background:#2b2b2b; color:white; padding:12px; border-left:4px solid #ffc107; border-radius:5px; margin-bottom:15px'>
+        <b>⚠️ DISCLAIMER</b><br>
+        This AI Tutor is for learning support only.<br>
+        For any confusion, confirm with Head Teacher / Class Teacher.<br>
+        <b>📞 Support:</b> {CONTACT}
+        </div>
+        """, unsafe_allow_html=True)
+
         st.success(f"Logged in as: {st.session_state.user_type}")
         if st.session_state.user_type == "Admin":
             admin_dashboard()
@@ -332,7 +336,7 @@ def main():
             "🔐 Math Workouts", "🎙️ Voice Ask/Chat"
         ])
 
-    # UNIVERSAL ASK BOX - ON EVERY PAGE
+    # UNIVERSAL ASK BOX
     st.subheader("❓ Ask Anything About This Topic")
     ask_q = st.text_input("Type your question here", key="universal_ask")
     if st.button("Ask AI", key="ask_btn"):
@@ -350,7 +354,7 @@ def main():
     elif mode == "📖 Theory + AOI":
         st.header(f"{subject} {level}: {topic}")
         st.info(f"**AOI Focus**: {AOI_FRAMEWORK[level]}")
-        diagram = fuzzy_find_diagram(topic)
+        diagram = fuzzy_find_diagram(topic, subject) # SUBJECT LOCKED
         if diagram: st.image(diagram, caption=f"Diagram: {topic}")
         if st.button("Generate Full NCDC Notes", type="primary"):
             raw = get_ai_response(client, "Explain fully", subject, level, topic)
