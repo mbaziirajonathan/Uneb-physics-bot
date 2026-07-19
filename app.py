@@ -14,6 +14,7 @@ from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
 LOG_FILE = "usage_log.json"
+CONTACT = "256751040731"
 
 # ============ LOGGING SYSTEM ============
 def load_logs():
@@ -308,7 +309,7 @@ def main():
         <b>⚠️ DISCLAIMER</b><br>
         This AI Tutor is for learning support only.<br>
         For any confusion, confirm with Head Teacher / Class Teacher.<br>
-        <b>📞 Support:</b> 256751040731
+        <b>📞 Support:</b> {CONTACT}
         </div>
         """, unsafe_allow_html=True)
 
@@ -439,12 +440,17 @@ def main():
 
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Ask and Chat")
-        audio = mic_recorder(start_prompt="🎤 Ask", stop_prompt="⏹️ Stop", key='recorder')
+        st.info("Click 🎤 to record. Speak clearly for 5-10 seconds")
+        audio = mic_recorder(start_prompt="🎤 Start Recording", stop_prompt="⏹️ Stop Recording", key='recorder', format="webm")
         if audio:
-            st.audio(audio['bytes'])
-            st.success("Voice recorded. Answer below:")
-            voice_ans = get_ai_response(client, "Explain this topic in detail with examples", subject, level, topic)
-            display_with_pdf(voice_ans, "VoiceResponse")
+            try:
+                st.audio(audio['bytes'], format="audio/webm")
+                with st.spinner("AI is thinking..."):
+                    voice_ans = get_ai_response(client, f"Explain {topic} in detail with Uganda examples", subject, level, topic)
+                display_with_pdf(voice_ans, "VoiceResponse")
+            except Exception as e:
+                st.error(f"⚠️ Voice processing error: {str(e)}")
+                st.warning("Try typing your question instead using the 'Ask Anything' box above")
 
     with st.expander("💾 View Chat Memory"):
         for m in st.session_state.chat_memory:
