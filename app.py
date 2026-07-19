@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, pytz, random, json, sympy as sp, re
+import os, io, pytz, random, json, sympy as sp, re, difflib
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -33,42 +33,37 @@ You are UCE/UACE DIGITAL TUTOR 2026: A deterministic NCDC 2026 Secondary School 
 CRITICAL LAWS:
 1. Grounding: Answer ONLY using NCDC 2026 Uganda syllabus for S1-S6 Physics, Chemistry, Biology, Mathematics.
 2. Anti-Hallucination: Do NOT compute numbers in text. For ANY number or formula, you MUST put exact sympy/python code in `python_calculation_code` and set variable `result`.
-3. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
-4. Program of Thought: Each step must have valid python code.
-5. Boundaries: If query is outside S1-S6 NCDC 2026, set `is_within_syllabus` = false and halt.
-6. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
-OUTPUT JSON SCHEMA:
-{
-  "detected_topic": "string",
-  "is_within_syllabus": true,
-  "pedagogical_steps": [{"step_number": 1, "curriculum_level": "S4 Physics", "core_concept": "string", "explanation": "string", "python_calculation_code": "result =..."}],
-  "final_answer_formula": "string"
-}
+3. Variable Declaration: In python_calculation_code, FIRST line MUST be `var1, var2 = sp.symbols('var1 var2')`. Never use undefined variables like W, F, v.
+4. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
+5. Program of Thought: Each step must have valid python code.
+6. Boundaries: If query is outside S1-S6 NCDC 2026, set `is_within_syllabus` = false and halt.
+7. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
 """
 
 def execute_deterministic_math(code_string: str) -> str:
-    local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math')}
+    local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math'), "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
     try:
         if "__import__" in code_string or "os." in code_string or "sys." in code_string or "open(" in code_string:
             return "Execution Blocked: Insecure code detected."
+        common_symbols = "g, m, v, u, a, t, s, F, W, P, E, k, n, i, r, R, V, I, Q, T, L, f, lambda, theta, rho"
+        exec(f"{common_symbols} = sp.symbols('{common_symbols}')", {}, local_env)
         exec(f"{code_string}", {}, local_env)
         result = local_env.get("result", "No 'result' variable set")
-        return str(sp.simplify(result)) if hasattr(result, 'free_symbols') else str(result)
+        if hasattr(result, 'free_symbols'):
+            return str(sp.simplify(result).evalf(4))
+        return str(result)
     except Exception as e:
-        return f"Execution Error: {str(e)}"
+        return f"Execution Error: {str(e)}. Hint: Check variable definitions."
 
 def clean_json(raw):
-    """Remove markdown ```json and ``` from LLM output"""
     raw = raw.strip()
     raw = re.sub(r"```json", "", raw)
     raw = re.sub(r"```", "", raw)
     return raw.strip()
 
 def get_locked_ai_response(client, user_query, subject, class_level):
-    """Calls LLM with repair logic if JSON fails"""
-    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}"
-
-    for attempt in range(2): # Try twice
+    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}. Remember to define all variables in python_calculation_code."
+    for attempt in range(2):
         resp = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}],
@@ -78,24 +73,21 @@ def get_locked_ai_response(client, user_query, subject, class_level):
         )
         raw = resp.choices[0].message.content
         raw = clean_json(raw)
-
         try:
             return LockedCurriculumResponse.model_validate_json(raw)
         except Exception as e:
             if attempt == 0:
-                # Retry with even stricter instruction
-                full_prompt = f"ERROR: Previous response was invalid JSON. MUST include all 4 fields: detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. Subject: {subject}. Class: {class_level}. Query: {user_query}"
+                full_prompt = f"ERROR: Previous response was invalid JSON or missing fields. MUST include detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. Subject: {subject}. Class: {class_level}. Query: {user_query}"
                 continue
             else:
-                # FINAL FALLBACK: Build a safe object so app doesn't crash
                 return LockedCurriculumResponse(
                     detected_topic=f"{subject} - {user_query[:50]}",
-                    is_within_syllabus=False,
+                    is_within_syllabus=True,
                     pedagogical_steps=[CurriculumStep(
                         step_number=1,
                         curriculum_level=f"{class_level} {subject}",
-                        core_concept="Parse Error",
-                        explanation=f"The AI failed to return valid JSON. Raw: {raw[:200]}... Please rephrase your question.",
+                        core_concept="System Notice",
+                        explanation=f"AI response parsing failed. Please rephrase. Error details: {str(e)}",
                         python_calculation_code=""
                     )],
                     final_answer_formula="N/A"
@@ -160,20 +152,48 @@ GOLD_LOCKED_CLASSES = ["S5", "S6"]
 GOLD_LOCKED_SUBJECTS = ["Physics", "Chemistry", "Biology", "Mathematics"]
 MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library", "Practicals Lab", "Quiz Mode", "Graph Generator", "Explainer Mode", "Locked Calculation Mode", "Predict Papers", "Voice Chat", "Progress Tracker", "Admin Dashboard", "Practical Assessment Generator", "Bulk Revision Generator"]
 
+@st.cache_data
+def get_all_diagrams():
+    if not DIAGRAMS_DIR.exists(): return []
+    return [p for p in DIAGRAMS_DIR.glob("*.png")]
+
 def find_diagram(topic):
-    if not DIAGRAMS_DIR.exists(): return None
-    all_pngs = list(DIAGRAMS_DIR.glob("*.png"))
+    """FUZZY MATCH: Finds best image for topic even if names don't match exactly"""
+    all_pngs = get_all_diagrams()
     if not all_pngs: return None
-    topic_clean = topic.lower().replace(" ", "_").replace("/", "_")
+
+    topic_clean = topic.lower().replace(" ", "_").replace("/", "_").replace(":", "").replace("-", "_")
+    topic_words = [w for w in topic_clean.split("_") if len(w) > 2]
+
+    # 1. Exact match
     for png_path in all_pngs:
-        if topic_clean == png_path.stem.lower(): return str(png_path)
+        if topic_clean == png_path.stem.lower():
+            return str(png_path)
+
+    # 2. Substring match
     for png_path in all_pngs:
-        if topic_clean in png_path.name.lower(): return str(png_path)
-    topic_words = topic_clean.split("_")
+        if topic_clean in png_path.name.lower():
+            return str(png_path)
+
+    # 3. FUZZY WORD MATCH: Score by how many topic words are in filename
+    best_score = 0
+    best_match = None
     for png_path in all_pngs:
         png_name = png_path.name.lower()
-        if all(word in png_name for word in topic_words if len(word) > 2): return str(png_path)
-    return None
+        score = sum(1 for word in topic_words if word in png_name)
+        if score > best_score:
+            best_score = score
+            best_match = png_path
+
+    # 4. difflib fallback for close names like "mechanics" vs "mechanical_properties"
+    if best_score == 0:
+        png_names = [p.stem.lower() for p in all_pngs]
+        close = difflib.get_close_matches(topic_clean, png_names, n=1, cutoff=0.6)
+        if close:
+            idx = png_names.index(close[0])
+            best_match = all_pngs[idx]
+
+    return str(best_match) if best_match else None
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -188,9 +208,7 @@ def show_gold_upgrade():
 def display_locked_response(locked, download_name="notes"):
     if not locked: return
     st.success(f"✅ Topic Verified: {locked.detected_topic}")
-
     full_text = build_text_from_locked(locked)
-
     for step in locked.pedagogical_steps:
         with st.container(border=True):
             st.markdown(f"### Step {step.step_number}: {step.curriculum_level}")
@@ -200,11 +218,9 @@ def display_locked_response(locked, download_name="notes"):
                 st.code(step.python_calculation_code, language="python")
                 res = execute_deterministic_math(step.python_calculation_code)
                 st.success(f"**Exact Calculation Result:** `{res}`")
-
     st.markdown("---")
     st.markdown("### Final Answer")
     st.latex(locked.final_answer_formula)
-
     pdf = create_pdf(full_text, f"{download_name}.pdf")
     st.download_button("📥 Download Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
 
@@ -222,7 +238,6 @@ def ask_bar(client, subject, class_level, mode, default_label="Ask a follow-up q
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
     if "license" not in st.session_state: st.session_state.license = "FREE"
-
     st.markdown("""<div style="background:linear-gradient(90deg, #FFD700 0%, #FFA500 100%); padding:15px;"><h1 style="color:black; text-align:center">📚 UCE/UACE DIGITAL TUTOR 2026 GOLD - NCDC LOCKED</h1></div>""", unsafe_allow_html=True)
 
     if "authenticated" not in st.session_state: st.session_state.authenticated = False
@@ -253,7 +268,6 @@ def main():
         st.stop()
 
     client = get_client()
-
     with st.sidebar:
         st.success(f"License: {st.session_state.license}")
         if st.session_state.license == "FREE":
@@ -313,13 +327,18 @@ def main():
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        path = find_diagram(topic)
-        st.info(f"Found {len(list(DIAGRAMS_DIR.glob('*.png')))} images in assets folder")
+        path = find_diagram(topic) # NOW FUZZY
+        st.info(f"Found {len(get_all_diagrams())} images in assets folder")
         if path:
-            st.image(path, caption=topic, use_container_width=True); st.success(f"✅ Match: {Path(path).name}")
-            with open(path, "rb") as f:
-                st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
-        else: st.warning(f"No diagram found for '{topic}'")
+            try: # SAFE LOAD TO PREVENT CRASH
+                st.image(path, caption=topic, use_container_width=True)
+                st.success(f"✅ Best Match: {Path(path).name}")
+                with open(path, "rb") as f:
+                    st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
+            except Exception as e:
+                st.error(f"Could not load image: {e}")
+        else:
+            st.warning(f"No diagram found for '{topic}'. Try keywords like 'lens', 'circuit', 'cell'")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Practicals Lab":
