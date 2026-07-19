@@ -14,7 +14,6 @@ def get_client():
 
 # ==========================================
 # STRICT SUBJECT-LOCKED CONCEPT MAP
-# No cross-subject diagram borrowing
 # ==========================================
 CONCEPT_MAP = {
     "Physics": {
@@ -84,125 +83,85 @@ class LockedCurriculumResponse(BaseModel):
     final_answer_formula: str
 
 SYSTEM_PROMPT = """
-You are UCE/UACE DIGITAL TUTOR 2026: A deterministic NCDC 2026 Secondary School S1-S6 Curriculum Engine.
-CRITICAL LAWS:
-1. Grounding: Answer ONLY using NCDC 2026 Uganda syllabus for S1-S6 Physics, Chemistry, Biology, Mathematics.
-2. Anti-Hallucination: For ANY number or formula, you MUST put exact sympy/python code in `python_calculation_code` and set variable `result`.
-3. Variable Declaration: In python_calculation_code, FIRST line MUST be `var1, var2 = sp.symbols('var1 var2')`.
-4. Full Explanation: In `explanation` field, write full theory as ONE string. Use \\n for new lines. Do NOT use " inside the string. Use ' instead.
-5. OUTPUT FORMAT: You MUST output ONLY valid JSON with keys: detected_topic, is_within_syllabus, pedagogical_steps, final_answer_formula. No other text.
+You are UCE/UACE DIGITAL TUTOR 2026: Expert NCDC 2026 Uganda Teacher for S1-S6.
+RULES:
+1. Teach like a human teacher. Use headings, bullets, examples, and clear English.
+2. For calculations: provide python code that sets variable `result`. First line must define symbols.
+3. Ground only in S1-S6 NCDC 2026 syllabus. If outside, set is_within_syllabus=false.
+4. OUTPUT: Return ONLY a valid JSON object with keys: detected_topic, is_within_syllabus, pedagogical_steps[], final_answer_formula.
 """
 
 def execute_deterministic_math(code_string: str) -> str:
     local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math'), "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
     try:
-        if "__import__" in code_string or "os." in code_string or "sys." in code_string or "open(" in code_string:
-            return "Execution Blocked: Insecure code detected."
+        if "__import__" in code_string or "os." in code_string: return "Blocked"
         common_symbols = "g, m, v, u, a, t, s, F, W, P, E, k, n, i, r, R, V, I, Q, T, L, f, lambda, theta, rho"
         exec(f"{common_symbols} = sp.symbols('{common_symbols}')", {}, local_env)
         exec(f"{code_string}", {}, local_env)
-        result = local_env.get("result", "No 'result' variable set")
-        if hasattr(result, 'free_symbols'):
-            return str(sp.simplify(result).evalf(4))
+        result = local_env.get("result", "No result")
+        if hasattr(result, 'free_symbols'): return str(sp.simplify(result).evalf(4))
         return str(result)
-    except Exception as e:
-        return f"Execution Error: {str(e)}"
+    except Exception as e: return f"Error: {str(e)}"
 
-def clean_json(raw):
-    raw = raw.strip()
-    raw = re.sub(r"```json", "", raw)
-    raw = re.sub(r"```", "", raw)
-    raw = raw.replace('\n', '\\n').replace('\r', '') # FIX: Escape newlines for JSON
-    return raw.strip()
+def extract_json_from_text(text):
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    return match.group(0) if match else text
 
 def get_locked_ai_response(client, user_query, subject, class_level):
-    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026 Syllabus. Query: {user_query}"
-
-    for attempt in range(3):
+    full_prompt = f"Subject: {subject}. Class: {class_level}. NCDC 2026. Query: {user_query}"
+    for attempt in range(2):
         resp = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.0,
-            max_tokens=4096 # FIX: Was 2048. Theory needs more
+            temperature=0.1,
+            max_tokens=8192
         )
-        raw = resp.choices[0].message.content
-        raw = clean_json(raw)
-
+        raw = extract_json_from_text(resp.choices[0].message.content)
         try:
             return LockedCurriculumResponse.model_validate_json(raw)
-        except Exception as e:
-            if attempt < 2:
-                full_prompt = f"JSON ERROR: {str(e)}. Return ONLY valid JSON with all 4 keys. Subject: {subject}. Class: {class_level}. Query: {user_query}"
-                continue
-            else:
-                return LockedCurriculumResponse(
-                    detected_topic=f"{subject}: {user_query[:60]}",
-                    is_within_syllabus=True,
-                    pedagogical_steps=[CurriculumStep(
-                        step_number=1,
-                        curriculum_level=f"{class_level} {subject}",
-                        core_concept="AI Response",
-                        explanation=f"The AI generated an answer but it failed to format. Preview: {raw[:400]}... \n\nPlease try: 'Explain {user_query} step by step'",
-                        python_calculation_code=""
-                    )],
-                    final_answer_formula="See explanation above"
-                )
+        except:
+            if attempt == 0: full_prompt = f"Return ONLY valid JSON. {full_prompt}"
+    return LockedCurriculumResponse(
+        detected_topic=f"{subject}: {user_query[:80]}",
+        is_within_syllabus=True,
+        pedagogical_steps=[CurriculumStep(
+            step_number=1, curriculum_level=f"{class_level} {subject}",
+            core_concept="Explanation", explanation=raw[:3000], python_calculation_code=""
+        )],
+        final_answer_formula="N/A"
+    )
 
 def transcribe_audio_with_groq(client, audio_bytes):
-    """Instant transcription using Groq Whisper"""
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(audio_bytes)
-            tmp_path = tmp.name
+            tmp.write(audio_bytes); tmp_path = tmp.name
         with open(tmp_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                file=audio_file,
-                model="whisper-large-v3",
-                response_format="text"
-            )
+            transcription = client.audio.transcriptions.create(file=audio_file, model="whisper-large-v3", response_format="text")
         os.remove(tmp_path)
         return transcription.strip()
-    except Exception as e:
-        return f"Transcription Error: {str(e)}"
+    except Exception as e: return f"Transcription Error: {str(e)}"
 
 @st.cache_data
 def create_pdf(content, filename):
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    c.setFont("Helvetica", 10)
-    y = height - 50
-    title = filename.replace(".pdf","")
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, f"UCE/UACE DIGITAL TUTOR 2026 - {title}")
-    y -= 30
+    buffer = io.BytesIO(); c = canvas.Canvas(buffer, pagesize=A4); width, height = A4
+    c.setFont("Helvetica", 10); y = height - 50
+    c.setFont("Helvetica-Bold", 14); c.drawString(50, y, f"UCE/UACE DIGITAL TUTOR 2026"); y -= 30
     c.setFont("Helvetica", 10)
     for line in content.split('\n'):
         for chunk in [line[i:i+95] for i in range(0, len(line), 95)]:
-            c.drawString(50, y, chunk)
-            y -= 15
-            if y < 50:
-                c.showPage()
-                c.setFont("Helvetica", 10)
-                y = height - 50
-    c.save()
-    buffer.seek(0)
-    return buffer
+            c.drawString(50, y, chunk); y -= 15
+            if y < 50: c.showPage(); c.setFont("Helvetica", 10); y = height - 50
+    c.save(); buffer.seek(0); return buffer
 
 def build_text_from_locked(locked):
     text = f"Topic: {locked.detected_topic}\n\n"
     for step in locked.pedagogical_steps:
-        text += f"Step {step.step_number}: {step.curriculum_level}\n"
-        text += f"Concept: {step.core_concept}\n"
-        text += f"Explanation: {step.explanation}\n"
+        text += f"{step.core_concept}\n{step.explanation}\n"
         if step.python_calculation_code:
-            text += f"Code: {step.python_calculation_code}\n"
-            text += f"Result: {execute_deterministic_math(step.python_calculation_code)}\n"
-        text += "\n"
-    text += f"Final Answer: {locked.final_answer_formula}"
+            text += f"Code: {step.python_calculation_code}\nResult: {execute_deterministic_math(step.python_calculation_code)}\n"
+    text += f"\nFinal Formula: {locked.final_answer_formula}"
     return text
 
 @st.cache_data
@@ -231,7 +190,6 @@ def get_all_diagrams():
     return [p.name for p in DIAGRAMS_DIR.glob("*.png")]
 
 def find_diagram(topic, subject):
-    """STRICT: Only returns diagrams from the selected subject"""
     all_pngs = get_all_diagrams()
     if not all_pngs: return None
     topic_lower = topic.lower()
@@ -253,35 +211,34 @@ def show_gold_upgrade():
     st.markdown(f"**WhatsApp/Call: {ADMIN_CONTACT}**")
     st.link_button(f"📱 WhatsApp {ADMIN_CONTACT}", f"https://wa.me/{ADMIN_CONTACT}")
 
-def display_locked_response(locked, download_name="notes"):
+def display_human_notes(locked, download_name="notes"):
     if not locked: return
-    st.success(f"✅ Topic Verified: {locked.detected_topic}")
+    st.markdown(f"## 📖 {locked.detected_topic}")
+    if not locked.is_within_syllabus:
+        st.error("This topic is outside S1-S6 NCDC 2026 syllabus")
+        return
     full_text = build_text_from_locked(locked)
     for step in locked.pedagogical_steps:
         with st.container(border=True):
-            st.markdown(f"### Step {step.step_number}: {step.curriculum_level}")
-            st.markdown(f"**Concept:** {step.core_concept}")
-            st.markdown(f"**Explanation:** {step.explanation}")
+            st.markdown(f"### {step.core_concept}")
+            st.markdown(step.explanation.replace('\\n', '\n'))
             if step.python_calculation_code.strip():
+                st.markdown("**Worked Example:**")
                 st.code(step.python_calculation_code, language="python")
                 res = execute_deterministic_math(step.python_calculation_code)
-                st.success(f"**Exact Calculation Result:** `{res}`")
-    st.markdown("---")
-    st.markdown("### Final Answer")
-    st.latex(locked.final_answer_formula)
+                st.success(f"**Answer:** `{res}`")
+    if locked.final_answer_formula and locked.final_answer_formula!= "N/A":
+        st.markdown("### 🔑 Key Formula")
+        st.latex(locked.final_answer_formula)
     pdf = create_pdf(full_text, f"{download_name}.pdf")
-    st.download_button("📥 Download Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
+    st.download_button("📥 Download Full Notes as PDF", pdf, f"{download_name}.pdf", use_container_width=True)
 
-def ask_bar(client, subject, class_level, mode, default_label="Ask a follow-up question"):
+def ask_bar(client, subject, class_level, mode):
     st.markdown("---")
-    user_q = st.text_input(f"💬 {default_label}", key=f"ask_{mode}_{subject}")
+    user_q = st.text_input(f"💬 Ask follow-up", key=f"ask_{mode}_{subject}")
     if st.button("Ask AI", key=f"ask_btn_{mode}_{subject}") and user_q:
-        with st.spinner("AI is answering..."):
-            locked = get_locked_ai_response(client, user_q, subject, class_level)
-            if locked and locked.is_within_syllabus:
-                display_locked_response(locked, f"followup_{subject}")
-            else:
-                st.error("Query outside S1-S6 NCDC 2026")
+        locked = get_locked_ai_response(client, user_q, subject, class_level)
+        display_human_notes(locked, f"followup_{subject}")
 
 def main():
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -296,21 +253,17 @@ def main():
         GOLD_PASS = st.secrets.get("GOLD_PASSWORD", "GOLD2026").upper().strip()
         with col1:
             with st.container(border=True):
-                st.markdown("### 🟢 FREE PACKAGE")
-                st.write("Access: S1 - S4")
+                st.markdown("### 🟢 FREE PACKAGE\nAccess: S1 - S4")
                 free_password = st.text_input("Enter FREE Key", type="password", key="free_login")
                 if st.button("Login FREE", type="secondary", use_container_width=True):
-                    if free_password.upper().strip() == FREE_PASS:
-                        st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
+                    if free_password.upper().strip() == FREE_PASS: st.session_state.authenticated = True; st.session_state.license = "FREE"; st.rerun()
                     else: st.error("Invalid FREE Key")
         with col2:
             with st.container(border=True):
-                st.markdown("### ⭐ GOLD PACKAGE")
-                st.write("Access: S1 - S6 + All Features")
+                st.markdown("### ⭐ GOLD PACKAGE\nAccess: S1 - S6 + All Features")
                 gold_password = st.text_input("Enter GOLD Key", type="password", key="gold_login")
                 if st.button("Login GOLD", type="primary", use_container_width=True):
-                    if gold_password.upper().strip() == GOLD_PASS:
-                        st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
+                    if gold_password.upper().strip() == GOLD_PASS: st.session_state.authenticated = True; st.session_state.license = "GOLD"; st.rerun()
                     else: st.error("Invalid GOLD Key")
                 st.markdown(f"[📱 WhatsApp {ADMIN_CONTACT}](https://wa.me/{ADMIN_CONTACT})")
         st.stop()
@@ -331,36 +284,29 @@ def main():
 
     if class_level in GOLD_LOCKED_CLASSES and subject in GOLD_LOCKED_SUBJECTS and st.session_state.license == "FREE":
         st.error(f"🔒 **GOLD PACKAGE REQUIRED FOR {class_level} {subject}**")
-        show_gold_upgrade()
-        st.stop()
+        show_gold_upgrade(); st.stop()
 
+    # ALL 15 MODES RESTORED
     if mode == "Locked Calculation Mode":
         st.header("🔐 Locked Calculation Mode - No Hallucinations")
         query = st.text_area("Enter your Physics/Chem/Math question")
         if st.button("Solve with Python Lock", type="primary") and query:
-            with st.spinner("Running Anti-Hallucination Engine..."):
-                locked = get_locked_ai_response(client, query, subject, class_level)
-            if not locked or not locked.is_within_syllabus:
-                st.error("❌ Blocked: Query outside S1-S6 NCDC 2026 curriculum")
-            else:
-                display_locked_response(locked, f"calc_{subject}_{class_level}")
-                log_activity(f"LockedCalc: {query}", subject, class_level)
+            locked = get_locked_ai_response(client, query, subject, class_level)
+            display_human_notes(locked, f"calc_{subject}_{class_level}")
+            log_activity(f"LockedCalc: {query}", subject, class_level)
 
     elif mode == "Smart Search":
         st.header("🧠 Smart Search")
         query = st.text_input("Ask any question")
-        if st.button("Search") and query:
-            locked = get_locked_ai_response(client, f"Explain {query} with theory and examples", subject, class_level)
-            if locked: display_locked_response(locked, f"search_{subject}")
+        if st.button("Search") and query: display_human_notes(get_locked_ai_response(client, f"Explain {query}", subject, class_level), f"search_{subject}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Theory Mode":
-        st.header("📘 Theory Mode")
+        st.header("📘 Theory Mode - Detailed Human Notes")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate Notes"):
-            with st.spinner("Generating detailed NCDC notes..."):
-                locked = get_locked_ai_response(client, f"Give detailed NCDC 2026 theory notes on {topic}. Include definitions, 2 examples, and key formulas.", subject, class_level)
-                if locked: display_locked_response(locked, f"theory_{topic}")
+        if st.button("Generate Notes", type="primary"):
+            locked = get_locked_ai_response(client, f"Write detailed NCDC 2026 notes on {topic} with definitions, examples, key formulas", subject, class_level)
+            display_human_notes(locked, f"theory_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Lesson Preparation":
@@ -368,25 +314,18 @@ def main():
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         if st.button("Generate Lesson Plan + AoI"):
             locked = get_locked_ai_response(client, f"40min competency-based lesson plan with AoI for {topic} in Ugandan context", subject, class_level)
-            if locked:
-                display_locked_response(locked, f"lesson_{topic}")
+            display_human_notes(locked, f"lesson_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
         path = find_diagram(topic, subject)
-        st.info(f"Found {len(get_all_diagrams())} images in assets folder")
+        st.info(f"Found {len(get_all_diagrams())} images")
         if path:
-            try:
-                st.image(path, caption=f"{subject}: {topic}", use_container_width=True)
-                st.success(f"✅ {subject} Diagram: {Path(path).name}")
-                with open(path, "rb") as f:
-                    st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
-            except Exception as e:
-                st.error(f"Could not load image: {e}")
-        else:
-            st.warning(f"❌ No diagram available for '{topic}' in {subject}.")
+            try: st.image(path, caption=f"{subject}: {topic}", use_container_width=True)
+            except: st.error("Image error")
+        else: st.warning(f"❌ No diagram for '{topic}' in {subject}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Practicals Lab":
@@ -396,31 +335,22 @@ def main():
             practical = st.selectbox("Select Practical", [p["name"] for p in practicals_list])
             if st.button("Show Practical"):
                 p = next(p for p in practicals_list if p["name"] == practical)
-                text = f"Practical: {p['name']}\nAim: {p['aim']}\nMaterials: {p['materials']}\nProcedure: {p['procedure']}"
                 with st.container(border=True):
-                    st.subheader(p["name"])
-                    st.markdown(f"**Aim:** {p['aim']}")
-                    st.markdown(f"**Materials/Apparatus:** {p['materials']}")
-                    st.markdown(f"**Procedure:** {p['procedure']}")
-                    st.info("Follow NCDC 2026 safety guidelines")
-                pdf = create_pdf(text, f"practical_{p['name']}.pdf")
-                st.download_button("📥 Download Practical as PDF", pdf, f"practical_{p['name']}.pdf", use_container_width=True)
+                    st.subheader(p["name"]); st.markdown(f"**Aim:** {p['aim']}")
+                    st.markdown(f"**Materials:** {p['materials']}"); st.markdown(f"**Procedure:** {p['procedure']}")
+                pdf = create_pdf(f"Practical: {p['name']}\nAim: {p['aim']}\nMaterials: {p['materials']}\nProcedure: {p['procedure']}", f"practical_{p['name']}.pdf")
+                st.download_button("📥 Download Practical PDF", pdf, f"practical_{p['name']}.pdf")
                 if p["graph"]:
                     if st.button("Generate Sample Graph"):
                         x = np.linspace(0,10,20); y = x * random.uniform(0.5,2) + np.random.randn(20)*2
-                        fig = generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"])
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(generate_graph(pd.DataFrame({"X":x,"Y":y}), "X","Y", p["graph"]))
                 log_activity(f"Practical: {practical}", subject, class_level)
-        else:
-            st.info(f"No practicals defined for {subject} {class_level}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Quiz Mode":
         st.header("📝 Quiz Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate 5 MCQs"):
-            locked = get_locked_ai_response(client, f"Generate 5 competency-based MCQs with answers and explanations on {topic}", subject, class_level)
-            if locked: display_locked_response(locked, f"quiz_{topic}")
+        if st.button("Generate 5 MCQs"): display_human_notes(get_locked_ai_response(client, f"Generate 5 MCQs with answers on {topic}", subject, class_level), f"quiz_{topic}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Graph Generator":
@@ -429,53 +359,33 @@ def main():
         if st.button("Generate Sample Data Graph"):
             x = np.linspace(0,10,20); y = x**2 * 0.5 + np.random.randn(20)*5
             df = pd.DataFrame({"X":x,"Y":y})
-            fig = generate_graph(df, "X","Y", topic)
-            st.plotly_chart(fig, use_container_width=True)
-            st.download_button("📥 Download Graph Data CSV", df.to_csv(index=False).encode(), "graph_data.csv")
+            st.plotly_chart(generate_graph(df, "X","Y", topic))
+            st.download_button("📥 Download CSV", df.to_csv(index=False).encode(), "graph_data.csv")
 
     elif mode == "Explainer Mode":
         st.header("🎓 Explainer Mode")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Explain Topic"):
-            locked = get_locked_ai_response(client, f"Explain {topic} with 3 worked examples and common mistakes", subject, class_level)
-            if locked: display_locked_response(locked, f"explainer_{topic}")
+        if st.button("Explain Topic"): display_human_notes(get_locked_ai_response(client, f"Explain {topic} with 3 examples and mistakes", subject, class_level), f"explainer_{topic}")
 
     elif mode == "Bulk Revision Generator":
         st.header("📚 Bulk Revision Generator")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate"):
-            locked = get_locked_ai_response(client, f"Generate 20 revision questions with answers on {topic}", subject, class_level)
-            if locked: display_locked_response(locked, f"revision_{topic}")
+        if st.button("Generate"): display_human_notes(get_locked_ai_response(client, f"Generate 20 revision questions with answers on {topic}", subject, class_level), f"revision_{topic}")
 
     elif mode == "Predict Papers":
         st.header("📄 Predict Papers")
-        if st.button("Predict Full Subject"):
-            locked = get_locked_ai_response(client, f"Predict UCE/UACE competency-based questions for {class_level} {subject}", subject, class_level)
-            if locked: display_locked_response(locked, f"predict_{subject}_{class_level}")
+        if st.button("Predict Full Subject"): display_human_notes(get_locked_ai_response(client, f"Predict UCE/UACE questions for {class_level} {subject}", subject, class_level), f"predict_{subject}_{class_level}")
 
     elif mode == "Voice Chat":
-        st.header("🎤 Voice Chat - Talk to AI")
-        st.info("Click microphone, speak for 5-10s, click stop. Transcription is instant.")
+        st.header("🎤 Voice Chat")
         try:
             from streamlit_mic_recorder import mic_recorder
-            audio = mic_recorder(start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", key="voice_rec", format="wav")
+            audio = mic_recorder(start_prompt="🎙️ Record", stop_prompt="⏹️ Stop", key="voice_rec")
             if audio and "bytes" in audio:
-                st.audio(audio["bytes"])
-                with st.spinner("Transcribing with Groq Whisper..."):
-                    transcript = transcribe_audio_with_groq(client, audio["bytes"])
-                if "Error" not in transcript:
-                    st.success(f"**You said:** {transcript}")
-                    user_q = st.text_input("Edit if needed", value=transcript, key="voice_text")
-                    if st.button("Send Voice Question", type="primary"):
-                        with st.spinner("AI is answering..."):
-                            locked = get_locked_ai_response(client, user_q, subject, class_level)
-                            if locked: display_locked_response(locked, f"voice_{subject}")
-                else:
-                    st.error(transcript)
-        except ImportError:
-            st.error("Voice module not installed. Add `streamlit-mic-recorder` to requirements.txt")
-            user_q = st.text_input("Type your question", key="voice_fallback")
-            if st.button("Send"): ask_bar(client, subject, class_level, mode)
+                with st.spinner("Transcribing..."): transcript = transcribe_audio_with_groq(client, audio["bytes"])
+                st.success(f"You said: {transcript}")
+                display_human_notes(get_locked_ai_response(client, transcript, subject, class_level), "voice")
+        except: st.info("Install streamlit-mic-recorder")
 
     elif mode == "Progress Tracker":
         st.header("📊 Progress Tracker")
@@ -494,9 +404,7 @@ def main():
     elif mode == "Practical Assessment Generator":
         st.header("🧪 Practical AoI Generator")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        if st.button("Generate AoI"):
-            locked = get_locked_ai_response(client, f"Generate Competency-based Activity of Integration for {topic} with Ugandan scenario", subject, class_level)
-            if locked: display_locked_response(locked, f"aoi_{topic}")
+        if st.button("Generate AoI"): display_human_notes(get_locked_ai_response(client, f"Generate Competency-based AoI for {topic} with Ugandan scenario", subject, class_level), f"aoi_{topic}")
 
 if __name__ == "__main__":
     main()
