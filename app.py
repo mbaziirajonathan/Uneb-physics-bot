@@ -13,8 +13,62 @@ def get_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ==========================================
-# ANTI-HALLUCINATION LOCK SYSTEM - DEBUGGED
+# CONCEPT MAP: TOPIC KEYWORD -> IMAGE FILE
+# Prevents cross-subject pollution
 # ==========================================
+CONCEPT_MAP = {
+    "Physics": {
+        "measurement": ["spring_balance.png", "pendulum.png"],
+        "force": ["spring_balance.png"],
+        "motion": ["linear_motion.png", "pendulum.png"],
+        "wave": ["transverse_wave.png", "longitudinal_wave.png"],
+        "light": ["convex_concave_lens.png", "light_reflection.png"],
+        "lens": ["convex_concave_lens.png"],
+        "reflection": ["light_reflection.png"],
+        "refraction": ["convex_concave_lens.png"],
+        "electricity": ["simple_circuit.png", "ac_dc_electricity.png"],
+        "circuit": ["simple_circuit.png"],
+        "magnet": ["bar_magnet.png"],
+        "transformer": ["transformer.png"],
+        "generator": ["ac_generator.png"],
+        "cro": ["cro.png"],
+        "radioactivity": ["radioactivity.png"],
+        "heat": ["heat_capacity.png"]
+    },
+    "Chemistry": {
+        "atom": ["atom.png"],
+        "bonding": ["chemical_bonding.png", "covalent_water.png"],
+        "reaction": ["chemical_reaction.png"],
+        "kinetics": ["chemical_kinetics.png"],
+        "hydrocarbon": ["hydrocarbon.png"],
+        "chromatography": ["chromatography.png"],
+        "distillation": ["fractional_distillation.png"],
+        "filtration": ["filtration.png"],
+        "colorimeter": ["colorimeter.png"],
+        "periodic": ["periodic_table.png"],
+        "chemical cell": ["chemical_cell.png"]
+    },
+    "Biology": {
+        "cell": ["animal_cell.png", "plant_cell.png", "prokaryotic_eukaryotic.png"],
+        "animal cell": ["animal_cell.png"],
+        "plant cell": ["plant_cell.png"],
+        "dna": ["dna.png"],
+        "neurone": ["neurone.png"],
+        "nephron": ["nephron.png"],
+        "alveolus": ["alveolus.png"],
+        "heart": ["heart.png"],
+        "brain": ["human_brain.png"],
+        "eye": ["human_eye.png"],
+        "ear": ["human_ear.png"],
+        "leaf": ["leaf.png"],
+        "respiratory": ["respiratory_system.png"],
+        "ecology": ["ecology.png"],
+        "body system": ["body_systems.png"],
+        "growth": ["human_growth_cycle.png"],
+        "transport": ["transport_in_plants.png"]
+    }
+}
+
 class CurriculumStep(BaseModel):
     step_number: int = Field(description="Sequential step index starting at 1.")
     curriculum_level: str = Field(description="Target S1-S6 level mapping e.g. 'S4 Physics'.")
@@ -35,10 +89,13 @@ CRITICAL LAWS:
 2. Anti-Hallucination: Do NOT compute numbers in text. For ANY number or formula, you MUST put exact sympy/python code in `python_calculation_code` and set variable `result`.
 3. Variable Declaration: In python_calculation_code, FIRST line MUST be `var1, var2 = sp.symbols('var1 var2')`. Never use undefined variables like W, F, v.
 4. Full Explanation: In `explanation` field, give full theory, definitions, procedure in clear English. Do NOT leave it empty.
-5. Program of Thought: Each step must have valid python code.
-6. Boundaries: If query is outside S1-S6 NCDC 2026, set `is_within_syllabus` = false and halt.
-7. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
+5. OUTPUT FORMAT: You MUST output ONLY valid JSON. No text before or after. No markdown. All 4 fields required.
 """
+
+@st.cache_resource
+def get_client():
+    from groq import Groq
+    return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 def execute_deterministic_math(code_string: str) -> str:
     local_env = {"sp": sp, "symbols": sp.symbols, "math": __import__('math'), "sqrt": sp.sqrt, "pi": sp.pi, "sin": sp.sin, "cos": sp.cos, "tan": sp.tan, "log": sp.log, "exp": sp.exp}
@@ -53,7 +110,7 @@ def execute_deterministic_math(code_string: str) -> str:
             return str(sp.simplify(result).evalf(4))
         return str(result)
     except Exception as e:
-        return f"Execution Error: {str(e)}. Hint: Check variable definitions."
+        return f"Execution Error: {str(e)}"
 
 def clean_json(raw):
     raw = raw.strip()
@@ -84,10 +141,9 @@ def get_locked_ai_response(client, user_query, subject, class_level):
                     detected_topic=f"{subject} - {user_query[:50]}",
                     is_within_syllabus=True,
                     pedagogical_steps=[CurriculumStep(
-                        step_number=1,
-                        curriculum_level=f"{class_level} {subject}",
+                        step_number=1, curriculum_level=f"{class_level} {subject}",
                         core_concept="System Notice",
-                        explanation=f"AI response parsing failed. Please rephrase. Error details: {str(e)}",
+                        explanation=f"AI response parsing failed. Please rephrase.",
                         python_calculation_code=""
                     )],
                     final_answer_formula="N/A"
@@ -155,45 +211,50 @@ MODES = ["Smart Search", "Theory Mode", "Lesson Preparation", "Diagrams Library"
 @st.cache_data
 def get_all_diagrams():
     if not DIAGRAMS_DIR.exists(): return []
-    return [p for p in DIAGRAMS_DIR.glob("*.png")]
+    return [p.name for p in DIAGRAMS_DIR.glob("*.png")]
 
-def find_diagram(topic):
-    """FUZZY MATCH: Finds best image for topic even if names don't match exactly"""
+def find_diagram(topic, subject):
+    """CONCEPT + FUZZY MATCH: Finds best image for topic using CONCEPT_MAP first"""
     all_pngs = get_all_diagrams()
     if not all_pngs: return None
 
-    topic_clean = topic.lower().replace(" ", "_").replace("/", "_").replace(":", "").replace("-", "_")
-    topic_words = [w for w in topic_clean.split("_") if len(w) > 2]
+    topic_lower = topic.lower()
 
-    # 1. Exact match
-    for png_path in all_pngs:
-        if topic_clean == png_path.stem.lower():
-            return str(png_path)
+    # 1. CONCEPT MAP PRIORITY: Check keywords for this subject only
+    if subject in CONCEPT_MAP:
+        for keyword, files in CONCEPT_MAP[subject].items():
+            if keyword in topic_lower:
+                for f in files:
+                    if f in all_pngs:
+                        return str(DIAGRAMS_DIR / f)
 
-    # 2. Substring match
-    for png_path in all_pngs:
-        if topic_clean in png_path.name.lower():
-            return str(png_path)
+    # 2. Filename substring match within subject images only
+    topic_clean = topic_lower.replace(" ", "_").replace("/", "_").replace(":", "")
+    for png in all_pngs:
+        if topic_clean in png.lower():
+            return str(DIAGRAMS_DIR / png)
 
-    # 3. FUZZY WORD MATCH: Score by how many topic words are in filename
+    # 3. FUZZY WORD SCORE within subject
+    topic_words = [w for w in topic_clean.split("_") if len(w) > 3]
     best_score = 0
     best_match = None
-    for png_path in all_pngs:
-        png_name = png_path.name.lower()
+    for png in all_pngs:
+        png_name = png.lower()
         score = sum(1 for word in topic_words if word in png_name)
         if score > best_score:
             best_score = score
-            best_match = png_path
+            best_match = png
 
-    # 4. difflib fallback for close names like "mechanics" vs "mechanical_properties"
+    # 4. difflib fallback
     if best_score == 0:
-        png_names = [p.stem.lower() for p in all_pngs]
-        close = difflib.get_close_matches(topic_clean, png_names, n=1, cutoff=0.6)
+        close = difflib.get_close_matches(topic_clean, [p.replace(".png","") for p in all_pngs], n=1, cutoff=0.5)
         if close:
-            idx = png_names.index(close[0])
-            best_match = all_pngs[idx]
+            for png in all_pngs:
+                if close[0] in png.lower():
+                    best_match = png
+                    break
 
-    return str(best_match) if best_match else None
+    return str(DIAGRAMS_DIR / best_match) if best_match else None
 
 def log_activity(activity, subject, class_level):
     if "activities_log" not in st.session_state: st.session_state.activities_log = []
@@ -327,18 +388,18 @@ def main():
     elif mode == "Diagrams Library":
         st.header("🖼️ Diagrams Library")
         topic = st.selectbox("Topic", get_topics(subject, class_level))
-        path = find_diagram(topic) # NOW FUZZY
+        path = find_diagram(topic, subject) # NOW CONCEPT-BASED
         st.info(f"Found {len(get_all_diagrams())} images in assets folder")
         if path:
-            try: # SAFE LOAD TO PREVENT CRASH
+            try:
                 st.image(path, caption=topic, use_container_width=True)
-                st.success(f"✅ Best Match: {Path(path).name}")
+                st.success(f"✅ Concept Match: {Path(path).name}")
                 with open(path, "rb") as f:
                     st.download_button("📥 Download Diagram", f, Path(path).name, use_container_width=True)
             except Exception as e:
                 st.error(f"Could not load image: {e}")
         else:
-            st.warning(f"No diagram found for '{topic}'. Try keywords like 'lens', 'circuit', 'cell'")
+            st.warning(f"No diagram found for '{topic}' in {subject}")
         ask_bar(client, subject, class_level, mode)
 
     elif mode == "Practicals Lab":
