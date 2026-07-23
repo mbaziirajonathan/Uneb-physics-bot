@@ -209,9 +209,11 @@ PRACTICAL_TOPICS = {
     "Mathematics": {"S1": ["Geometric Construction"], "S2": ["Bearings Mapping"], "S4": ["Building 3D Geometric Models"]},
     "Physics": {"S2": ["Reflection using Plane Mirrors"], "S3": ["Series and Parallel Circuits", "Mapping Magnetic Fields"]},
     "Chemistry": {"S1": ["Filtration and Evaporation"]},
-    "Biology": {"S1": ["Using Light Microscope"]}
+    "Biology": {"S1": ["Using Light Microscope"]},
+}
+    
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
-
+ 
 @st.cache_resource
 def get_client(): return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
