@@ -62,6 +62,64 @@ if not check_password(): st.stop()
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
+# ============ NEW SYSTEM PROMPT FOR S1-S4: META AI STYLE + NCDC LOCKED ============
+SYSTEM_PROMPT_S1_S4 = """
+You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S1-S4 ONLY.
+
+LOCK RULE: ONLY teach NCDC 2026 topics for S1-S4. If asked S5/S6 or University, say: "I only set and teach NCDC S1-S4. Let's do [suggest S4 topic] instead."
+
+YOUR MISSION: Explain like Meta AI but set like UNEB. Give DEEP explanation + MULTIPLE SCENARIOS + MULTIPLE WORKED EXAMPLES even if student types 1 word.
+
+MANDATORY OUTPUT FORMAT FOR S1-S4:
+
+### **1. DEEP EXPLANATION OF [TOPIC]**
+Break it down in 4-5 steps. Use "Why" and "How". Simple English but S1-S4 level.
+
+### **2. WHY IT MATTERS IN UGANDA**
+Give 2 real Ugandan reasons. Use: market, boda, clinic, school, farm, factory.
+
+### **3. SCENARIO 1: [Ugandan Title]**
+4-5 sentence Uganda story.
+
+**COMPETENCY TASK:** What learner must DO.
+
+**QUESTION 1:** [4 marks]
+**WORKED EXAMPLE METHOD 1: Formula/Concept**
+Step 1: Formula
+Step 2: Substitute
+Step 3: Solve with units
+Answer:
+
+**WORKED EXAMPLE METHOD 2: Logical/Diagram Method**
+Solve same question using reasoning, table, or drawing.
+Answer:
+
+---
+### **4. SCENARIO 2: [Different Ugandan Title]**
+Different scenario, same competency.
+
+**QUESTION 2:** [4 marks]
+**WORKED EXAMPLE METHOD 1 & 2:** Show 2 ways again.
+
+### **5. COMMON UNEB MISTAKES & EXAM TRICKS**
+3 mistakes. 1 trick to remember.
+
+### **6. QUICK PRACTICE**
+Give 3 more questions for student to try. No answers.
+
+RULES:
+1. DEPTH: 600+ words. Don't be short.
+2. EXAMPLES: Must be Ugandan and realistic.
+3. MATH/SCIENCE: Always show units and 2 methods.
+4. FORMATTING: Use bold headers, bullets, LaTeX for formulas $v = \\frac{d}{t}$
+5. GOAL: Student understands 3 ways and can pass UNEB.
+"""
+
+SYSTEM_PROMPT_S5_S6 = """
+You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S5-S6.
+Give advanced, detailed university-entry level explanations. Follow NCDC S5-S6 syllabus. 800 words. Include derivations and AOI.
+"""
+
 # ============ FULL OFFICIAL NCDC SYLLABUS S1-S6 - 100% INTACT ============
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {
@@ -200,10 +258,18 @@ def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
             else: st.error("70B overloaded. Falling back to 8B."); res = client.chat.completions.create(model=AI_MODEL_FAST, messages=messages, max_tokens=2000); return res.choices[0].message.content
         except Exception as e: return f"AI Error: {e}"
 
+# ============ UPDATED: CHOOSE PROMPT BASED ON CLASS ============
 def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode):
     memory = get_memory_context(); model = get_model_for_mode(mode, lab_mode)
-    prompt = f"{memory}You are a Senior NCDC {subject} teacher for {class_level} Uganda. Mode: {mode} Topic: {topic} Question: {user_query} Follow NCDC: 1.Definition 2.Explanation with 3 Activities 3.Uganda Example 4.Formula 5.AOI: {AOI_FRAMEWORK[class_level]} Write 600 words."
-    answer = call_groq_safe(client, [{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000)
+
+    if class_level in ["S1","S2","S3","S4"]:
+        system = SYSTEM_PROMPT_S1_S4
+        prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nNOW TEACH THIS TOPIC USING 2 UGANDA SCENARIOS AND SHOW MULTIPLE WORKED EXAMPLES FOR EACH TASK. 600+ WORDS."
+    else:
+        system = SYSTEM_PROMPT_S5_S6
+        prompt = f"{memory}{system}\nLevel: {class_level}, Subject: {subject}, Topic: {topic} Question: {user_query} AOI: {AOI_FRAMEWORK[class_level]} Write 800 words."
+
+    answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.2 if class_level in ["S1","S2","S3","S4"] else 0.7)
     add_to_memory("Student", user_query); add_to_memory("Tutor", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic} | Model:{model}")
     return answer
 
@@ -224,10 +290,21 @@ def generate_bulk_revision(client, subject, level, lab_mode):
     model = get_model_for_mode("Bulk", lab_mode)
     return call_groq_safe(client, [{"role":"user","content":f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Mix MCQ, Theory, Practical with answers."}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000)
 
+# ============ UPDATED: MOCK PAPERS FOR S1-S4 ARE SCENARIO BASED ============
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = get_model_for_mode("Mock", lab_mode)
-    prompts = {"P1":f"40 MCQ for {subject} {level} P1","P2":f"5 Theory for {subject} {level} P2","P3":f"3 Practical for {subject} {level} P3"};
-    return call_groq_safe(client, [{"role":"user","content":prompts[paper]}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000)
+    if level in ["S1","S2","S3","S4"]:
+        system = SYSTEM_PROMPT_S1_S4
+        prompts = {
+            "P1":f"Generate 40 MCQ for {subject} {level}. Every MCQ must have a 2-line Uganda scenario. NCDC S1-S4 only. Include answers.",
+            "P2":f"Generate 5 Theory questions for {subject} {level}. Each question must have a Uganda scenario + 2 worked examples in marking guide. 50 marks.",
+            "P3":f"Generate 3 Practical questions for {subject} {level}. Full NCDC practical format with scenario."
+        }
+    else:
+        system = SYSTEM_PROMPT_S5_S6
+        prompts = {"P1":f"40 MCQ for {subject} {level} P1","P2":f"5 Theory for {subject} {level} P2","P3":f"3 Practical for {subject} {level} P3"};
+
+    return call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompts[paper]}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.3)
 
 def admin_dashboard():
     st.title("👨‍💼 ADMIN DASHBOARD"); logs = load_logs()
@@ -299,7 +376,7 @@ def main():
                 explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic}. Interpret trend. Data:\n{df.to_string()}", subject, level, topic, "Search", lab_mode)
                 display_with_pdf(explanation, f"Graph_{topic}")
     elif mode == "📝 Quiz Mode":
-        if st.button("Generate 10 MCQ"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with 1 AOI. Provide answers.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}"); add_performance(subject, topic, 7)
+        if st.button("Generate 10 Scenario MCQ"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with Uganda scenarios and answers.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}"); add_performance(subject, topic, 7)
     elif mode == "📚 Bulk Revision":
         st.header(f"📚 Bulk Revision: {subject} {level}")
         if st.button("Generate 20 Revision Questions", type="primary"): bulk = generate_bulk_revision(client, subject, level, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject}_{level}")
@@ -313,7 +390,7 @@ def main():
             if st.button("Generate P3 Practical", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P3", lab_mode); display_with_pdf(mock, "MockP3")
     elif mode == "🔐 Math Workouts":
         st.header("🔐 Mathematics Workouts"); calc_q = st.text_area("Enter calculation")
-        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX: {calc_q}", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout")
+        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and 2 methods: {calc_q}", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout")
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
