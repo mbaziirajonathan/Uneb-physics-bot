@@ -11,4 +11,3 @@ streamlit-mic-recorder
 gTTS
 Pillow
 matplotlib
-mpl_toolkits
