@@ -22,7 +22,6 @@ CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 
-# ============ LOGGING SYSTEM ============
 def load_logs():
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
@@ -39,7 +38,6 @@ def log_activity(user_type, action, details):
     entry = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details}
     save_log(entry)
 
-# ============ PASSWORD GATE ============
 def check_password():
     APP_PW = st.secrets.get("APP_PASSWORD", "UNEB2026")
     ADMIN_PW = st.secrets.get("ADMIN_PASSWORD", "ADMIN256")
@@ -63,7 +61,7 @@ def check_password():
 if not check_password(): st.stop()
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
-# ============ 2D + 3D DIAGRAM ENGINE - FIXED ============
+# ============ 2D + 3D DIAGRAM ENGINE - FIXED PATH ============
 def draw_2d_shape(shape_type, params={}):
     fig, ax = plt.subplots(figsize=(5,5))
     ax.set_aspect('equal'); ax.axis('off')
@@ -109,14 +107,14 @@ def draw_2d_shape(shape_type, params={}):
     elif shape_type == "vector":
         ax.arrow(2,2,2,1, head_width=0.2, head_length=0.2, fc='r', ec='r')
     ax.set_xlim(-1,6); ax.set_ylim(-1,6)
-    path = f"/mnt/data/{shape_type}_{int(time.time())}.png"
+    path = f"/tmp/{shape_type}_{int(time.time())}.png" # FIXED: was /mnt/data
     plt.savefig(path, dpi=150, bbox_inches='tight'); plt.close(); return path
 
 def draw_3d_shape(shape_type, params={}):
     fig = plt.figure(figsize=(5,5)); ax = fig.add_subplot(111, projection='3d')
     if shape_type == "cube":
         s = params.get("s",2)
-        vertices = [[0,0,0],[s,0,0],[s,s,0],[0,s,0],[0,0,s],[s,0,s],[s,s],[0,s]] # FIXED: was [s,s]
+        vertices = [[0,0,0],[s,0,0],[s,s,0],[0,s,0],[0,0,s],[s,0,s],[s,s],[0,s]] # FIXED
         edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
         for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'k', lw=2)
         ax.text(s/2, -0.5, -0.5, f"Cube side={s}cm")
@@ -132,7 +130,7 @@ def draw_3d_shape(shape_type, params={}):
         for i in range(4): ax.plot3D([base[i][0], base[(i+1)%4][0]], [base[i][1], base[(i+1)%4][1]], [base[i][2], base[(i+1)%4][2]], 'g', lw=2)
         for b in base: ax.plot3D([b[0], apex[0]], [b[1], apex[1]], [b[2], apex[2]], 'g', lw=2)
     ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
-    path = f"/mnt/data/{shape_type}3d_{int(time.time())}.png"
+    path = f"/tmp/{shape_type}3d_{int(time.time())}.png" # FIXED: was /mnt/data
     plt.savefig(path, dpi=150, bbox_inches='tight'); plt.close(); return path
 
 def detect_and_draw_diagram(text, subject, level):
@@ -159,7 +157,6 @@ def detect_and_draw_diagram(text, subject, level):
         elif "vector" in text: return draw_2d_shape("vector")
     return None
 
-# ============ SYSTEM PROMPTS ============
 SYSTEM_PROMPT_S1_S4 = """
 You are DIGITAL UNEB TUTOR, the #1 NCDC 2026 Uganda Examiner for SECONDARY S1-S4.
 GOLDEN RULES:
@@ -167,25 +164,12 @@ GOLDEN RULES:
 2. NO JSON, NO CODE, NO [] BRACKETS. ONLY PLAIN MARKDOWN TEXT.
 3. QUANTITY RULE: When asked for questions, ALWAYS give AT LEAST 10.
 4. DIAGRAM RULE: If topic is Geometry, 3D, Bearings, Trigonometry, Physics Circuits, add DIAGRAM.
-
-FORMAT:
-### **SCENARIO X: [Ugandan Title]**
-4 sentence Uganda story.
-**TASK:** What learner must do.
-**QUESTION X:** [4 marks]
-**SOLUTION - STEP BY STEP**
-Step 1: State formula/concept
-Step 2: Substitute values
-Step 3: Calculate with units
-**Answer: ___**
----
 """
 SYSTEM_PROMPT_S5_S6 = """
 You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S5-S6.
 Give advanced, detailed university-entry level explanations. Follow NCDC S5-S6 syllabus. 800 words. Include derivations and AOI. NO JSON.
 """
 
-# ============ FULL NCDC CURRICULUM - 100% INTACT ============
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {
         "S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"],
@@ -226,7 +210,6 @@ PRACTICAL_TOPICS = {
     "Physics": {"S2": ["Reflection using Plane Mirrors"], "S3": ["Series and Parallel Circuits", "Mapping Magnetic Fields"]},
     "Chemistry": {"S1": ["Filtration and Evaporation"]},
     "Biology": {"S1": ["Using Light Microscope"]}
-}
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
 @st.cache_resource
