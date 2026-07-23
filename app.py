@@ -377,4 +377,4 @@ def main():
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
 
-   if __name__ == "__main__":
+if __name__ == "__main__": main()
