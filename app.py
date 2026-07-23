@@ -62,62 +62,45 @@ if not check_password(): st.stop()
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
-# ============ NEW SYSTEM PROMPT FOR S1-S4: META AI STYLE + NCDC LOCKED ============
+# ============ NEW SYSTEM PROMPT: 10 SCENARIOS MINIMUM. NO JSON EVER ============
 SYSTEM_PROMPT_S1_S4 = """
-You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S1-S4 ONLY.
+You are DIGITAL UNEB TUTOR, the #1 NCDC 2026 Uganda Examiner for SECONDARY S1-S4. You answer like Meta AI: Fast, Deep, Many Examples.
 
-LOCK RULE: ONLY teach NCDC 2026 topics for S1-S4. If asked S5/S6 or University, say: "I only set and teach NCDC S1-S4. Let's do [suggest S4 topic] instead."
+GOLDEN RULES:
+1. CURRICULUM LOCK: ONLY NCDC 2026 S1-S4. If asked outside, say: "I only teach NCDC S1-S4. Let's do [suggest topic] instead."
+2. NO JSON, NO CODE, NO [] BRACKETS. ONLY PLAIN MARKDOWN TEXT.
+3. QUANTITY RULE: When asked for questions, ALWAYS give AT LEAST 10. Never give 2 or 5.
+4. QUALITY RULE: Every question MUST have a unique Uganda scenario + step-by-step working.
 
-YOUR MISSION: Explain like Meta AI but set like UNEB. Give DEEP explanation + MULTIPLE SCENARIOS + MULTIPLE WORKED EXAMPLES even if student types 1 word.
+MANDATORY OUTPUT FORMAT FOR ANY QUESTION REQUEST:
 
-MANDATORY OUTPUT FORMAT FOR S1-S4:
+### **SCENARIO 1: [Ugandan Title]**
+4 sentence Uganda story. Use: market, boda, school, clinic, farm.
 
-### **1. DEEP EXPLANATION OF [TOPIC]**
-Break it down in 4-5 steps. Use "Why" and "How". Simple English but S1-S4 level.
-
-### **2. WHY IT MATTERS IN UGANDA**
-Give 2 real Ugandan reasons. Use: market, boda, clinic, school, farm, factory.
-
-### **3. SCENARIO 1: [Ugandan Title]**
-4-5 sentence Uganda story.
-
-**COMPETENCY TASK:** What learner must DO.
+**TASK:** What learner must do.
 
 **QUESTION 1:** [4 marks]
-**WORKED EXAMPLE METHOD 1: Formula/Concept**
-Step 1: Formula
-Step 2: Substitute
-Step 3: Solve with units
-Answer:
 
-**WORKED EXAMPLE METHOD 2: Logical/Diagram Method**
-Solve same question using reasoning, table, or drawing.
-Answer:
+**SOLUTION - STEP BY STEP**
+Step 1: State formula/concept
+Step 2: Substitute values 
+Step 3: Calculate with units
+**Answer: ___**
 
 ---
-### **4. SCENARIO 2: [Different Ugandan Title]**
-Different scenario, same competency.
+### **SCENARIO 2: [Different Ugandan Title]**
+...repeat until SCENARIO 10
 
-**QUESTION 2:** [4 marks]
-**WORKED EXAMPLE METHOD 1 & 2:** Show 2 ways again.
+### **EXAM TIPS FOR THIS TOPIC**
+1. 3 Common UNEB Mistakes
+2. 1 Trick to remember
 
-### **5. COMMON UNEB MISTAKES & EXAM TRICKS**
-3 mistakes. 1 trick to remember.
-
-### **6. QUICK PRACTICE**
-Give 3 more questions for student to try. No answers.
-
-RULES:
-1. DEPTH: 600+ words. Don't be short.
-2. EXAMPLES: Must be Ugandan and realistic.
-3. MATH/SCIENCE: Always show units and 2 methods.
-4. FORMATTING: Use bold headers, bullets, LaTeX for formulas $v = \\frac{d}{t}$
-5. GOAL: Student understands 3 ways and can pass UNEB.
+FINAL RULE: If user says "10 questions" or "quiz" or "mock", you MUST loop and produce 10. Do not ask. Do not stop at 2.
 """
 
 SYSTEM_PROMPT_S5_S6 = """
 You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S5-S6.
-Give advanced, detailed university-entry level explanations. Follow NCDC S5-S6 syllabus. 800 words. Include derivations and AOI.
+Give advanced, detailed university-entry level explanations. Follow NCDC S5-S6 syllabus. 800 words. Include derivations and AOI. NO JSON.
 """
 
 # ============ FULL OFFICIAL NCDC SYLLABUS S1-S6 - 100% INTACT ============
@@ -225,12 +208,12 @@ def text_to_speech(text):
 
 def create_pdf(content, title):
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10)
-    for line in content.split('\n')[:70]: p.drawString(50,y,line[:95]); y-=14;
+    for line in content.split('\n')[:80]: p.drawString(50,y,line[:95]); y-=14;
     if y<50: p.showPage(); y=750
     p.save(); buffer.seek(0); return buffer
 
 def display_with_pdf(content, name):
-    st.markdown(content)
+    st.markdown(content) # REMOVED JSON PARSING COMPLETELY
     formulas = re.findall(r'\$(.*?)\$', content)
     if formulas: st.markdown("### 🔑 Key Formula"); [st.latex(f) for f in formulas]
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf")
@@ -239,15 +222,11 @@ def display_with_pdf(content, name):
         with st.spinner("Generating audio..."): audio = text_to_speech(content)
     if audio: st.audio(audio, format="audio/mp3")
 
-def safe_json_extract(text):
-    match = re.search(r'```json(.*?)```', text, re.DOTALL)
-    if not match: return None, None
-    try: return json.loads(match.group(1).strip()), match.group(0)
-    except: return None, match.group(0)
+# DELETED safe_json_extract COMPLETELY - THIS WAS CAUSING THE BUG
 
 def get_model_for_mode(mode, lab_mode):
     if lab_mode: return AI_MODEL_FAST
-    if mode in ["Theory", "Practical", "Bulk", "Mock", "AOI"]: return AI_MODEL_LONG
+    if mode in ["Theory", "Practical", "Bulk", "Mock", "AOI", "Quiz"]: return AI_MODEL_LONG
     return AI_MODEL_FAST
 
 def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
@@ -258,18 +237,20 @@ def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
             else: st.error("70B overloaded. Falling back to 8B."); res = client.chat.completions.create(model=AI_MODEL_FAST, messages=messages, max_tokens=2000); return res.choices[0].message.content
         except Exception as e: return f"AI Error: {e}"
 
-# ============ UPDATED: CHOOSE PROMPT BASED ON CLASS ============
 def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode):
     memory = get_memory_context(); model = get_model_for_mode(mode, lab_mode)
 
     if class_level in ["S1","S2","S3","S4"]:
         system = SYSTEM_PROMPT_S1_S4
-        prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nNOW TEACH THIS TOPIC USING 2 UGANDA SCENARIOS AND SHOW MULTIPLE WORKED EXAMPLES FOR EACH TASK. 600+ WORDS."
+        if mode in ["Quiz", "Mock", "Search"]:
+            prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 DIFFERENT SCENARIOS WITH FULL STEP-BY-STEP SOLUTIONS. NO JSON."
+        else:
+            prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Use 2 scenarios with 2 methods each. 600+ words. NO JSON."
     else:
         system = SYSTEM_PROMPT_S5_S6
-        prompt = f"{memory}{system}\nLevel: {class_level}, Subject: {subject}, Topic: {topic} Question: {user_query} AOI: {AOI_FRAMEWORK[class_level]} Write 800 words."
+        prompt = f"{memory}{system}\nLevel: {class_level}, Subject: {subject}, Topic: {topic} Question: {user_query} AOI: {AOI_FRAMEWORK[class_level]} Write 800 words. NO JSON."
 
-    answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.2 if class_level in ["S1","S2","S3","S4"] else 0.7)
+    answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.2)
     add_to_memory("Student", user_query); add_to_memory("Tutor", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic} | Model:{model}")
     return answer
 
@@ -283,28 +264,28 @@ def generate_graph_data(client, subject, topic, level):
 
 def generate_practical(client, subject, level, topic, lab_mode):
     model = get_model_for_mode("Practical", lab_mode)
-    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY."
-    return call_groq_safe(client, [{"role":"user","content":prompt}], model, max_tokens=3000 if model==AI_MODEL_LONG else 1500, temperature=0.5)
+    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. NO JSON."
+    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=3000, temperature=0.5)
 
 def generate_bulk_revision(client, subject, level, lab_mode):
     model = get_model_for_mode("Bulk", lab_mode)
-    return call_groq_safe(client, [{"role":"user","content":f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Mix MCQ, Theory, Practical with answers."}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000)
+    prompt = f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Each question must have a Uganda scenario and step-by-step answer. NO JSON."
+    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=4000)
 
-# ============ UPDATED: MOCK PAPERS FOR S1-S4 ARE SCENARIO BASED ============
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = get_model_for_mode("Mock", lab_mode)
     if level in ["S1","S2","S3","S4"]:
         system = SYSTEM_PROMPT_S1_S4
         prompts = {
-            "P1":f"Generate 40 MCQ for {subject} {level}. Every MCQ must have a 2-line Uganda scenario. NCDC S1-S4 only. Include answers.",
-            "P2":f"Generate 5 Theory questions for {subject} {level}. Each question must have a Uganda scenario + 2 worked examples in marking guide. 50 marks.",
-            "P3":f"Generate 3 Practical questions for {subject} {level}. Full NCDC practical format with scenario."
+            "P1":f"Generate 40 MCQ for {subject} {level}. Every MCQ must have a 2-line Uganda scenario. Provide answers. NO JSON.",
+            "P2":f"Generate 10 Theory questions for {subject} {level}. Each question must have a unique Uganda scenario + full step-by-step marking guide. 100 marks total. NO JSON.",
+            "P3":f"Generate 5 Practical questions for {subject} {level}. Each with scenario, aim, procedure, and expected results. NO JSON."
         }
     else:
         system = SYSTEM_PROMPT_S5_S6
-        prompts = {"P1":f"40 MCQ for {subject} {level} P1","P2":f"5 Theory for {subject} {level} P2","P3":f"3 Practical for {subject} {level} P3"};
+        prompts = {"P1":f"40 MCQ for {subject} {level} P1 NO JSON.","P2":f"5 Theory for {subject} {level} P2 NO JSON.","P3":f"3 Practical for {subject} {level} P3 NO JSON."};
 
-    return call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompts[paper]}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.3)
+    return call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
 
 def admin_dashboard():
     st.title("👨‍💼 ADMIN DASHBOARD"); logs = load_logs()
@@ -350,21 +331,19 @@ def main():
         st.header(f"{subject} {level}: {topic}"); st.info(f"**AOI Focus**: {AOI_FRAMEWORK[level]}")
         diagram = fuzzy_find_diagram(topic, subject);
         if diagram: st.image(diagram, caption=f"Diagram: {topic}")
-        if st.button("Generate Full NCDC Notes", type="primary"): raw = get_ai_response(client, "Explain fully", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}"); add_performance(subject, topic, 8)
+        if st.button("Generate Full NCDC Notes + 10 Examples", type="primary"): raw = get_ai_response(client, "Explain fully with 10 scenario examples", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}"); add_performance(subject, topic, 8)
     elif mode == "🧠 AOI/Research":
         st.header(f"🧠 AOI Research: {subject} {level}"); st.warning(f"**Current AOI Theme**: {AOI_FRAMEWORK[level]}")
         research_q = st.text_area("Describe a real-life problem")
-        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic}. Problem: {research_q}. Include Problem, Tasks, Resources, Assessment."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}")
+        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic}. Problem: {research_q}. Include Problem, 10 Tasks, Resources, Assessment. NO JSON."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}")
     elif mode == "🧪 Practicals Lab":
         st.header(f"Practical: {subject} {level}"); prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS[subject][level])
         if st.button("Generate Full Practical"):
             with st.spinner("Generating detailed practical..."): report = generate_practical(client,subject,level,prac, lab_mode)
-            data, json_block = safe_json_extract(report)
-            if data: df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]]); st.dataframe(df); fig = px.scatter(df, x=data["x_label"], y=data["y_label"]); st.plotly_chart(fig)
-            display_with_pdf(report.replace(json_block,"") if json_block else report, f"Practical_{prac}"); add_performance(subject, prac, 9)
+            display_with_pdf(report, f"Practical_{prac}"); add_performance(subject, prac, 9)
     elif mode == "📈 Graph Generator":
         st.header("📈 Graph Explainer"); graph_type = st.selectbox("Graph Type", ["Line", "Bar", "Scatter", "Histogram"])
-        if st.button("Generate Graph Data", type="primary"):
+        if st.button("Generate Graph Data + 10 Interpretation Questions", type="primary"):
             data = generate_graph_data(client, subject, topic, level)
             if data:
                 df = pd.DataFrame(data["data"], columns=[data["x_label"], data["y_label"]]); st.dataframe(df, use_container_width=True)
@@ -373,10 +352,10 @@ def main():
                 elif graph_type == "Scatter": fig = px.scatter(df, x=data["x_label"], y=data["y_label"], title=topic)
                 else: fig = px.histogram(df, x=data["x_label"], title=topic)
                 st.plotly_chart(fig, use_container_width=True)
-                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic}. Interpret trend. Data:\n{df.to_string()}", subject, level, topic, "Search", lab_mode)
+                explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} and generate 10 scenario questions from this data with answers.", subject, level, topic, "Search", lab_mode)
                 display_with_pdf(explanation, f"Graph_{topic}")
     elif mode == "📝 Quiz Mode":
-        if st.button("Generate 10 Scenario MCQ"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with Uganda scenarios and answers.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}"); add_performance(subject, topic, 7)
+        if st.button("Generate 10 Scenario MCQ + Answers"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with unique Uganda scenarios and full answers.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}"); add_performance(subject, topic, 7)
     elif mode == "📚 Bulk Revision":
         st.header(f"📚 Bulk Revision: {subject} {level}")
         if st.button("Generate 20 Revision Questions", type="primary"): bulk = generate_bulk_revision(client, subject, level, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject}_{level}")
@@ -390,7 +369,7 @@ def main():
             if st.button("Generate P3 Practical", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P3", lab_mode); display_with_pdf(mock, "MockP3")
     elif mode == "🔐 Math Workouts":
         st.header("🔐 Mathematics Workouts"); calc_q = st.text_area("Enter calculation")
-        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and 2 methods: {calc_q}", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout")
+        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and give 10 similar worked examples: {calc_q}", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout")
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
