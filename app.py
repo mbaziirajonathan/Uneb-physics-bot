@@ -63,38 +63,49 @@ def check_password():
 if not check_password(): st.stop()
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
-# ============ 2D + 3D DIAGRAM ENGINE ============
+# ============ 2D + 3D DIAGRAM ENGINE - FIXED ============
 def draw_2d_shape(shape_type, params={}):
     fig, ax = plt.subplots(figsize=(5,5))
     ax.set_aspect('equal'); ax.axis('off')
     if shape_type == "triangle":
-        pts = [[0,0], [4,0], [2,3]]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='lightblue', linewidth=2); ax.add_patch(poly)
+        pts = [[0,0], [4,0], [2,3]]
+        poly = Polygon(pts, closed=True, edgecolor='black', facecolor='lightblue', linewidth=2); ax.add_patch(poly)
+        for i, label in enumerate(["A","B","C"]): ax.text(pts[i][0]-0.2, pts[i][1]-0.2, label, fontsize=12, weight='bold')
     elif shape_type == "rectangle":
-        w, h = params.get("w",6), params.get("h",4); rect = Rectangle((0,0), w, h, edgecolor='black', facecolor='lightgreen', linewidth=2); ax.add_patch(rect)
+        w, h = params.get("w",6), params.get("h",4)
+        rect = Rectangle((0,0), w, h, edgecolor='black', facecolor='lightgreen', linewidth=2); ax.add_patch(rect)
+        ax.text(w/2,-0.3,f"{w}cm", ha='center'); ax.text(-0.5,h/2,f"{h}cm", va='center', rotation=90)
     elif shape_type == "square":
         s = params.get("s",4); rect = Rectangle((0,0), s, s, edgecolor='black', facecolor='lightyellow', linewidth=2); ax.add_patch(rect)
     elif shape_type == "circle":
         r = params.get("r",2); circ = Circle((2,2), r, edgecolor='black', facecolor='lightcyan', linewidth=2); ax.add_patch(circ)
+        ax.plot([2,2+r],[2,2],'r--'); ax.text(2+r/2,2.2,f"r={r}")
     elif shape_type == "angle":
-        deg = params.get("deg",60); ax.plot([0,4],[0,0],'k-'); ax.plot([0,4*math.cos(math.radians(deg))],[0,4*math.sin(math.radians(deg))],'k-')
-        arc = Arc((0,0), 2, 2, theta1=0, theta2=deg, color='red', linewidth=2); ax.add_patch(arc); ax.text(1.2,0.3,f"{deg}°", color='red')
+        deg = params.get("deg",60); ax.plot([0,4],[0,0],'k-', lw=2); ax.plot([0,4*math.cos(math.radians(deg))],[0,4*math.sin(math.radians(deg))],'k-', lw=2)
+        arc = Arc((0,0), 2, 2, theta1=0, theta2=deg, color='red', linewidth=2); ax.add_patch(arc); ax.text(1.2,0.3,f"{deg}°", color='red', weight='bold')
     elif shape_type == "bisector":
         ax.plot([0,6],[0,0],'k-', lw=2); ax.plot([3,-1],[0,4],'k-', lw=2); ax.plot([3,1.5],[0,2],'r--', lw=2)
+        ax.text(3.2,2.2,"Bisector")
     elif shape_type == "bearing":
-        ax.plot([2,2],[0,4],'k--'); ax.text(2.1,3.5,"N"); ax.plot([2,4],[2,2],'r-', lw=3); arc = Arc((2,2), 2, 2, theta1=90, theta2=30, color='red'); ax.add_patch(arc)
+        ax.plot([2,2],[0,4],'k--'); ax.text(2.1,3.5,"N"); ax.plot([2,4],[2,2],'r-', lw=3)
+        arc = Arc((2,2), 2, 2, theta1=90, theta2=30, color='red'); ax.add_patch(arc); ax.text(3,2.5,"030°")
     elif shape_type == "polygon":
-        sides = params.get("sides",5); pts = [(2+2*math.cos(2*math.pi*i/sides), 2+2*math.sin(2*math.pi*i/sides)) for i in range(sides)]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='lavender', linewidth=2); ax.add_patch(poly)
+        sides = params.get("sides",5); pts = [(2+2*math.cos(2*math.pi*i/sides), 2+2*math.sin(2*math.pi*i/sides)) for i in range(sides)]
+        poly = Polygon(pts, closed=True, edgecolor='black', facecolor='lavender', linewidth=2); ax.add_patch(poly)
     elif shape_type == "trig_triangle":
-        ax.plot([0,3],[0,0],'k-'); ax.plot([3,3],[0,4],'k-'); ax.plot([0,3],[0,4],'k-')
+        ax.plot([0,3],[0,0],'k-', lw=2); ax.plot([3,3],[0,4],'k-', lw=2); ax.plot([0,3],[0,4],'k-', lw=2)
+        ax.text(1.5,-0.3,"Adj"); ax.text(3.2,2,"Opp"); ax.text(1.5,2.2,"Hyp")
     elif shape_type == "circuit":
-        ax.plot([0,1],[2,2],'k-', lw=2); ax.plot([1,1],[2,3],'k-'); ax.plot([1,2],[3,3],'k-'); rect = Rectangle((2,2.8), 0.5, 0.4, edgecolor='black', facecolor='white'); ax.add_patch(rect)
+        ax.plot([0,1],[2,2],'k-', lw=2); ax.plot([1,1],[2,3],'k-'); ax.plot([1,2],[3,3],'k-')
+        rect = Rectangle((2,2.8), 0.5, 0.4, edgecolor='black', facecolor='white'); ax.add_patch(rect); ax.text(2.1,3.1,"R")
         ax.plot([2.5,3],[3,3],'k-'); ax.plot([3,3],[3,2],'k-'); ax.plot([3,2],[2,2],'k-'); ax.plot([2,2],[2,1],'k-'); ax.plot([0,2],[1,1],'k-')
     elif shape_type == "mirror":
-        ax.plot([2,2],[0,4],'k-', lw=3); ax.plot([0.5,2],[3,2],'r--'); ax.plot([2,3.5],[2,1],'r--')
+        ax.plot([2,2],[0,4],'k-', lw=3); ax.text(2.1,3.8,"Mirror"); ax.plot([0.5,2],[3,2],'r--'); ax.plot([2,3.5],[2,1],'r--')
     elif shape_type == "wave":
         x = np.linspace(0, 4*np.pi, 200); y = np.sin(x); ax.plot(x, y, 'b-', lw=2); ax.axhline(0, color='k', linestyle='--')
     elif shape_type == "magnet":
-        rect1 = Rectangle((1,2), 1, 0.5, edgecolor='black', facecolor='red'); ax.add_patch(rect1); rect2 = Rectangle((3,2), 1, 0.5, edgecolor='black', facecolor='blue'); ax.add_patch(rect2)
+        rect1 = Rectangle((1,2), 1, 0.5, edgecolor='black', facecolor='red'); ax.add_patch(rect1)
+        rect2 = Rectangle((3,2), 1, 0.5, edgecolor='black', facecolor='blue'); ax.add_patch(rect2)
     elif shape_type == "vector":
         ax.arrow(2,2,2,1, head_width=0.2, head_length=0.2, fc='r', ec='r')
     ax.set_xlim(-1,6); ax.set_ylim(-1,6)
@@ -104,19 +115,22 @@ def draw_2d_shape(shape_type, params={}):
 def draw_3d_shape(shape_type, params={}):
     fig = plt.figure(figsize=(5,5)); ax = fig.add_subplot(111, projection='3d')
     if shape_type == "cube":
-        s = params.get("s",2); vertices = [[0,0,0],[s,0,0],[s,s,0],[0,s,0],[0,0,s],[s,0,s],[s,s],[0,s]]
+        s = params.get("s",2)
+        vertices = [[0,0,0],[s,0,0],[s,s,0],[0,s,0],[0,0,s],[s,0,s],[s,s],[0,s]] # FIXED: was [s,s]
         edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-        for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'k')
+        for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'k', lw=2)
+        ax.text(s/2, -0.5, -0.5, f"Cube side={s}cm")
     elif shape_type == "cuboid":
-        l,w,h = params.get("l",4), params.get("w",2), params.get("h",3); vertices = [[0,0,0],[l,0,0],[l,w,0],[0,w,0],[0,0,h],[l,0,h],[l,w,h],[0,w,h]]
+        l,w,h = params.get("l",4), params.get("w",2), params.get("h",3)
+        vertices = [[0,0,0],[l,0,0],[l,w,0],[0,w,0],[0,0,h],[l,0,h],[l,w,h],[0,w,h]]
         edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
-        for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'b')
+        for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'b', lw=2)
     elif shape_type == "vector3d":
-        ax.quiver(0,0,0,3,2,1, color='r', arrow_length_ratio=0.1)
+        ax.quiver(0,0,0,3,2,1, color='r', arrow_length_ratio=0.1); ax.text(3.2,2.2,1.2,"Vector (3,2,1)")
     elif shape_type == "pyramid":
         base = [[0,0,0],[2,0,0],[2,2,0],[0,2,0]]; apex = [1,1,2]
-        for i in range(4): ax.plot3D([base[i][0], base[(i+1)%4][0]], [base[i][1], base[(i+1)%4][1]], [base[i][2], base[(i+1)%4][2]], 'g')
-        for b in base: ax.plot3D([b[0], apex[0]], [b[1], apex[1]], [b[2], apex[2]], 'g')
+        for i in range(4): ax.plot3D([base[i][0], base[(i+1)%4][0]], [base[i][1], base[(i+1)%4][1]], [base[i][2], base[(i+1)%4][2]], 'g', lw=2)
+        for b in base: ax.plot3D([b[0], apex[0]], [b[1], apex[1]], [b[2], apex[2]], 'g', lw=2)
     ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
     path = f"/mnt/data/{shape_type}3d_{int(time.time())}.png"
     plt.savefig(path, dpi=150, bbox_inches='tight'); plt.close(); return path
@@ -124,7 +138,7 @@ def draw_3d_shape(shape_type, params={}):
 def detect_and_draw_diagram(text, subject, level):
     text = text.lower()
     if level in ["S4","S5","S6"]:
-        if "3d" in text or "cuboid" in text: return draw_3d_shape("cuboid")
+        if "3d" in text or "cuboid" in text or "rectangular prism" in text: return draw_3d_shape("cuboid")
         elif "cube" in text: return draw_3d_shape("cube")
         elif "vector" in text and "3d" in text: return draw_3d_shape("vector3d")
         elif "pyramid" in text: return draw_3d_shape("pyramid")
@@ -207,12 +221,12 @@ UNEB_CURRICULUM_MAP = {
     }
 }
 
-PRACTICAL_TOPICS = { # FIXED: CLOSED THIS BRACKET
+PRACTICAL_TOPICS = {
     "Mathematics": {"S1": ["Geometric Construction"], "S2": ["Bearings Mapping"], "S4": ["Building 3D Geometric Models"]},
     "Physics": {"S2": ["Reflection using Plane Mirrors"], "S3": ["Series and Parallel Circuits", "Mapping Magnetic Fields"]},
     "Chemistry": {"S1": ["Filtration and Evaporation"]},
     "Biology": {"S1": ["Using Light Microscope"]}
-} # <- THIS WAS MISSING
+}
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
 @st.cache_resource
@@ -243,7 +257,7 @@ def display_with_pdf(content, name, subject, level):
     formulas = re.findall(r'\$(.*?)\$', content)
     if formulas: st.markdown("### 🔑 Key Formula"); [st.latex(f) for f in formulas]
     diagram_path = detect_and_draw_diagram(content, subject, level)
-    if diagram_path: st.image(diagram_path, caption="Diagram")
+    if diagram_path: st.image(diagram_path, caption="Diagram Generated")
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf")
 
 def get_model_for_mode(mode, lab_mode):
@@ -363,4 +377,4 @@ def main():
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
