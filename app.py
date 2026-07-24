@@ -21,6 +21,7 @@ LOG_FILE = "usage_log.json"
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
+FIG_COUNTER = {"count": 0} # For Fig 1(a), 1(b) labeling
 
 def load_logs():
     if os.path.exists(LOG_FILE):
@@ -61,10 +62,14 @@ def check_password():
 if not check_password(): st.stop()
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
 
-# ============ NCDC STYLE 2D + 3D DIAGRAM ENGINE - NO AXES ============
+# ============ NCDC STYLE 2D + 3D DIAGRAM ENGINE - NCDC FIG STYLE ============
+def get_fig_label():
+    FIG_COUNTER["count"] += 1
+    return f"Fig. 1({chr(96+FIG_COUNTER['count'])})"
+
 def draw_2d_shape(shape_type, params={}):
     fig, ax = plt.subplots(figsize=(4,4))
-    ax.set_aspect('equal'); ax.axis('off') # NO AXES
+    ax.set_aspect('equal'); ax.axis('off')
     if shape_type == "triangle":
         pts = [[0,0], [4,0], [2,3]]
         poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
@@ -72,10 +77,18 @@ def draw_2d_shape(shape_type, params={}):
     elif shape_type == "rectangle":
         w, h = params.get("w",6), params.get("h",4)
         rect = Rectangle((0,0), w, h, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(rect)
-        ax.text(w/2,-0.5,"cm", ha='center') # NCDC style: just "cm"
+        ax.text(w/2,-0.5,"cm", ha='center')
     elif shape_type == "square":
         s = params.get("s",4); rect = Rectangle((0,0), s, s, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(rect)
         ax.text(s/2,-0.5,"cm", ha='center')
+    elif shape_type == "parallelogram":
+        pts = [[0,0],[3,0],[4,2],[1,2]]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
+    elif shape_type == "rhombus":
+        pts = [[2,0],[4,2],[2,4],[0,2]]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
+    elif shape_type == "trapezium":
+        pts = [[0,0],[4,0],[3,2],[1,2]]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
+    elif shape_type == "kite":
+        pts = [[2,0],[4,2],[2,4],[0,2]]; poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
     elif shape_type == "circle":
         r = params.get("r",2); circ = Circle((2,2), r, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(circ)
         ax.text(2+r+0.2,2,"cm")
@@ -84,6 +97,7 @@ def draw_2d_shape(shape_type, params={}):
         arc = Arc((0,0), 1.5, 1.5, theta1=0, theta2=deg, color='black', linewidth=1.5); ax.add_patch(arc); ax.text(0.8,0.2,f"{deg}°")
     elif shape_type == "bisector":
         ax.plot([0,6],[0,0],'k-', lw=2); ax.plot([3,-1],[0,4],'k-', lw=2); ax.plot([3,1.5],[0,2],'k--', lw=1.5)
+        ax.text(3.2,2.2,"Bisector")
     elif shape_type == "bearing":
         ax.plot([2,2],[0,4],'k--'); ax.text(2.1,3.8,"N"); ax.plot([2,3.5],[2,2],'k-', lw=2)
         arc = Arc((2,2), 1, 1, theta1=90, theta2=30, color='black'); ax.add_patch(arc)
@@ -92,17 +106,26 @@ def draw_2d_shape(shape_type, params={}):
         poly = Polygon(pts, closed=True, edgecolor='black', facecolor='none', linewidth=2); ax.add_patch(poly)
     elif shape_type == "trig_triangle":
         ax.plot([0,3],[0,0],'k-', lw=2); ax.plot([3,3],[0,4],'k-', lw=2); ax.plot([0,3],[0,4],'k-', lw=2)
+    elif shape_type == "construction":
+        ax.plot([0,5],[0,0],'k-', lw=2); ax.plot([2.5,2.5],[0,3],'k--'); ax.text(2.5,-0.3,"Perpendicular Bisector")
     elif shape_type == "circuit":
         ax.plot([0,1],[2,2],'k-', lw=2); ax.plot([1,1],[2,3],'k-'); ax.plot([1,2],[3,3],'k-')
         rect = Rectangle((2,2.8), 0.5, 0.4, edgecolor='black', facecolor='white'); ax.add_patch(rect)
         ax.plot([2.5,3],[3,3],'k-'); ax.plot([3,3],[3,2],'k-'); ax.plot([3,2],[2,2],'k-'); ax.plot([2,2],[2,1],'k-'); ax.plot([0,2],[1,1],'k-')
     elif shape_type == "mirror":
         ax.plot([2,2],[0,4],'k-', lw=3); ax.plot([0.5,2],[3,2],'k--'); ax.plot([2,3.5],[2,1],'k--')
-    elif shape_type == "wave":
-        x = np.linspace(0, 4*np.pi, 200); y = np.sin(x); ax.plot(x, y, 'k-', lw=2)
+    elif shape_type == "wave": # MATCHES Fig 1(c) CRO
+        x = np.linspace(0, 4*np.pi, 400); y = 2*np.sin(x)
+        ax.plot(x, y, 'k-', lw=2); ax.grid(True, linestyle=':', linewidth=0.5)
+        ax.set_xlabel("cm"); ax.set_ylabel("cm"); ax.axis('on') # CRO grid style
+    elif shape_type == "spectrum": # MATCHES Fig 1(b)
+        labels = ["Radio","Microwave","Infrared","Visible","Ultraviolet","X-ray","Gamma"]
+        ax.plot([0,7],[1,1],'k-', lw=1); 
+        for i,l in enumerate(labels): ax.text(i+0.5, 1.2, l, ha='center', fontsize=8)
+        ax.axis('off')
     elif shape_type == "magnet":
-        rect1 = Rectangle((1,2), 1, 0.5, edgecolor='black', facecolor='none'); ax.add_patch(rect1)
-        rect2 = Rectangle((3,2), 1, 0.5, edgecolor='black', facecolor='none'); ax.add_patch(rect2)
+        rect1 = Rectangle((1,2), 1, 0.5, edgecolor='black', facecolor='none'); ax.add_patch(rect1); ax.text(1.3,2.2,"N")
+        rect2 = Rectangle((3,2), 1, 0.5, edgecolor='black', facecolor='none'); ax.add_patch(rect2); ax.text(3.3,2.2,"S")
     elif shape_type == "vector":
         ax.arrow(1,2,2,1, head_width=0.2, head_length=0.2, fc='black', ec='black')
     ax.set_xlim(-1,6); ax.set_ylim(-1,5)
@@ -111,19 +134,32 @@ def draw_2d_shape(shape_type, params={}):
 
 def draw_3d_shape(shape_type, params={}):
     fig = plt.figure(figsize=(4,4)); ax = fig.add_subplot(111, projection='3d')
-    ax.set_axis_off() # NO AXES FOR NCDC
+    ax.set_axis_off()
     if shape_type == "cube":
         s = params.get("s",2)
         vertices = [[0,0,0],[s,0,0],[s,s,0],[0,s,0],[0,0,s],[s,0,s],[s,s],[0,s]]
         edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
         for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'black', lw=2)
-        ax.text(s/2, -0.8, -0.5, "cm", ha='center') # NCDC style
+        ax.text(s/2, -0.8, -0.5, "cm", ha='center')
     elif shape_type == "cuboid":
         l,w,h = params.get("l",4), params.get("w",2), params.get("h",3)
         vertices = [[0,0,0],[l,0,0],[l,w,0],[0,w,0],[0,0,h],[l,0,h],[l,w,h],[0,w,h]]
         edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
         for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'black', lw=2)
         ax.text(l/2, -1, -0.5, "cm", ha='center')
+    elif shape_type == "cylinder":
+        theta = np.linspace(0, 2*np.pi, 30); z = np.linspace(0, 3, 10)
+        for zi in z: ax.plot(2+np.cos(theta), 2+np.sin(theta), zi, 'k')
+    elif shape_type == "cone":
+        theta = np.linspace(0, 2*np.pi, 30); r = np.linspace(2, 0, 10)
+        for i in range(len(r)-1): ax.plot(r[i]*np.cos(theta), r[i]*np.sin(theta), i, 'k')
+    elif shape_type == "sphere":
+        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+        ax.plot_surface(2*np.cos(u)*np.sin(v), 2*np.sin(u)*np.sin(v), 2*np.cos(v), color='none', edgecolor='k')
+    elif shape_type == "prism":
+        vertices = [[0,0,0],[3,0,0],[3,2,0],[0,2,0],[0,0,2],[3,0,2],[3,2,2],[0,2,2]]
+        edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]
+        for edge in edges: ax.plot3D([vertices[edge[0]][0], vertices[edge[1]][0]], [vertices[edge[0]][1], vertices[edge[1]][1]], [vertices[edge[0]][2], vertices[edge[1]][2]], 'black', lw=2)
     elif shape_type == "vector3d":
         ax.quiver(0,0,0,3,2,1, color='black', arrow_length_ratio=0.1)
     elif shape_type == "pyramid":
@@ -134,56 +170,54 @@ def draw_3d_shape(shape_type, params={}):
     plt.savefig(path, dpi=150, bbox_inches='tight', pad_inches=0.1); plt.close(); return path
 
 def detect_and_draw_diagram(text, subject, level):
-    text = text.lower()
+    text = text.lower(); diagrams = []
     if level in ["S4","S5","S6"]:
-        if "3d" in text or "cuboid" in text or "rectangular prism" in text: return draw_3d_shape("cuboid")
-        elif "cube" in text: return draw_3d_shape("cube")
-        elif "vector" in text and "3d" in text: return draw_3d_shape("vector3d")
-        elif "pyramid" in text: return draw_3d_shape("pyramid")
-    if "triangle" in text: return draw_2d_shape("triangle")
-    elif "rectangle" in text: return draw_2d_shape("rectangle")
-    elif "square" in text: return draw_2d_shape("square")
-    elif "circle" in text: return draw_2d_shape("circle")
-    elif "angle" in text: return draw_2d_shape("angle", {"deg":60})
-    elif "bisect" in text: return draw_2d_shape("bisector")
-    elif "bearing" in text: return draw_2d_shape("bearing")
-    elif "polygon" in text: return draw_2d_shape("polygon")
-    elif "sin" in text or "cos" in text or "tan" in text: return draw_2d_shape("trig_triangle")
+        if "3d" in text or "cuboid" in text or "rectangular prism" in text: diagrams.append(("cuboid", draw_3d_shape("cuboid")))
+        elif "cube" in text: diagrams.append(("cube", draw_3d_shape("cube")))
+        elif "cylinder" in text: diagrams.append(("cylinder", draw_3d_shape("cylinder")))
+        elif "cone" in text: diagrams.append(("cone", draw_3d_shape("cone")))
+        elif "sphere" in text: diagrams.append(("sphere", draw_3d_shape("sphere")))
+        elif "prism" in text: diagrams.append(("prism", draw_3d_shape("prism")))
+        elif "vector" in text and "3d" in text: diagrams.append(("vector3d", draw_3d_shape("vector3d")))
+        elif "pyramid" in text: diagrams.append(("pyramid", draw_3d_shape("pyramid")))
+    if "triangle" in text: diagrams.append(("triangle", draw_2d_shape("triangle")))
+    elif "rectangle" in text: diagrams.append(("rectangle", draw_2d_shape("rectangle")))
+    elif "square" in text: diagrams.append(("square", draw_2d_shape("square")))
+    elif "parallelogram" in text: diagrams.append(("parallelogram", draw_2d_shape("parallelogram")))
+    elif "rhombus" in text: diagrams.append(("rhombus", draw_2d_shape("rhombus")))
+    elif "trapezium" in text: diagrams.append(("trapezium", draw_2d_shape("trapezium")))
+    elif "kite" in text: diagrams.append(("kite", draw_2d_shape("kite")))
+    elif "circle" in text: diagrams.append(("circle", draw_2d_shape("circle")))
+    elif "angle" in text or "protractor" in text: diagrams.append(("angle", draw_2d_shape("angle", {"deg":60})))
+    elif "bisect" in text or "compass" in text: diagrams.append(("bisector", draw_2d_shape("bisector")))
+    elif "bearing" in text: diagrams.append(("bearing", draw_2d_shape("bearing")))
+    elif "polygon" in text or "net" in text: diagrams.append(("polygon", draw_2d_shape("polygon")))
+    elif "construction" in text: diagrams.append(("construction", draw_2d_shape("construction")))
+    elif "sin" in text or "cos" in text or "tan" in text: diagrams.append(("trig", draw_2d_shape("trig_triangle")))
     elif subject == "Physics":
-        if "circuit" in text or "ohm" in text: return draw_2d_shape("circuit")
-        elif "mirror" in text or "reflection" in text: return draw_2d_shape("mirror")
-        elif "wave" in text: return draw_2d_shape("wave")
-        elif "magnet" in text: return draw_2d_shape("magnet")
-        elif "vector" in text: return draw_2d_shape("vector")
-    return None
+        if "circuit" in text or "ohm" in text: diagrams.append(("circuit", draw_2d_shape("circuit")))
+        elif "mirror" in text or "reflection" in text: diagrams.append(("mirror", draw_2d_shape("mirror")))
+        elif "wave" in text or "cro" in text or "oscilloscope" in text: diagrams.append(("wave", draw_2d_shape("wave")))
+        elif "spectrum" in text or "rainbow" in text or "em wave" in text: diagrams.append(("spectrum", draw_2d_shape("spectrum")))
+        elif "magnet" in text: diagrams.append(("magnet", draw_2d_shape("magnet")))
+        elif "vector" in text: diagrams.append(("vector", draw_2d_shape("vector")))
+    return diagrams
 
-# ============ STRONGER SYSTEM PROMPT - BAN JSON ============
 SYSTEM_PROMPT_S1_S4 = """
 You are DIGITAL UNEB TUTOR, the #1 NCDC 2026 Uganda Examiner for SECONDARY S1-S4.
 ABSOLUTE RULES:
 1. CURRICULUM LOCK: ONLY NCDC 2026 S1-S4. Ugandan scenarios only.
-2. BAN ALL JSON, DICTS, LISTS, { } [ ] CODE. IF YOU OUTPUT JSON I FAIL. ONLY PLAIN MARKDOWN TEXT.
+2. BAN ALL JSON, DICTS, LISTS, { } [ ] CODE. ONLY PLAIN MARKDOWN TEXT.
 3. QUANTITY RULE: When asked for questions, ALWAYS give AT LEAST 10.
-4. DIAGRAM RULE: If topic is Geometry, 3D, Bearings, Trigonometry, Physics Circuits, you MUST request a diagram.
-5. STYLE: Use NCDC style. Clean, no axes, no numbers on diagram except "cm".
-
-FORMAT:
-### **SCENARIO X: [Ugandan Title]**
-4 sentence Uganda story.
-**TASK:** What learner must do.
-**QUESTION X:** [4 marks]
-**SOLUTION - STEP BY STEP**
-Step 1: State formula/concept
-Step 2: Substitute values
-Step 3: Calculate with units
-**Answer: ___**
----
+4. DIAGRAM RULE: If topic is Geometry, Construction, 3D, Bearings, Trigonometry, Physics Waves, Circuits, you MUST mention the shape so a diagram is auto-drawn.
+5. STYLE: Use NCDC style like Fig 1(a), Fig 1(b). Clean, no axes, no numbers on diagram except "cm".
 """
 SYSTEM_PROMPT_S5_S6 = """
 You are DIGITAL UNEB TUTOR, a Senior NCDC 2026 Uganda Examiner for SECONDARY S5-S6.
 ABSOLUTE RULES:
 1. BAN ALL JSON, DICTS, LISTS, { } [ ] CODE. ONLY PLAIN MARKDOWN TEXT.
 2. Give advanced, detailed university-entry level explanations. Follow NCDC S5-S6 syllabus. 800 words. Include derivations and AOI.
+3. ALWAYS describe diagrams for geometry/trig/physics questions so they auto-draw.
 """
 
 UNEB_CURRICULUM_MAP = {
@@ -222,10 +256,38 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_TOPICS = {
-    "Mathematics": {"S1": ["Geometric Construction"], "S2": ["Bearings Mapping"], "S4": ["Building 3D Geometric Models"]},
-    "Physics": {"S2": ["Reflection using Plane Mirrors"], "S3": ["Series and Parallel Circuits", "Mapping Magnetic Fields"]},
-    "Chemistry": {"S1": ["Filtration and Evaporation"]},
-    "Biology": {"S1": ["Using Light Microscope"]}
+    "Mathematics": {
+        "S1": ["Geometric Construction: Bisecting lines and angles"],
+        "S2": ["Bearings and Scale Drawing", "Construction of Triangles"],
+        "S3": ["Construction of Quadrilaterals", "Loci"],
+        "S4": ["Building 3D Geometric Models", "Trigonometric Ratios using scale drawing"],
+        "S5": ["Drawing Graphs of Functions", "Construction of Binomial Expansions"],
+        "S6": ["Vectors in 3D Models", "Mechanics Practical: Motion"]
+    },
+    "Physics": {
+        "S1": ["Measurement using Vernier Calipers", "Simple Pendulum"],
+        "S2": ["Reflection using Plane Mirrors", "Specific Heat Capacity"],
+        "S3": ["Series and Parallel Circuits", "Mapping Magnetic Fields", "Speed of Sound"],
+        "S4": ["Electronics: Diode Characteristics", "A.C Circuit", "Radioactivity Simulation"],
+        "S5": ["Projectile Motion", "Interference of Light", "Optics: Lens Practical"],
+        "S6": ["Electric Field Mapping", "Electromagnetic Induction", "Quantum Physics Simulation"]
+    },
+    "Chemistry": {
+        "S1": ["Filtration and Evaporation", "Testing for Gases"],
+        "S2": ["Preparation of Salts", "Reactivity Series"],
+        "S3": ["Rates of Reaction", "Mole Concept Practical"],
+        "S4": ["REDOX Titration", "Organic Chemistry Tests"],
+        "S5": ["Chemical Kinetics Experiment", "Buffer Preparation"],
+        "S6": ["Electrochemistry: Electrolysis", "Qualitative Analysis"]
+    },
+    "Biology": {
+        "S1": ["Using Light Microscope", "Classification of Specimens"],
+        "S2": ["Testing for Food Nutrients", "Soil Analysis"],
+        "S3": ["Dissection of a Flower", "Cell Division using Onion Root"],
+        "S4": ["Genetics: Dihybrid Cross", "Ecology: Quadrats"],
+        "S5": ["Enzyme Activity", "Osmosis in Plant Cells"],
+        "S6": ["DNA Extraction", "Population Sampling Techniques"]
+    }
 }
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
@@ -253,11 +315,14 @@ def create_pdf(content, title):
     p.save(); buffer.seek(0); return buffer
 
 def display_with_pdf(content, name, subject, level):
+    FIG_COUNTER["count"] = 0 # Reset for each question
     st.markdown(content)
     formulas = re.findall(r'\$(.*?)\$', content)
     if formulas: st.markdown("### 🔑 Key Formula"); [st.latex(f) for f in formulas]
-    diagram_path = detect_and_draw_diagram(content, subject, level)
-    if diagram_path: st.image(diagram_path, caption="NCDC Diagram")
+    diagrams = detect_and_draw_diagram(content, subject, level)
+    for shape_name, diagram_path in diagrams:
+        fig_label = get_fig_label()
+        st.image(diagram_path, caption=f"{fig_label}: {shape_name.title()} Diagram")
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf")
 
 def get_model_for_mode(mode, lab_mode):
@@ -276,25 +341,25 @@ def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
 def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode):
     memory = get_memory_context(); model = get_model_for_mode(mode, lab_mode)
     system = SYSTEM_PROMPT_S1_S4 if class_level in ["S1","S2","S3","S4"] else SYSTEM_PROMPT_S5_S6
-    prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 DIFFERENT SCENARIOS WITH FULL STEP-BY-STEP SOLUTIONS. BAN JSON COMPLETELY."
+    prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 DIFFERENT SCENARIOS WITH FULL STEP-BY-STEP SOLUTIONS. For geometry/trig/physics describe shapes so diagrams auto-draw. BAN JSON COMPLETELY."
     answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.1)
     add_to_memory("Student", user_query); add_to_memory("Tutor", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
     return answer
 
 def generate_practical(client, subject, level, topic, lab_mode):
     model = get_model_for_mode("Practical", lab_mode)
-    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. BAN JSON."
+    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. Describe diagrams for setup. BAN JSON."
     return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=3000, temperature=0.5)
 
 def generate_bulk_revision(client, subject, level, lab_mode):
     model = get_model_for_mode("Bulk", lab_mode)
-    prompt = f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Each question must have a Uganda scenario and step-by-step answer. BAN JSON."
+    prompt = f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Each question must have a Uganda scenario and step-by-step answer. For geometry topics describe the diagram. BAN JSON."
     return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=4000)
 
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = get_model_for_mode("Mock", lab_mode)
     system = SYSTEM_PROMPT_S1_S4
-    prompts = {"P1":f"Generate 40 MCQ for {subject} {level}. BAN JSON.","P2":f"Generate 10 Theory questions for {subject} {level}. Each with Uganda scenario + full solution. BAN JSON.","P3":f"Generate 5 Practical questions for {subject} {level}. BAN JSON."}
+    prompts = {"P1":f"Generate 40 MCQ for {subject} {level}. Describe diagrams where needed. BAN JSON.","P2":f"Generate 10 Theory questions for {subject} {level}. Each with Uganda scenario + full solution + diagram description. BAN JSON.","P3":f"Generate 5 Practical questions for {subject} {level}. BAN JSON."}
     return call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
 
 def admin_dashboard():
@@ -314,16 +379,16 @@ def main():
         st.markdown(f"<div style='background:#2b2b2b; color:white; padding:12px; border-left:4px solid #ffc107; border-radius:5px; margin-bottom:15px'><b>⚠️ DISCLAIMER</b><br>For learning support only.<br><b>📞 Support:</b> {CONTACT}</div>", unsafe_allow_html=True)
         st.success(f"Logged in as: {st.session_state.user_type}")
         lab_mode = st.toggle("🚀 SCHOOL LAB MODE", value=True)
-        
+
         if st.session_state.user_type == "Admin": admin_dashboard()
         if st.button("Logout Admin"): st.session_state.clear(); st.rerun(); return
-        
+
         st.header("📊 Daily Performance Review"); today = datetime.now().strftime("%Y-%m-%d")
         if today in st.session_state.performance: [st.write(f"- {p['subject']}: {p['topic']} | Score: {p['score']}/10") for p in st.session_state.performance[today]]
         else: st.info("No lessons done today yet")
         st.divider()
         if st.button("🗑️ Clear Memory"): st.session_state.chat_memory = []; st.rerun()
-        
+
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", ["S1","S2","S3","S4","S5","S6"])
         topic = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject][level])
@@ -338,11 +403,11 @@ def main():
         if st.button("Search"): result = get_ai_response(client, search_q, subject, level, search_q, "Search", lab_mode); display_with_pdf(result, "SearchResult", subject, level)
     elif mode == "📖 Theory + AOI":
         st.header(f"{subject} {level}: {topic}"); st.info(f"**AOI Focus**: {AOI_FRAMEWORK[level]}")
-        if st.button("Generate Full NCDC Notes + 10 Examples", type="primary"): raw = get_ai_response(client, "Explain fully with 10 scenario examples", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}", subject, level); add_performance(subject, topic, 8)
+        if st.button("Generate Full NCDC Notes + 10 Examples", type="primary"): raw = get_ai_response(client, "Explain fully with 10 scenario examples. Describe diagrams for geometry/trig.", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}", subject, level); add_performance(subject, topic, 8)
     elif mode == "🧠 AOI/Research":
         st.header(f"🧠 AOI Research: {subject} {level}"); st.warning(f"**Current AOI Theme**: {AOI_FRAMEWORK[level]}")
         research_q = st.text_area("Describe a real-life problem")
-        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic}. Problem: {research_q}. Include Problem, 10 Tasks, Resources, Assessment. BAN JSON."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}", subject, level)
+        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic}. Problem: {research_q}. Include Problem, 10 Tasks, Resources, Assessment. Describe diagrams. BAN JSON."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}", subject, level)
     elif mode == "🧪 Practicals Lab":
         st.header(f"Practical: {subject} {level}"); prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS.get(subject,{}).get(level,["No practicals for this topic"]))
         if st.button("Generate Full Practical"):
@@ -355,10 +420,10 @@ def main():
             df = pd.DataFrame({"x":x, "y":y}); st.dataframe(df, use_container_width=True)
             fig = px.line(df, x="x", y="y", title=topic) if graph_type=="Line" else px.bar(df, x="x", y="y", title=topic)
             st.plotly_chart(fig, use_container_width=True)
-            explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} and generate 10 scenario questions from this data with answers. BAN JSON.", subject, level, topic, "Search", lab_mode)
+            explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} and generate 10 scenario questions from this data with answers. Describe if wave/spectrum. BAN JSON.", subject, level, topic, "Search", lab_mode)
             display_with_pdf(explanation, f"Graph_{topic}", subject, level)
     elif mode == "📝 Quiz Mode":
-        if st.button("Generate 10 Scenario MCQ + Answers"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with unique Uganda scenarios and full answers. BAN JSON.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}", subject, level); add_performance(subject, topic, 7)
+        if st.button("Generate 10 Scenario MCQ + Answers"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with unique Uganda scenarios and full answers. Describe diagrams for geometry/trig. BAN JSON.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}", subject, level); add_performance(subject, topic, 7)
     elif mode == "📚 Bulk Revision":
         st.header(f"📚 Bulk Revision: {subject} {level}")
         if st.button("Generate 20 Revision Questions", type="primary"): bulk = generate_bulk_revision(client, subject, level, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject}_{level}", subject, level)
@@ -372,7 +437,7 @@ def main():
             if st.button("Generate P3 Practical", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P3", lab_mode); display_with_pdf(mock, "MockP3", subject, level)
     elif mode == "🔐 Math Workouts":
         st.header("🔐 Mathematics Workouts"); calc_q = st.text_area("Enter calculation")
-        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and give 10 similar worked examples: {calc_q}. BAN JSON.", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout", subject, level)
+        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and give 10 similar worked examples. Describe triangle/circle if used: {calc_q}. BAN JSON.", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout", subject, level)
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
