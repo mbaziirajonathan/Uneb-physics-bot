@@ -175,7 +175,6 @@ UNEB_CURRICULUM_MAP = {
     }
 }
 
-# Add all other NCDC subjects
 OTHER_SUBJECTS = ["Geography", "History", "Literature in English", "CRE", "IRE", "Agriculture", "Entrepreneurship", "ICT", "Art and Design", "Music", "French", "Kiswahili", "Luganda", "Economics", "Commerce", "Technical Drawing", "Food and Nutrition"]
 for subj in OTHER_SUBJECTS:
     UNEB_CURRICULUM_MAP[subj] = {f"S{i}": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"] for i in range(1,7)}
@@ -225,7 +224,7 @@ def display_with_pdf(content, name, subject, level):
     for shape_name, diagram_path in diagrams:
         fig_label = get_fig_label()
         st.image(diagram_path, caption=f"{fig_label}: {shape_name.title()} Diagram")
-    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf")
+    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}")
 
 def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
     for attempt in range(3):
@@ -299,7 +298,7 @@ def main():
 
     with tab1:
         st.header("🔍 Smart Search - Ask Anything")
-        uploaded_file = st.file_uploader("Upload document to ask about", type=["pdf","docx","txt"], key="search_upload")
+        uploaded_file = st.file_uploader("📎 Upload document to ask about", type=["pdf","docx","txt"], key="search_upload")
         file_context = read_uploaded_file(uploaded_file)
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
@@ -311,7 +310,7 @@ def main():
 
     with tab2:
         st.header("📖 Learn Topic + Old Features")
-        uploaded_file2 = st.file_uploader("Upload notes", type=["pdf","docx","txt"], key="learn_upload")
+        uploaded_file2 = st.file_uploader("📎 Upload notes", type=["pdf","docx","txt"], key="learn_upload")
         file_context2 = read_uploaded_file(uploaded_file2)
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
@@ -341,9 +340,9 @@ def main():
 
     with tab3:
         st.header("🧪 Teacher Tools")
-        tool = st.radio("Select Tool", ["Lesson Plan Generator", "Report Card Generator", "Test + Marksheet Generator"])
-        uploaded_file3 = st.file_uploader("Upload class list or syllabus", type=["pdf","docx","txt"], key="teacher_upload")
+        uploaded_file3 = st.file_uploader("📎 Upload class list or syllabus", type=["pdf","docx","txt"], key="teacher_upload")
         file_context3 = read_uploaded_file(uploaded_file3)
+        tool = st.radio("Select Tool", ["Lesson Plan Generator", "Report Card Generator", "Test + Marksheet Generator"])
 
         if tool == "Lesson Plan Generator":
             subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj")
