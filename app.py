@@ -114,13 +114,13 @@ def draw_2d_shape(shape_type, params={}):
         ax.plot([2.5,3],[3,3],'k-'); ax.plot([3,3],[3,2],'k-'); ax.plot([3,2],[2,2],'k-'); ax.plot([2,2],[2,1],'k-'); ax.plot([0,2],[1,1],'k-')
     elif shape_type == "mirror":
         ax.plot([2,2],[0,4],'k-', lw=3); ax.plot([0.5,2],[3,2],'k--'); ax.plot([2,3.5],[2,1],'k--')
-    elif shape_type == "wave": # MATCHES Fig 1(c) CRO
+    elif shape_type == "wave":
         x = np.linspace(0, 4*np.pi, 400); y = 2*np.sin(x)
         ax.plot(x, y, 'k-', lw=2); ax.grid(True, linestyle=':', linewidth=0.5)
-        ax.set_xlabel("cm"); ax.set_ylabel("cm"); ax.axis('on') # CRO grid style
-    elif shape_type == "spectrum": # MATCHES Fig 1(b)
+        ax.set_xlabel("cm"); ax.set_ylabel("cm"); ax.axis('on')
+    elif shape_type == "spectrum":
         labels = ["Radio","Microwave","Infrared","Visible","Ultraviolet","X-ray","Gamma"]
-        ax.plot([0,7],[1,1],'k-', lw=1); 
+        ax.plot([0,7],[1,1],'k-', lw=1);
         for i,l in enumerate(labels): ax.text(i+0.5, 1.2, l, ha='center', fontsize=8)
         ax.axis('off')
     elif shape_type == "magnet":
@@ -194,103 +194,41 @@ def detect_and_draw_diagram(text, subject, level):
     elif "polygon" in text or "net" in text: diagrams.append(("polygon", draw_2d_shape("polygon")))
     elif "construction" in text: diagrams.append(("construction", draw_2d_shape("construction")))
     elif "sin" in text or "cos" in text or "tan" in text: diagrams.append(("trig", draw_2d_shape("trig_triangle")))
-    elif subject == "Physics":
-        if "circuit" in text or "ohm" in text: diagrams.append(("circuit", draw_2d_shape("circuit")))
-        elif "mirror" in text or "reflection" in text: diagrams.append(("mirror", draw_2d_shape("mirror")))
-        elif "wave" in text or "cro" in text or "oscilloscope" in text: diagrams.append(("wave", draw_2d_shape("wave")))
-        elif "spectrum" in text or "rainbow" in text or "em wave" in text: diagrams.append(("spectrum", draw_2d_shape("spectrum")))
-        elif "magnet" in text: diagrams.append(("magnet", draw_2d_shape("magnet")))
-        elif "vector" in text: diagrams.append(("vector", draw_2d_shape("vector")))
+    # DIAGRAM LOCK: Physics/Chem/Bio diagrams disabled. Only Mathematics draws
+    if subject == "Mathematics":
+        pass
     return diagrams
 
+# ============ MERGED SYSTEM PROMPT S1-S6 ============
 SYSTEM_PROMPT = """
 You are DIGITAL UNEB EXAMINER 2026, the #1 Senior NCDC Uganda Examiner for SECONDARY S1 to S6.
 Your sole job is to generate assessment tasks and marking guides strictly for NCDC 2026 Biology, Chemistry, Physics, and Mathematics using the official UNEB ITEM FORMAT.
 
 ### ABSOLUTE SYSTEM LOCKS
-1.  CURRICULUM LOCK: ONLY NCDC 2026 S1-S6. Use Ugandan contexts only: districts, rivers, markets, industries, farms, hospitals. No foreign examples. No inventing topics.
-2.  OUTPUT FORMAT LOCK: ONLY PLAIN MARKDOWN TEXT. BAN ALL JSON, DICTS, LISTS, { } [ ] CODE.
-3.  ITEM FORMAT LOCK: You MUST use UNEB ITEM STRUCTURE. No "Section A" or "Q1, Q2". Use ITEM 1, ITEM 2, ITEM 3 etc.
-4.  QUANTITY RULE: When asked for questions, ALWAYS generate AT LEAST 10 ITEMS covering all 4 subjects in a loop. 2-3 ITEMS per subject.
-5.  DIAGRAM LOCK: DIAGRAMS ARE DRAWN ONLY FOR MATHEMATICS. For Geometry, Construction, Bearings, Trigonometry, Statistics. Use Fig 1(a), Fig 1(b). Clean, no axes, numbers only "cm" or "degrees". 
+1. CURRICULUM LOCK: ONLY NCDC 2026 S1-S6. Use Ugandan contexts only: districts, rivers, markets, industries, farms, hospitals. No foreign examples. No inventing topics.
+2. OUTPUT FORMAT LOCK: ONLY PLAIN MARKDOWN TEXT. BAN ALL JSON, DICTS, LISTS, { } [ ] CODE.
+3. ITEM FORMAT LOCK: You MUST use UNEB ITEM STRUCTURE. Use ITEM 1, ITEM 2, ITEM 3 etc with TASK: i) ii) iii) and scores in brackets.
+4. QUANTITY RULE: When asked for questions, ALWAYS generate AT LEAST 10 ITEMS covering all 4 subjects in a loop. 2-3 ITEMS per subject.
+5. DIAGRAM LOCK: DIAGRAMS ARE DRAWN ONLY FOR MATHEMATICS. For Geometry, Construction, Bearings, Trigonometry, Statistics. Use Fig 1(a), Fig 1(b). Clean, no axes, numbers only "cm" or "degrees".
     For Biology, Chemistry, Physics: Text description only. No auto-drawn shapes.
-6.  LANGUAGE LOCK: Remind students in every marking guide: Punctuate answers, Use correct tense, Use SI units in Math and Physics, Show step by step working in Math and Physics for method marks, Label diagrams clearly in Mathematics, Answer scientifically in all sciences.
+6. LANGUAGE LOCK: Remind students in every marking guide: Punctuate answers, Use correct tense, Use SI units in Math and Physics, Show step by step working in Math and Physics for method marks, Label diagrams clearly in Mathematics, Answer scientifically in all sciences.
 
-### MANDATORY QUESTION SETTING STRUCTURE - COPY THIS EXACTLY
-This is the official UNEB ITEM structure from your paper:
-
+### MANDATORY QUESTION SETTING STRUCTURE
 ITEM 1.
 [SCENARIO PARAGRAPH 1: 3-5 sentences. Realistic Ugandan problem. Name districts, people, rivers, problems]
 [SCENARIO PARAGRAPH 2: Add more details, data, or what authorities did]
 
 TASK:
 As a [Biology/Chemistry/Physics/Mathematics] learner;
-i)  [First competence task with marks in brackets] (X scores)
-ii) [Second competence task with marks in brackets] (X scores) 
+i) [First competence task with marks in brackets] (X scores)
+ii) [Second competence task with marks in brackets] (X scores)
 iii)[Third competence task with marks in brackets] (X scores)
 
-ITEM 2.
-[New Scenario]
-TASK:
-a) [First task with marks] (X scores)
-b) [Second task with marks] (X scores)
-
-### EXAMPLES - LOOP FOR ALL 4 SUBJECTS
-
-#### EXAMPLE ITEM: S4 PHYSICS - Radioactivity
-ITEM 1.
-Kilembe farmer’s association in Kasese district grows vegetables near R. Nyamwamba. The natives near the river bank have been complaining of health complications that drew the attention of the government under the ministry of health. The ministry sent a nuclear physicist to survey the area. The report showed the vegetables contained radioactive materials that emit radiations.
-
-TASK:
-As a physics learner;
-i)  Explain the terms radioactivity and radioactive decay to the natives. (2 scores)
-ii) Guide the natives using reaction equations on the types of radioactive decays the vegetables may undergo. (6 scores)
-iii)Advise the natives about the dangers of these radiations and 2 safety precautions. (4 scores)
-
-#### EXAMPLE ITEM: S3 BIOLOGY - Nutrition
-ITEM 2.
-A secondary school in Luwero district has been feeding S1 students on posho and cabbage only for 1 term. The school nurse reports students with bleeding gums, slow healing wounds and general weakness.
-
-TASK:
-As a biology learner;
-i)  Identify the nutritional deficiency disease affecting the students. (1 score)
-ii) Explain the biological cause of bleeding gums and slow healing. (4 scores)
-iii)Recommend two affordable locally available Ugandan foods to solve this problem. (3 scores)
-
-#### EXAMPLE ITEM: S5 CHEMISTRY - Chemical Equilibrium
-ITEM 3.
-A fertilizer plant in Tororo produces ammonia using the Haber process: N2(g) + 3H2(g) ⇌ 2NH3(g) ΔH = -92kJ/mol. During a hot season, production dropped. Technicians want to increase temperature to speed up the reaction.
-
-TASK:
-As a chemistry learner;
-i)  State Le Chatelier’s Principle as it applies to this reaction. (2 scores)
-ii) Explain the effect of increasing temperature on both the rate and yield of ammonia. (5 scores)
-iii)Recommend optimal temperature, pressure and catalyst for maximum profit and justify. (5 scores)
-
-#### EXAMPLE ITEM: S4 MATHEMATICS - Statistics
-ITEM 4.
-Health workers in Gulu City recorded malaria cases per household for 40 households: 3,0,1,2,5,1,0,4,2,3,1,0,2,6,1,3,2,0,1,4,2,1,3,0,5,2,1,1,4,2,3,0,2,1,6,3,2,1,0,2
-
-TASK:
-As a mathematics learner;
-i)  Organize the data into a frequency distribution table with class interval of 2. (4 scores)
-ii) Calculate the mean, median and mode of the number of cases. (6 scores)
-iii)Draw a histogram to represent the data. Comment on the shape. (4 scores)
-
 ### MANDATORY MARKING GUIDE STRUCTURE - 3 STEPS FOR EVERY ITEM
-For every i, ii, iii you must answer in this 3-step UNEB style:
-
 **ITEM 1(i) Solution**
 Step 1: Identification and Explanation of the Core Principle
-State the law, definition, or concept.
-
-Step 2: Practical Application and Evidence
-Apply to the scenario. For Math/Physics: Show FORMULA → SUBSTITUTION → ANSWER with SI units.
-
-Step 3: Final Conclusion
-Give the precise answer or advice to the Ugandan problem.
-
-Award marks as per UNEB: 1 mark for correct principle, method marks for working, final answer mark.
+Step 2: Practical Application and Evidence. For Math/Physics: Show FORMULA → SUBSTITUTION → ANSWER with SI units.
+Step 3: Final Conclusion / Actionable Recommendation
 
 ### SUBJECT LOOP RULE
 When user asks "generate questions", LOOP: Biology ITEM 1-2, Chemistry ITEM 3-4, Physics ITEM 5-6, Mathematics ITEM 7-8, then repeat. Minimum 10 ITEMS total.
@@ -418,27 +356,30 @@ def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
 
 def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode):
     memory = get_memory_context(); model = get_model_for_mode(mode, lab_mode)
-    system = SYSTEM_PROMPT_S1_S4 if class_level in ["S1","S2","S3","S4"] else SYSTEM_PROMPT_S5_S6
-    prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 DIFFERENT SCENARIOS WITH FULL STEP-BY-STEP SOLUTIONS. For geometry/trig/physics describe shapes so diagrams auto-draw. BAN JSON COMPLETELY."
+    system = SYSTEM_PROMPT # FIXED: Use 1 merged prompt for S1-S6
+    prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 ITEMS IN UNEB ITEM FORMAT WITH FULL 3-STEP SOLUTIONS. For Mathematics only describe shapes for auto-draw. BAN JSON COMPLETELY."
     answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.1)
     add_to_memory("Student", user_query); add_to_memory("Tutor", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
     return answer
 
 def generate_practical(client, subject, level, topic, lab_mode):
     model = get_model_for_mode("Practical", lab_mode)
-    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic}. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. Describe diagrams for setup. BAN JSON."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=3000, temperature=0.5)
+    prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic} in UNEB ITEM FORMAT. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY. Describe diagrams for setup. BAN JSON."
+    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=3000, temperature=0.5)
 
 def generate_bulk_revision(client, subject, level, lab_mode):
     model = get_model_for_mode("Bulk", lab_mode)
-    prompt = f"Generate 20 revision questions for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Each question must have a Uganda scenario and step-by-step answer. For geometry topics describe the diagram. BAN JSON."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT_S1_S4 if level in ['S1','S2','S3','S4'] else SYSTEM_PROMPT_S5_S6},{"role":"user","content":prompt}], model, max_tokens=4000)
+    prompt = f"Generate 20 ITEMS in UNEB format for {level} {subject}: {', '.join(UNEB_CURRICULUM_MAP[subject][level])}. Each ITEM must have a Uganda scenario and 3-step answer. For Mathematics only describe the diagram. BAN JSON."
+    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=4000)
 
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = get_model_for_mode("Mock", lab_mode)
-    system = SYSTEM_PROMPT_S1_S4
-    prompts = {"P1":f"Generate 40 MCQ for {subject} {level}. Describe diagrams where needed. BAN JSON.","P2":f"Generate 10 Theory questions for {subject} {level}. Each with Uganda scenario + full solution + diagram description. BAN JSON.","P3":f"Generate 5 Practical questions for {subject} {level}. BAN JSON."}
-    return call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
+    prompts = {
+        "P1":f"Generate 40 ITEMS in MCQ style but in UNEB ITEM FORMAT for {subject} {level}. Each ITEM i, ii, iii. Describe diagrams for Mathematics only. BAN JSON.",
+        "P2":f"Generate 10 ITEMS Theory for {subject} {level}. Each with Uganda scenario + full 3-step solution. BAN JSON.",
+        "P3":f"Generate 5 ITEMS Practical for {subject} {level} in UNEB ITEM FORMAT. BAN JSON."
+    }
+    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
 
 def admin_dashboard():
     st.title("👨‍💼 ADMIN DASHBOARD"); logs = load_logs()
@@ -465,7 +406,7 @@ def main():
         if today in st.session_state.performance: [st.write(f"- {p['subject']}: {p['topic']} | Score: {p['score']}/10") for p in st.session_state.performance[today]]
         else: st.info("No lessons done today yet")
         st.divider()
-        if st.button("🗑️ Clear Memory"): st.session_state.chat_memory = []; st.rerun()
+        st.session_state.chat_memory = []; st.rerun()
 
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", ["S1","S2","S3","S4","S5","S6"])
@@ -481,11 +422,11 @@ def main():
         if st.button("Search"): result = get_ai_response(client, search_q, subject, level, search_q, "Search", lab_mode); display_with_pdf(result, "SearchResult", subject, level)
     elif mode == "📖 Theory + AOI":
         st.header(f"{subject} {level}: {topic}"); st.info(f"**AOI Focus**: {AOI_FRAMEWORK[level]}")
-        if st.button("Generate Full NCDC Notes + 10 Examples", type="primary"): raw = get_ai_response(client, "Explain fully with 10 scenario examples. Describe diagrams for geometry/trig.", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}", subject, level); add_performance(subject, topic, 8)
+        if st.button("Generate Full NCDC Notes + 10 ITEMS", type="primary"): raw = get_ai_response(client, "Generate 10 ITEMS in UNEB format with Uganda scenarios + full 3-step answers. For Mathematics only describe diagrams.", subject, level, topic, "Theory", lab_mode); display_with_pdf(raw, f"Theory_{topic}", subject, level); add_performance(subject, topic, 8)
     elif mode == "🧠 AOI/Research":
         st.header(f"🧠 AOI Research: {subject} {level}"); st.warning(f"**Current AOI Theme**: {AOI_FRAMEWORK[level]}")
         research_q = st.text_area("Describe a real-life problem")
-        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic}. Problem: {research_q}. Include Problem, 10 Tasks, Resources, Assessment. Describe diagrams. BAN JSON."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}", subject, level)
+        if st.button("Generate AOI Project"): prompt = f"Design full AOI for {level} {subject} on {topic} in ITEM FORMAT. Problem: {research_q}. Include Problem, 10 ITEMS, Resources, Assessment. Mathematics only describe diagrams. BAN JSON."; raw = get_ai_response(client, prompt, subject, level, topic, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic}", subject, level)
     elif mode == "🧪 Practicals Lab":
         st.header(f"Practical: {subject} {level}"); prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS.get(subject,{}).get(level,["No practicals for this topic"]))
         if st.button("Generate Full Practical"):
@@ -493,29 +434,29 @@ def main():
             display_with_pdf(report, f"Practical_{prac}", subject, level); add_performance(subject, prac, 9)
     elif mode == "📈 Graph Generator":
         st.header("📈 Graph Explainer"); graph_type = st.selectbox("Graph Type", ["Line", "Bar", "Scatter", "Histogram"])
-        if st.button("Generate Graph Data + 10 Interpretation Questions", type="primary"):
+        if st.button("Generate Graph Data + 10 ITEMS", type="primary"):
             np.random.seed(hash(topic) % 1000); x = np.arange(1, 7); y = x**2 if "math" in subject.lower() else np.random.randint(10, 100, size=6)
             df = pd.DataFrame({"x":x, "y":y}); st.dataframe(df, use_container_width=True)
             fig = px.line(df, x="x", y="y", title=topic) if graph_type=="Line" else px.bar(df, x="x", y="y", title=topic)
             st.plotly_chart(fig, use_container_width=True)
-            explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} and generate 10 scenario questions from this data with answers. Describe if wave/spectrum. BAN JSON.", subject, level, topic, "Search", lab_mode)
+            explanation = get_ai_response(client, f"Explain this {graph_type} graph for {topic} and generate 10 ITEMS in UNEB format from this data with 3-step answers. Mathematics only describe if graph needed. BAN JSON.", subject, level, topic, "Search", lab_mode)
             display_with_pdf(explanation, f"Graph_{topic}", subject, level)
     elif mode == "📝 Quiz Mode":
-        if st.button("Generate 10 Scenario MCQ + Answers"): quiz = get_ai_response(client, "Generate 10 competency-based MCQ with unique Uganda scenarios and full answers. Describe diagrams for geometry/trig. BAN JSON.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}", subject, level); add_performance(subject, topic, 7)
+        if st.button("Generate 10 ITEMS + Answers"): quiz = get_ai_response(client, "Generate 10 ITEMS in UNEB format with unique Uganda scenarios and full 3-step answers. Mathematics only describe diagrams. BAN JSON.", subject, level, topic, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic}", subject, level); add_performance(subject, topic, 7)
     elif mode == "📚 Bulk Revision":
         st.header(f"📚 Bulk Revision: {subject} {level}")
-        if st.button("Generate 20 Revision Questions", type="primary"): bulk = generate_bulk_revision(client, subject, level, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject}_{level}", subject, level)
+        if st.button("Generate 20 ITEMS", type="primary"): bulk = generate_bulk_revision(client, subject, level, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject}_{level}", subject, level)
     elif mode == "📄 Mock Exams":
         st.header(f"📄 Mock Exams: {subject} {level}"); col1,col2,col3 = st.columns(3)
         with col1:
-            if st.button("Generate P1 MCQ", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P1", lab_mode); display_with_pdf(mock, "MockP1", subject, level)
+            if st.button("Generate P1 MCQ ITEMS", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P1", lab_mode); display_with_pdf(mock, "MockP1", subject, level)
         with col2:
-            if st.button("Generate P2 Theory", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P2", lab_mode); display_with_pdf(mock, "MockP2", subject, level)
+            if st.button("Generate P2 Theory ITEMS", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P2", lab_mode); display_with_pdf(mock, "MockP2", subject, level)
         with col3:
-            if st.button("Generate P3 Practical", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P3", lab_mode); display_with_pdf(mock, "MockP3", subject, level)
+            if st.button("Generate P3 Practical ITEMS", use_container_width=True): mock = generate_mock_paper(client, subject, level, "P3", lab_mode); display_with_pdf(mock, "MockP3", subject, level)
     elif mode == "🔐 Math Workouts":
         st.header("🔐 Mathematics Workouts"); calc_q = st.text_area("Enter calculation")
-        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and give 10 similar worked examples. Describe triangle/circle if used: {calc_q}. BAN JSON.", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout", subject, level)
+        if st.button("Work it Out Step by Step"): steps = get_ai_response(client, f"Solve step by step with LaTeX and give 10 similar ITEMS. For Mathematics describe triangle/circle if used: {calc_q}. BAN JSON.", subject, level, topic, "Calculation", lab_mode); display_with_pdf(steps, "Workout", subject, level)
     elif mode == "🎙️ Voice Ask/Chat":
         st.header("🎙️ Voice Mode"); audio = mic_recorder(start_prompt="Record", stop_prompt="Stop", key="rec")
         if audio: st.audio(audio['bytes']); st.info("Transcription would go here. Type question above for now.")
