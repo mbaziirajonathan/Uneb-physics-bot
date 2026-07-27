@@ -1,21 +1,14 @@
 import streamlit as st
-import os, io, json, re, ast, numpy as np, difflib, time, math
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import sympy as sp
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.patches as patches
-from matplotlib.patches import Arc, Polygon, Circle, Rectangle, FancyArrow
+import os, io, json, re, ast, difflib, time, math
 from datetime import datetime
-from groq import Groq, RateLimitError
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from PIL import Image
 import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
+
+# LAZY IMPORTS - Don't load heavy libs until after login
+np = pd = px = go = sp = plt = Axes3D = patches = Arc = Polygon = Circle = Rectangle = FancyArrow = Image = Groq = RateLimitError = None
 
 LOG_FILE = "usage_log.json"
 CONTACT = "256751040731"
@@ -26,7 +19,9 @@ FIG_COUNTER = {"count": 0} # For Fig 1(a), 1(b) labeling
 def load_logs():
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
-            try: return json.load(f)
+            try:
+                logs = json.load(f)
+                return logs[-500:] # prevent lag from huge log
             except: return []
     return []
 
@@ -59,8 +54,24 @@ def check_password():
         return False
     else: return True
 
-if not check_password(): st.stop()
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
+def load_heavy_libs():
+    global np, pd, px, go, sp, plt, Axes3D, patches, Arc, Polygon, Circle, Rectangle, FancyArrow, Image, Groq, RateLimitError
+    import numpy as np
+    import pandas as pd
+    import plotly.express as px
+    import plotly.graph_objects as go
+    import sympy as sp
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.patches as patches
+    from matplotlib.patches import Arc, Polygon, Circle, Rectangle, FancyArrow
+    from PIL import Image
+    from groq import Groq, RateLimitError
+
+@st.cache_resource
+def get_client():
+    load_heavy_libs() # load groq only after login
+    return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ============ NCDC STYLE 2D + 3D DIAGRAM ENGINE - NCDC FIG STYLE ============
 def get_fig_label():
@@ -68,6 +79,7 @@ def get_fig_label():
     return f"Fig. 1({chr(96+FIG_COUNTER['count'])})"
 
 def draw_2d_shape(shape_type, params={}):
+    load_heavy_libs()
     fig, ax = plt.subplots(figsize=(4,4))
     ax.set_aspect('equal'); ax.axis('off')
     if shape_type == "triangle":
@@ -133,6 +145,7 @@ def draw_2d_shape(shape_type, params={}):
     plt.savefig(path, dpi=150, bbox_inches='tight', pad_inches=0.1); plt.close(); return path
 
 def draw_3d_shape(shape_type, params={}):
+    load_heavy_libs()
     fig = plt.figure(figsize=(4,4)); ax = fig.add_subplot(111, projection='3d')
     ax.set_axis_off()
     if shape_type == "cube":
@@ -170,6 +183,8 @@ def draw_3d_shape(shape_type, params={}):
     plt.savefig(path, dpi=150, bbox_inches='tight', pad_inches=0.1); plt.close(); return path
 
 def detect_and_draw_diagram(text, subject, level):
+    if subject!= "Mathematics": return [] # DIAGRAM LOCK
+    load_heavy_libs()
     text = text.lower(); diagrams = []
     if level in ["S4","S5","S6"]:
         if "3d" in text or "cuboid" in text or "rectangular prism" in text: diagrams.append(("cuboid", draw_3d_shape("cuboid")))
@@ -194,9 +209,6 @@ def detect_and_draw_diagram(text, subject, level):
     elif "polygon" in text or "net" in text: diagrams.append(("polygon", draw_2d_shape("polygon")))
     elif "construction" in text: diagrams.append(("construction", draw_2d_shape("construction")))
     elif "sin" in text or "cos" in text or "tan" in text: diagrams.append(("trig", draw_2d_shape("trig_triangle")))
-    # DIAGRAM LOCK: Physics/Chem/Bio diagrams disabled. Only Mathematics draws
-    if subject == "Mathematics":
-        pass
     return diagrams
 
 # ============ MERGED SYSTEM PROMPT S1-S6 ============
@@ -307,9 +319,6 @@ PRACTICAL_TOPICS = {
 }
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
-@st.cache_resource
-def get_client(): return Groq(api_key=st.secrets["GROQ_API_KEY"])
-
 def add_to_memory(role, content):
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
     st.session_state.chat_memory.append({"role": role, "content": content, "time": datetime.now().strftime("%H:%M")})
@@ -326,12 +335,13 @@ def add_performance(subject, topic, score):
     st.session_state.performance[today].append({"subject":subject, "topic":topic, "score":score})
 
 def create_pdf(content, title):
+    load_heavy_libs()
     buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10)
     for line in content.split('\n')[:80]: p.drawString(50,y,line[:95]); y-=14;
     p.save(); buffer.seek(0); return buffer
 
 def display_with_pdf(content, name, subject, level):
-    FIG_COUNTER["count"] = 0 # Reset for each question
+    FIG_COUNTER["count"] = 0
     st.markdown(content)
     formulas = re.findall(r'\$(.*?)\$', content)
     if formulas: st.markdown("### 🔑 Key Formula"); [st.latex(f) for f in formulas]
@@ -356,7 +366,7 @@ def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
 
 def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode):
     memory = get_memory_context(); model = get_model_for_mode(mode, lab_mode)
-    system = SYSTEM_PROMPT # FIXED: Use 1 merged prompt for S1-S6
+    system = SYSTEM_PROMPT
     prompt = f"{memory}{system}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nStudent Request: {user_query}\n\nCRITICAL: Generate AT LEAST 10 ITEMS IN UNEB ITEM FORMAT WITH FULL 3-STEP SOLUTIONS. For Mathematics only describe shapes for auto-draw. BAN JSON COMPLETELY."
     answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.1)
     add_to_memory("Student", user_query); add_to_memory("Tutor", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
@@ -374,14 +384,11 @@ def generate_bulk_revision(client, subject, level, lab_mode):
 
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = get_model_for_mode("Mock", lab_mode)
-    prompts = {
-        "P1":f"Generate 40 ITEMS in MCQ style but in UNEB ITEM FORMAT for {subject} {level}. Each ITEM i, ii, iii. Describe diagrams for Mathematics only. BAN JSON.",
-        "P2":f"Generate 10 ITEMS Theory for {subject} {level}. Each with Uganda scenario + full 3-step solution. BAN JSON.",
-        "P3":f"Generate 5 ITEMS Practical for {subject} {level} in UNEB ITEM FORMAT. BAN JSON."
-    }
+    prompts = {"P1":f"Generate 40 ITEMS in MCQ style but in UNEB ITEM FORMAT for {subject} {level}. Each ITEM i, ii, iii. Describe diagrams for Mathematics only. BAN JSON.","P2":f"Generate 10 ITEMS Theory for {subject} {level}. Each with Uganda scenario + full 3-step solution. BAN JSON.","P3":f"Generate 5 ITEMS Practical for {subject} {level} in UNEB ITEM FORMAT. BAN JSON."}
     return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
 
 def admin_dashboard():
+    load_heavy_libs()
     st.title("👨‍💼 ADMIN DASHBOARD"); logs = load_logs()
     if not logs: st.warning("No activity yet"); return
     df = pd.DataFrame(logs); col1,col2,col3 = st.columns(3)
@@ -389,7 +396,10 @@ def admin_dashboard():
     st.subheader("Live Activity Feed"); st.dataframe(df.tail(50), use_container_width=True)
 
 def main():
-    client = get_client()
+    if not check_password(): st.stop() # STOP BEFORE LOADING ANYTHING HEAVY
+    st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide") # MOVED HERE
+    client = get_client() # LOAD GROQ ONLY AFTER LOGIN
+
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
     if "performance" not in st.session_state: st.session_state.performance = {}
     st.markdown("<h1 style='text-align:center; background:gold; color:black; padding:10px'>📚 DIGITAL UNEB TUTOR 2026 - S1 TO S6</h1>", unsafe_allow_html=True)
@@ -400,13 +410,13 @@ def main():
         lab_mode = st.toggle("🚀 SCHOOL LAB MODE", value=True)
 
         if st.session_state.user_type == "Admin": admin_dashboard()
-        if st.button("Logout Admin"): st.session_state.clear(); st.rerun(); return
+                 if st.button("Logout Admin"): st.session_state.clear(); st.rerun(); return
 
         st.header("📊 Daily Performance Review"); today = datetime.now().strftime("%Y-%m-%d")
         if today in st.session_state.performance: [st.write(f"- {p['subject']}: {p['topic']} | Score: {p['score']}/10") for p in st.session_state.performance[today]]
         else: st.info("No lessons done today yet")
         st.divider()
-        st.session_state.chat_memory = []; st.rerun()
+        if st.button("🗑️ Clear Memory"): st.session_state.chat_memory = []; st.rerun()
 
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", ["S1","S2","S3","S4","S5","S6"])
@@ -433,6 +443,7 @@ def main():
             with st.spinner("Generating detailed practical..."): report = generate_practical(client,subject,level,prac, lab_mode)
             display_with_pdf(report, f"Practical_{prac}", subject, level); add_performance(subject, prac, 9)
     elif mode == "📈 Graph Generator":
+        load_heavy_libs()
         st.header("📈 Graph Explainer"); graph_type = st.selectbox("Graph Type", ["Line", "Bar", "Scatter", "Histogram"])
         if st.button("Generate Graph Data + 10 ITEMS", type="primary"):
             np.random.seed(hash(topic) % 1000); x = np.arange(1, 7); y = x**2 if "math" in subject.lower() else np.random.randint(10, 100, size=6)
