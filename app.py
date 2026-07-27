@@ -6,9 +6,14 @@ from reportlab.lib.pagesizes import A4
 import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
-from docx import Document
 
-# LAZY IMPORTS - Load only after login
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except:
+    DOCX_AVAILABLE = False
+
+# LAZY IMPORTS - Load only after login to make login fast
 np = pd = px = go = sp = plt = Axes3D = patches = Arc = Polygon = Circle = Rectangle = FancyArrow = Image = Groq = RateLimitError = None
 
 LOG_FILE = "usage_log.json"
@@ -90,6 +95,8 @@ def draw_2d_shape(shape_type, params={}):
     elif shape_type == "angle":
         deg = params.get("deg",60); ax.plot([0,4],[0,0],'k-', lw=2); ax.plot([0,4*math.cos(math.radians(deg))],[0,4*math.sin(math.radians(deg))],'k-', lw=2)
         arc = Arc((0,0), 1.5, 1.5, theta1=0, theta2=deg, color='black', linewidth=1.5); ax.add_patch(arc); ax.text(0.8,0.2,f"{deg}°")
+    elif shape_type == "bearing":
+        ax.plot([2,2],[0,4],'k--'); ax.text(2.1,3.8,"N"); ax.plot([2,3.5],[2,2],'k-', lw=2)
     ax.set_xlim(-1,6); ax.set_ylim(-1,5)
     path = f"/tmp/{shape_type}_{int(time.time())}.png"; plt.savefig(path, dpi=150, bbox_inches='tight', pad_inches=0.1); plt.close(); return path
 
@@ -100,26 +107,23 @@ def detect_and_draw_diagram(text, subject, level):
     elif "rectangle" in text: diagrams.append(("rectangle", draw_2d_shape("rectangle")))
     elif "circle" in text: diagrams.append(("circle", draw_2d_shape("circle")))
     elif "angle" in text: diagrams.append(("angle", draw_2d_shape("angle", {"deg":60})))
+    elif "bearing" in text: diagrams.append(("bearing", draw_2d_shape("bearing")))
     return diagrams
 
-# ============ RESTORED UNEB ITEM SYSTEM PROMPT ============
+# ============ SMART + UNEB ITEM SYSTEM PROMPT ============
 SYSTEM_PROMPT = """
-You are DIGITAL UNEB EXAMINER 2026, the #1 Senior NCDC Uganda Examiner + Smart AI Tutor for ALL NCDC subjects S1-S6.
+You are DIGITAL UNEB TUTOR 2026. You are a world-class AI like ChatGPT + Senior UNEB Examiner for ALL NCDC Uganda subjects S1-S6.
 
 ### RULE 1: SMART TUTOR MODE - DEFAULT
-If the user asks: "define, explain, solve, summarize, what is, how does"
+If the user asks: "define, explain, solve, summarize, what is, how does, compare"
 -> Answer directly with chain of thought, examples, and Ugandan context. DO NOT generate questions.
 
 ### RULE 2: UNEB EXAMINER MODE - ONLY WHEN REQUESTED
-If the user says: "set questions, generate test, 10 items, exam, quiz"
--> YOU MUST SWITCH TO STRICT UNEB ITEM FORMAT BELOW:
+If the user says: "set questions, generate test, 10 items, exam, quiz, paper"
+-> YOU MUST SWITCH TO STRICT UNEB ITEM FORMAT:
 
-### ABSOLUTE UNEB ITEM LOCKS
-1. CURRICULUM LOCK: ONLY NCDC 2026 S1-S6. Use Ugandan contexts: districts, rivers, markets, farms.
-2. OUTPUT FORMAT LOCK: PLAIN MARKDOWN TEXT. BAN JSON, { } [ ]
-3. ITEM FORMAT LOCK: MUST use this exact structure:
 ITEM 1.
-[SCENARIO PARAGRAPH 1: 3-5 sentences. Realistic Ugandan problem. Name people, places, data]
+[SCENARIO PARAGRAPH 1: 3-5 sentences. Realistic Ugandan problem. Name people, places, districts, data]
 [SCENARIO PARAGRAPH 2: Add more details]
 
 TASK:
@@ -134,9 +138,10 @@ Step 1: Identification and Explanation of the Core Principle
 Step 2: Practical Application and Evidence. For Math/Physics: Show FORMULA → SUBSTITUTION → ANSWER with SI units.
 Step 3: Final Conclusion / Actionable Recommendation
 
-4. QUANTITY RULE: When asked for questions, generate AT LEAST 10 ITEMS.
-5. DIAGRAM LOCK: Draw diagrams ONLY for Mathematics. Describe for others.
-6. LANGUAGE LOCK: Remind: Use SI units, Show working, Label diagrams, Answer scientifically.
+### OTHER RULES
+1. CURRICULUM: Cover ALL NCDC S1-S6. Use Ugandan contexts: districts, rivers, markets.
+2. DIAGRAMS: Auto-draw ONLY for Mathematics. Describe for others.
+3. LANGUAGE: Use SI units, Show working, Be scientific.
 """
 
 # ============ RESTORED FULL NCDC DATABASE ============
@@ -175,9 +180,9 @@ UNEB_CURRICULUM_MAP = {
     }
 }
 
-OTHER_SUBJECTS = ["Geography", "History", "Literature in English", "CRE", "IRE", "Agriculture", "Entrepreneurship", "ICT", "Art and Design", "Music", "French", "Kiswahili", "Luganda", "Economics", "Commerce", "Technical Drawing", "Food and Nutrition"]
+OTHER_SUBJECTS = ["Geography", "History", "Literature in English", "CRE", "IRE", "Agriculture", "Entrepreneurship", "ICT", "Art and Design", "Music", "French", "Kiswahili", "Luganda", "Economics", "Commerce", "Technical Drawing", "Food and Nutrition", "Fashion and Textiles"]
 for subj in OTHER_SUBJECTS:
-    UNEB_CURRICULUM_MAP[subj] = {f"S{i}": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"] for i in range(1,7)}
+    UNEB_CURRICULUM_MAP[subj] = {f"S{i}": [f"Topic {j}" for j in range(1,6)] for i in range(1,7)}
 
 PRACTICAL_TOPICS = {
     "Mathematics": {"S1": ["Geometric Construction: Bisecting lines and angles"],"S2": ["Bearings and Scale Drawing", "Construction of Triangles"],"S3": ["Construction of Quadrilaterals", "Loci"],"S4": ["Building 3D Geometric Models", "Trigonometric Ratios using scale drawing"],"S5": ["Drawing Graphs of Functions", "Construction of Binomial Expansions"],"S6": ["Vectors in 3D Models", "Mechanics Practical: Motion"]},
@@ -212,8 +217,9 @@ def read_uploaded_file(uploaded_file):
     if uploaded_file is None: return ""
     if uploaded_file.type == "application/pdf": return "PDF uploaded. Content noted."
     elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        if not DOCX_AVAILABLE: return "Error: python-docx not installed"
         doc = Document(uploaded_file); return "\n".join([para.text for para in doc.paragraphs])
-    else: return uploaded_file.getvalue().decode("utf-8")
+    else: return uploaded_file.getvalue().decode("utf-8", errors='ignore')
 
 def display_with_pdf(content, name, subject, level):
     FIG_COUNTER["count"] = 0
@@ -224,21 +230,18 @@ def display_with_pdf(content, name, subject, level):
     for shape_name, diagram_path in diagrams:
         fig_label = get_fig_label()
         st.image(diagram_path, caption=f"{fig_label}: {shape_name.title()} Diagram")
-    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}")
+    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 
 def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
-    for attempt in range(3):
-        try: res = client.chat.completions.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature); return res.choices[0].message.content
-        except RateLimitError:
-            if attempt < 2: time.sleep(2 ** attempt)
-            else: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=messages, max_tokens=2000); return res.choices[0].message.content
-        except Exception as e: return f"AI Error: {e}"
+    try: res = client.chat.completions.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature); return res.choices[0].message.content
+    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=messages, max_tokens=2000); return res.choices[0].message.content
+    except Exception as e: return f"AI Error: {e}. Check GROQ_API_KEY in secrets.toml"
 
-def get_ai_response(client, user_query, subject, class_level, topic, mode, lab_mode, context=""):
+def get_ai_response(client, user_query, subject, class_level, topic, lab_mode, context=""):
     memory = get_memory_context(); model = AI_MODEL_LONG if not lab_mode else AI_MODEL_FAST
-    system = SYSTEM_PROMPT
-    prompt = f"{memory}{context}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nUser Request: {user_query}\n\nFollow RULE 1 or RULE 2 above depending on user intent. Use Ugandan context."
-    answer = call_groq_safe(client, [{"role":"system","content":system},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.3)
+    force_exam = any(word in user_query.lower() for word in ["set question", "generate test", "exam", "10 item", "quiz", "paper"])
+    prompt = f"{memory}{context}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nUser Request: {user_query}\n\n{'USE RULE 2: EXAMINER MODE' if force_exam else 'USE RULE 1: SMART TUTOR MODE'}"
+    answer = call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.5)
     add_to_memory("User", user_query); add_to_memory("AI", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
     return answer
 
@@ -305,11 +308,11 @@ def main():
         ask_q = st.text_area("Ask any question: define photosynthesis, solve 2x+3=7, set 10 questions on vectors...")
         if st.button("Ask AI Brain", type="primary"):
             with st.spinner("Thinking..."):
-                ans = get_ai_response(client, ask_q, subject, level, "General", "Search", lab_mode, context=file_context)
+                ans = get_ai_response(client, ask_q, subject, level, "General", lab_mode, context=file_context)
                 display_with_pdf(ans, f"Answer_{subject}", subject, level)
 
     with tab2:
-        st.header("📖 Learn Topic + Old Features")
+        st.header("📖 Learn Topic + All Old Features")
         uploaded_file2 = st.file_uploader("📎 Upload notes", type=["pdf","docx","txt"], key="learn_upload")
         file_context2 = read_uploaded_file(uploaded_file2)
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
@@ -318,15 +321,16 @@ def main():
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 Quiz Mode", "📚 Bulk Revision", "📄 Mock Exams"])
 
         if mode == "📖 Theory":
-            if st.button("Generate Notes + 10 ITEMS", type="primary"): raw = get_ai_response(client, f"Teach {topic2} in detail then generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT", subject2, level2, topic2, "Theory", lab_mode, context=file_context2); display_with_pdf(raw, f"Theory_{topic2}", subject2, level2); add_performance(subject2, topic2, 8)
+            if st.button("Generate Notes + 10 ITEMS", type="primary"): raw = get_ai_response(client, f"Teach {topic2} in detail then generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT", subject2, level2, topic2, lab_mode, context=file_context2); display_with_pdf(raw, f"Theory_{topic2}", subject2, level2); add_performance(subject2, topic2, 8)
         elif mode == "🧠 AOI":
+            st.info(f"AOI Focus: {AOI_FRAMEWORK[level2]}")
             research_q = st.text_area("Describe a real-life problem")
-            if st.button("Generate AOI Project"): raw = get_ai_response(client, f"Design AOI for {level2} {subject2} on {topic2} in ITEM FORMAT. Problem: {research_q}", subject2, level2, topic2, "AOI", lab_mode); display_with_pdf(raw, f"AOI_{topic2}", subject2, level2)
+            if st.button("Generate AOI Project"): raw = get_ai_response(client, f"Design AOI for {level2} {subject2} on {topic2} in ITEM FORMAT. Problem: {research_q}", subject2, level2, topic2, lab_mode); display_with_pdf(raw, f"AOI_{topic2}", subject2, level2)
         elif mode == "🧪 Practicals Lab":
             prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS.get(subject2,{}).get(level2,["No practicals for this topic"]))
             if st.button("Generate Full Practical"): report = generate_practical(client,subject2,level2,prac, lab_mode); display_with_pdf(report, f"Practical_{prac}", subject2, level2); add_performance(subject2, prac, 9)
         elif mode == "📝 Quiz Mode":
-            if st.button("Generate 10 ITEMS + Answers"): quiz = get_ai_response(client, f"Generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT for {topic2} with 3-step answers", subject2, level2, topic2, "Quiz", lab_mode); display_with_pdf(quiz, f"Quiz_{topic2}", subject2, level2); add_performance(subject2, topic2, 7)
+            if st.button("Generate 10 ITEMS + Answers"): quiz = get_ai_response(client, f"Generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT for {topic2} with 3-step answers", subject2, level2, topic2, lab_mode); display_with_pdf(quiz, f"Quiz_{topic2}", subject2, level2); add_performance(subject2, topic2, 7)
         elif mode == "📚 Bulk Revision":
             if st.button("Generate 20 ITEMS", type="primary"): bulk = generate_bulk_revision(client, subject2, level2, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject2}_{level2}", subject2, level2)
         elif mode == "📄 Mock Exams":
