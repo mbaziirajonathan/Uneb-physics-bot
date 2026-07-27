@@ -410,7 +410,7 @@ def main():
         lab_mode = st.toggle("🚀 SCHOOL LAB MODE", value=True)
 
         if st.session_state.user_type == "Admin": admin_dashboard()
-                 if st.button("Logout Admin"): st.session_state.clear(); st.rerun(); return
+        if st.button("Logout Admin"): st.session_state.clear(); st.rerun(); return
 
         st.header("📊 Daily Performance Review"); today = datetime.now().strftime("%Y-%m-%d")
         if today in st.session_state.performance: [st.write(f"- {p['subject']}: {p['topic']} | Score: {p['score']}/10") for p in st.session_state.performance[today]]
