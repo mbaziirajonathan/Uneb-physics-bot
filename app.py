@@ -1,19 +1,13 @@
 import streamlit as st
 import os, io, json, re, ast, difflib, time, math
 from datetime import datetime
+import pytz
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-import base64
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-try:
-    from docx import Document
-    DOCX_AVAILABLE = True
-except:
-    DOCX_AVAILABLE = False
-
-# LAZY IMPORTS - Load only after login to make login fast
+# LAZY IMPORTS - Load only after login
 np = pd = px = go = sp = plt = Axes3D = patches = Arc = Polygon = Circle = Rectangle = FancyArrow = Image = Groq = RateLimitError = None
 
 LOG_FILE = "usage_log.json"
@@ -21,6 +15,7 @@ CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 FIG_COUNTER = {"count": 0}
+UG_TZ = pytz.timezone("Africa/Kampala")
 
 def load_logs():
     if os.path.exists(LOG_FILE):
@@ -37,7 +32,7 @@ def save_log(entry):
     with open(LOG_FILE, "w") as f: json.dump(logs, f, indent=2)
 
 def log_activity(user_type, action, details):
-    entry = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details}
+    entry = {"timestamp": datetime.now(UG_TZ).strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details}
     save_log(entry)
 
 def check_password():
@@ -110,20 +105,19 @@ def detect_and_draw_diagram(text, subject, level):
     elif "bearing" in text: diagrams.append(("bearing", draw_2d_shape("bearing")))
     return diagrams
 
-# ============ SMART + UNEB ITEM SYSTEM PROMPT ============
-SYSTEM_PROMPT = """
-You are DIGITAL UNEB TUTOR 2026. You are a world-class AI like ChatGPT + Senior UNEB Examiner for ALL NCDC Uganda subjects S1-S6.
+# ============ FIXED: 2 SEPARATE SYSTEM PROMPTS ============
+SMART_SYSTEM = """You are DIGITAL UNEB TUTOR 2026. You are a helpful AI Tutor like ChatGPT and Meta AI.
+YOUR ONLY JOB NOW: Answer the user's question directly and clearly with chain of thought.
+- If they say "define X": Give definition + example + Ugandan example.
+- If they say "solve X": Show Step 1, Step 2, Step 3 with formula.
+- If they say "explain X": Explain simply with examples.
+DO NOT generate questions. DO NOT use ITEM format. Use normal conversational teaching. Use Ugandan context."""
 
-### RULE 1: SMART TUTOR MODE - DEFAULT
-If the user asks: "define, explain, solve, summarize, what is, how does, compare"
--> Answer directly with chain of thought, examples, and Ugandan context. DO NOT generate questions.
-
-### RULE 2: UNEB EXAMINER MODE - ONLY WHEN REQUESTED
-If the user says: "set questions, generate test, 10 items, exam, quiz, paper"
--> YOU MUST SWITCH TO STRICT UNEB ITEM FORMAT:
-
+EXAMINER_SYSTEM = """You are DIGITAL UNEB EXAMINER 2026. Senior NCDC Examiner for Uganda S1-S6.
+YOUR ONLY JOB NOW: Generate UNEB ITEM/TASK/SCENARIO questions ONLY when asked.
+MUST USE THIS EXACT FORMAT:
 ITEM 1.
-[SCENARIO PARAGRAPH 1: 3-5 sentences. Realistic Ugandan problem. Name people, places, districts, data]
+[SCENARIO PARAGRAPH 1: 3-5 sentences. Realistic Ugandan problem. Name people, districts, data]
 [SCENARIO PARAGRAPH 2: Add more details]
 
 TASK:
@@ -132,17 +126,12 @@ i) [First competence task] (X scores)
 ii) [Second competence task] (X scores)
 iii)[Third competence task] (X scores)
 
-### MANDATORY MARKING GUIDE - 3 STEPS FOR EVERY ITEM
+SOLUTION:
 **ITEM 1(i) Solution**
 Step 1: Identification and Explanation of the Core Principle
-Step 2: Practical Application and Evidence. For Math/Physics: Show FORMULA → SUBSTITUTION → ANSWER with SI units.
-Step 3: Final Conclusion / Actionable Recommendation
-
-### OTHER RULES
-1. CURRICULUM: Cover ALL NCDC S1-S6. Use Ugandan contexts: districts, rivers, markets.
-2. DIAGRAMS: Auto-draw ONLY for Mathematics. Describe for others.
-3. LANGUAGE: Use SI units, Show working, Be scientific.
-"""
+Step 2: Practical Application. For Math/Physics: FORMULA → SUBSTITUTION → ANSWER with SI units.
+Step 3: Final Conclusion / Recommendation
+Generate at least 10 ITEMS when asked."""
 
 # ============ RESTORED FULL NCDC DATABASE ============
 UNEB_CURRICULUM_MAP = {
@@ -194,7 +183,7 @@ AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "Natio
 
 def add_to_memory(role, content):
     if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
-    st.session_state.chat_memory.append({"role": role, "content": content, "time": datetime.now().strftime("%H:%M")})
+    st.session_state.chat_memory.append({"role": role, "content": content, "time": datetime.now(UG_TZ).strftime("%H:%M")})
 
 def get_memory_context():
     if "chat_memory" not in st.session_state: return ""
@@ -202,7 +191,7 @@ def get_memory_context():
     return "Previous conversation:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in last_5]) + "\n\n"
 
 def add_performance(subject, topic, score):
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(UG_TZ).strftime("%Y-%m-%d")
     if "performance" not in st.session_state: st.session_state.performance = {}
     if today not in st.session_state.performance: st.session_state.performance[today] = []
     st.session_state.performance[today].append({"subject":subject, "topic":topic, "score":score})
@@ -215,11 +204,8 @@ def create_pdf(content, title):
 
 def read_uploaded_file(uploaded_file):
     if uploaded_file is None: return ""
-    if uploaded_file.type == "application/pdf": return "PDF uploaded. Content noted."
-    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        if not DOCX_AVAILABLE: return "Error: python-docx not installed"
-        doc = Document(uploaded_file); return "\n".join([para.text for para in doc.paragraphs])
-    else: return uploaded_file.getvalue().decode("utf-8", errors='ignore')
+    if uploaded_file.type == "text/plain": return uploaded_file.getvalue().decode("utf-8", errors='ignore')
+    return "Only.txt files supported"
 
 def display_with_pdf(content, name, subject, level):
     FIG_COUNTER["count"] = 0
@@ -232,53 +218,77 @@ def display_with_pdf(content, name, subject, level):
         st.image(diagram_path, caption=f"{fig_label}: {shape_name.title()} Diagram")
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 
-def call_groq_safe(client, messages, model, max_tokens=4000, temperature=0.7):
-    try: res = client.chat.completions.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=messages, max_tokens=2000); return res.choices[0].message.content
-    except Exception as e: return f"AI Error: {e}. Check GROQ_API_KEY in secrets.toml"
+def call_groq_safe(client, system_prompt, user_prompt, model):
+    try:
+        res = client.chat.completions.create(
+            model=model,
+            messages=[{"role":"system","content":system_prompt},{"role":"user","content":user_prompt}],
+            max_tokens=4000 if model==AI_MODEL_LONG else 2000,
+            temperature=0.3 if "EXAMINER" in system_prompt else 0.7
+        );
+        return res.choices[0].message.content
+    except RateLimitError:
+        res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":system_prompt},{"role":"user","content":user_prompt}], max_tokens=2000);
+        return res.choices[0].message.content
+    except Exception as e: return f"AI Error: {e}. Check GROQ_API_KEY"
+
+def detect_intent(user_query):
+    user_query = user_query.lower()
+    exam_keywords = ["set question", "generate test", "exam", "10 item", "quiz", "paper", "items on", "questions on"]
+    if any(word in user_query for word in exam_keywords):
+        return "EXAMINER"
+    return "SMART"
 
 def get_ai_response(client, user_query, subject, class_level, topic, lab_mode, context=""):
     memory = get_memory_context(); model = AI_MODEL_LONG if not lab_mode else AI_MODEL_FAST
-    force_exam = any(word in user_query.lower() for word in ["set question", "generate test", "exam", "10 item", "quiz", "paper"])
-    prompt = f"{memory}{context}\n\nLevel: {class_level}, Subject: {subject}, Topic: {topic}\nUser Request: {user_query}\n\n{'USE RULE 2: EXAMINER MODE' if force_exam else 'USE RULE 1: SMART TUTOR MODE'}"
-    answer = call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=4000 if model==AI_MODEL_LONG else 2000, temperature=0.5)
-    add_to_memory("User", user_query); add_to_memory("AI", answer); log_activity(st.session_state.user_type, "AI Query", f"{subject} {class_level} {topic}")
+    intent = detect_intent(user_query)
+
+    if intent == "EXAMINER":
+        system = EXAMINER_SYSTEM
+        prompt = f"{memory}{context}\nLevel: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Request: {user_query}\n\nGenerate UNEB ITEMS now in the exact format."
+    else:
+        system = SMART_SYSTEM
+        prompt = f"{memory}{context}\nLevel: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}\n\nAnswer this question directly with examples, chain of thought, and Ugandan context."
+
+    answer = call_groq_safe(client, system, prompt, model)
+    add_to_memory("User", user_query); add_to_memory("AI", answer)
+    log_activity(st.session_state.user_type, f"AI Query {intent}", f"{subject} {class_level}")
     return answer
 
 def generate_lesson_plan(client, subject, level, topic, duration):
     prompt = f"Generate a detailed NCDC {duration} minute lesson plan for {level} {subject} on {topic}. Include: Title, Objective, Materials, Introduction, Presentation, Activities, Assessment, Homework. Use Ugandan context."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], AI_MODEL_LONG, max_tokens=3000)
+    return call_groq_safe(client, SMART_SYSTEM, prompt, AI_MODEL_LONG)
 
 def generate_report_card(client, student_data):
     prompt = f"Generate a professional NCDC Report Card for student: {student_data}. Include scores table, total, average, grade, remarks, teacher comment, principal comment."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], AI_MODEL_LONG, max_tokens=2000)
+    return call_groq_safe(client, SMART_SYSTEM, prompt, AI_MODEL_LONG)
 
 def generate_test(client, subject, level, topic, num_questions):
     prompt = f"Generate {num_questions} UNEB standard test questions for {level} {subject} on {topic}. MUST USE STRICT ITEM/TASK/SCENARIO FORMAT with 3-step marking guide and Uganda scenarios."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], AI_MODEL_LONG, max_tokens=4000)
+    return call_groq_safe(client, EXAMINER_SYSTEM, prompt, AI_MODEL_LONG)
 
 def generate_practical(client, subject, level, topic, lab_mode):
     model = AI_MODEL_LONG if not lab_mode else AI_MODEL_FAST
     prompt = f"Generate FULL detailed NCDC {level} {subject} practical for: {topic} in UNEB ITEM FORMAT. Must include: AIM, APPARATUS, PROCEDURE, DATA TABLE, OBSERVATIONS, CONCLUSION, SAFETY."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=3000, temperature=0.5)
+    return call_groq_safe(client, EXAMINER_SYSTEM, prompt, model)
 
 def generate_bulk_revision(client, subject, level, lab_mode):
     model = AI_MODEL_LONG if not lab_mode else AI_MODEL_FAST
     topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level])
     prompt = f"Generate 20 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT for {level} {subject}: {topics}. Each ITEM must have Uganda scenario and 3-step answer."
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}], model, max_tokens=4000)
+    return call_groq_safe(client, EXAMINER_SYSTEM, prompt, model)
 
 def generate_mock_paper(client, subject, level, paper, lab_mode):
     model = AI_MODEL_LONG if not lab_mode else AI_MODEL_FAST
     prompts = {"P1":f"Generate 40 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT for {subject} {level}.","P2":f"Generate 10 ITEMS Theory for {subject} {level} in STRICT ITEM FORMAT.","P3":f"Generate 5 ITEMS Practical for {subject} {level} in STRICT ITEM FORMAT."}
-    return call_groq_safe(client, [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompts[paper]}], model, max_tokens=4000, temperature=0.3)
+    return call_groq_safe(client, EXAMINER_SYSTEM, prompts[paper], model)
 
 def admin_dashboard():
     load_heavy_libs()
     st.title("👨‍💼 ADMIN DASHBOARD"); logs = load_logs()
     if not logs: st.warning("No activity yet"); return
     df = pd.DataFrame(logs); col1,col2,col3 = st.columns(3)
-    col1.metric("Total Activities", len(df)); col2.metric("Today", len(df[df['timestamp'].str.startswith(datetime.now().strftime("%Y-%m-%d"))])); col3.metric("Users", df['user'].nunique())
+    col1.metric("Total Activities", len(df)); col2.metric("Today", len(df[df['timestamp'].str.startswith(datetime.now(UG_TZ).strftime("%Y-%m-%d"))])); col3.metric("Users", df['user'].nunique())
     st.subheader("Live Activity Feed"); st.dataframe(df.tail(50), use_container_width=True)
 
 def main():
@@ -301,11 +311,11 @@ def main():
 
     with tab1:
         st.header("🔍 Smart Search - Ask Anything")
-        uploaded_file = st.file_uploader("📎 Upload document to ask about", type=["pdf","docx","txt"], key="search_upload")
+        uploaded_file = st.file_uploader("📎 Upload.txt file to ask about", type=["txt"], key="search_upload")
         file_context = read_uploaded_file(uploaded_file)
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
-        ask_q = st.text_area("Ask any question: define photosynthesis, solve 2x+3=7, set 10 questions on vectors...")
+        ask_q = st.text_area("Ask: 'define osmosis' OR 'set 10 questions on vectors'")
         if st.button("Ask AI Brain", type="primary"):
             with st.spinner("Thinking..."):
                 ans = get_ai_response(client, ask_q, subject, level, "General", lab_mode, context=file_context)
@@ -313,7 +323,7 @@ def main():
 
     with tab2:
         st.header("📖 Learn Topic + All Old Features")
-        uploaded_file2 = st.file_uploader("📎 Upload notes", type=["pdf","docx","txt"], key="learn_upload")
+        uploaded_file2 = st.file_uploader("📎 Upload.txt notes", type=["txt"], key="learn_upload")
         file_context2 = read_uploaded_file(uploaded_file2)
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
@@ -321,16 +331,16 @@ def main():
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 Quiz Mode", "📚 Bulk Revision", "📄 Mock Exams"])
 
         if mode == "📖 Theory":
-            if st.button("Generate Notes + 10 ITEMS", type="primary"): raw = get_ai_response(client, f"Teach {topic2} in detail then generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT", subject2, level2, topic2, lab_mode, context=file_context2); display_with_pdf(raw, f"Theory_{topic2}", subject2, level2); add_performance(subject2, topic2, 8)
+            if st.button("Generate Notes + 10 ITEMS", type="primary"): raw = get_ai_response(client, f"Teach {topic2} in detail then set 10 questions", subject2, level2, topic2, lab_mode, context=file_context2); display_with_pdf(raw, f"Theory_{topic2}", subject2, level2); add_performance(subject2, topic2, 8)
         elif mode == "🧠 AOI":
             st.info(f"AOI Focus: {AOI_FRAMEWORK[level2]}")
             research_q = st.text_area("Describe a real-life problem")
-            if st.button("Generate AOI Project"): raw = get_ai_response(client, f"Design AOI for {level2} {subject2} on {topic2} in ITEM FORMAT. Problem: {research_q}", subject2, level2, topic2, lab_mode); display_with_pdf(raw, f"AOI_{topic2}", subject2, level2)
+            if st.button("Generate AOI Project"): raw = get_ai_response(client, f"Design AOI for {level2} {subject2} on {topic2}. Problem: {research_q}", subject2, level2, topic2, lab_mode); display_with_pdf(raw, f"AOI_{topic2}", subject2, level2)
         elif mode == "🧪 Practicals Lab":
             prac = st.selectbox("Select NCDC Practical", PRACTICAL_TOPICS.get(subject2,{}).get(level2,["No practicals for this topic"]))
             if st.button("Generate Full Practical"): report = generate_practical(client,subject2,level2,prac, lab_mode); display_with_pdf(report, f"Practical_{prac}", subject2, level2); add_performance(subject2, prac, 9)
         elif mode == "📝 Quiz Mode":
-            if st.button("Generate 10 ITEMS + Answers"): quiz = get_ai_response(client, f"Generate 10 ITEMS in STRICT UNEB ITEM/TASK/SCENARIO FORMAT for {topic2} with 3-step answers", subject2, level2, topic2, lab_mode); display_with_pdf(quiz, f"Quiz_{topic2}", subject2, level2); add_performance(subject2, topic2, 7)
+            if st.button("Generate 10 ITEMS + Answers"): quiz = get_ai_response(client, f"set 10 questions on {topic2}", subject2, level2, topic2, lab_mode); display_with_pdf(quiz, f"Quiz_{topic2}", subject2, level2); add_performance(subject2, topic2, 7)
         elif mode == "📚 Bulk Revision":
             if st.button("Generate 20 ITEMS", type="primary"): bulk = generate_bulk_revision(client, subject2, level2, lab_mode); display_with_pdf(bulk, f"BulkRevision_{subject2}_{level2}", subject2, level2)
         elif mode == "📄 Mock Exams":
@@ -344,7 +354,7 @@ def main():
 
     with tab3:
         st.header("🧪 Teacher Tools")
-        uploaded_file3 = st.file_uploader("📎 Upload class list or syllabus", type=["pdf","docx","txt"], key="teacher_upload")
+        uploaded_file3 = st.file_uploader("📎 Upload.txt class list", type=["txt"], key="teacher_upload")
         file_context3 = read_uploaded_file(uploaded_file3)
         tool = st.radio("Select Tool", ["Lesson Plan Generator", "Report Card Generator", "Test + Marksheet Generator"])
 
