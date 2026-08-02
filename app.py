@@ -173,28 +173,103 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 ITEMS", type="primary"):
             bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, f"Bulk_{subject2}_{level2}")
 
-# ========== ADMIN PORTAL ==========
+# ========== ADMIN PORTAL - 14 TABS RESTORED ==========
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
-    TAB_NAMES = ["Admin Dashboard", "Test Generator", "Lesson Plan", "Report Card", "Bulk Exams"] + ["Coming Soon"]*9
-    selected = option_menu(None, TAB_NAMES, orientation="horizontal")
+
+    TAB_NAMES = [
+        "Admin Dashboard",
+        "Test Paper Generator",
+        "Lesson Plan + SOW",
+        "Single Report Card",
+        "BULK EXAMS GENERATOR",
+        "Performance Analytics",
+        "Student Management",
+        "Question Bank Manager",
+        "Curriculum Planner",
+        "Attendance Tracker",
+        "Fee Management",
+        "Communication Hub",
+        "Resource Library",
+        "Settings & Compliance"
+    ]
+    selected = option_menu(None, TAB_NAMES, orientation="horizontal", styles={"nav-link": {"font-size": "12px"}})
 
     if selected == "Admin Dashboard":
-        logs = load_logs(); st.metric("Total Activities", len(logs)); st.dataframe(logs[-20:])
-    elif selected == "Test Generator":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); n = st.slider("Questions",5,50,10)
-        if st.button("Generate"): display_with_pdf(generate_exam_items(f"Generate {n} on {t}", s, l), "Test")
-    elif selected == "Lesson Plan":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); d = st.number_input("Minutes",40,120,40)
-        if st.button("Generate"): display_with_pdf(generate_lesson_plan(s,l,t,d), "LessonPlan")
-    elif selected == "Report Card":
-        data = st.text_area("Paste: Name, Math 80, Phy 75...");
-        if st.button("Generate"): display_with_pdf(generate_report_card(data), "ReportCard")
-    elif selected == "Bulk Exams":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        if st.button("Generate 20"): display_with_pdf(generate_bulk_revision(s,l), "Bulk")
-    else: st.info("🚀 Coming in v1.1")
+        logs = load_logs()
+        col1,col2,col3 = st.columns(3)
+        col1.metric("Total Activities", len(logs))
+        col2.metric("Flagged", len([l for l in logs if l.get('flagged')]))
+        col3.metric("Users", len(set([l['user'] for l in logs])))
+        st.subheader("Live Activity Feed"); st.dataframe(logs[-50:], use_container_width=True)
+
+    elif selected == "Test Paper Generator":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="test_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="test_level")
+        t = st.text_input("Topic or 'All Topics'")
+        n = st.slider("Number of Questions",5,50,20)
+        if st.button("Generate Test Paper", type="primary"):
+            display_with_pdf(generate_exam_items(f"Generate {n} UNEB ITEMS on {t}", s, l), f"Test_{s}_{l}")
+
+    elif selected == "Lesson Plan + SOW":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="lp_level")
+        t = st.text_input("Topic")
+        d = st.number_input("Duration minutes",40,120,80)
+        scheme = st.checkbox("Generate Scheme of Work too")
+        if st.button("Generate Lesson Plan"):
+            lp = generate_lesson_plan(s,l,t,d)
+            if scheme: lp += "\n\n### SCHEME OF WORK\nWeek 1-8 breakdown based on NCDC"
+            display_with_pdf(lp, f"LessonPlan_{t}")
+
+    elif selected == "Single Report Card":
+        name = st.text_input("Student Name")
+        term = st.selectbox("Term", ["Term 1", "Term 2", "Term 3"])
+        scores = {}
+        for sub in ["Mathematics","English","Physics","Chemistry","Biology"]:
+            scores[sub] = st.number_input(sub,0,100)
+        if st.button("Generate Report Card"):
+            data = f"Name: {name}\nTerm: {term}\n" + "\n".join([f"{k}: {v}" for k,v in scores.items()])
+            rc = generate_report_card(data)
+            display_with_pdf(rc, f"Report_{name}")
+
+    elif selected == "BULK EXAMS GENERATOR":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
+        paper_type = st.radio("Paper Type", ["Midterm", "End of Term", "Mock UNEB"])
+        if st.button("Generate 20 ITEMS Bulk", type="primary"):
+            bulk = generate_bulk_revision(s,l)
+            display_with_pdf(bulk, f"Bulk_{paper_type}_{s}_{l}")
+
+    elif selected == "Performance Analytics":
+        st.info("📊 Coming: Class average, Top 10 students, Weak topics analysis from usage_log.json")
+        logs = load_logs()
+        if logs: st.bar_chart([len(logs)])
+
+    elif selected == "Student Management":
+        st.info("👨‍🎓 Coming: Add/Remove students, Assign classes, View progress")
+
+    elif selected == "Question Bank Manager":
+        st.info("📚 Coming: Save generated tests to bank, Tag by topic, Reuse")
+
+    elif selected == "Curriculum Planner":
+        st.info("🗓️ Coming: Auto-generate Scheme of Work for whole term based on NCDC")
+
+    elif selected == "Attendance Tracker":
+        st.info("✅ Coming: Daily attendance, Export to Excel")
+
+    elif selected == "Fee Management":
+        st.info("💰 Coming: Track fees, Generate receipts")
+
+    elif selected == "Communication Hub":
+        st.info("📢 Coming: Send SMS/WhatsApp to parents")
+
+    elif selected == "Resource Library":
+        st.info("📁 Coming: Upload past papers, Marking guides")
+
+    elif selected == "Settings & Compliance":
+        st.info(f"⚙️ Support: {CONTACT}\nLegal: For NCDC use only")
 
 # ========== MAIN ROUTER ==========
 st.title("🎓 DIGITAL UNEB TUTOR 2026 - ALL NCDC SUBJECTS S1-S6")
