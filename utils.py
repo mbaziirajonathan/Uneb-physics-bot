@@ -1,45 +1,36 @@
 import streamlit as st
-import ai_core
-import utils
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import io
+from gtts import gTTS
+import base64
+from streamlit_mic_recorder import mic_recorder
 
-STUDENT_TABS = ["Smart Learn", "Practicals Lab", "Quiz & Test Prep"]
+def create_pdf(content, title):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(297.5, 800, title)
+    c.setFont("Helvetica", 10)
+    y = 770
+    for line in content.split('\n'):
+        c.drawString(40, y, line[:95])
+        y -= 15
+        if y < 50: c.showPage(); y = 770
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
 
-def show_student_portal():
-    st.header("📚 Student Portal - S1 to S6")
-    if st.button("Logout"):
-        for key in st.session_state.keys(): del st.session_state[key]
-        st.rerun()
+def display_with_pdf(content, title):
+    st.markdown(content)
+    pdf_bytes = create_pdf(content, title)
+    st.download_button("📥 Download PDF", pdf_bytes, f"{title}.pdf", "application/pdf")
 
-    tab1, tab2, tab3 = st.tabs(STUDENT_TABS)
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='en'); fp = io.BytesIO(); tts.write_to_fp(fp)
+    b64 = base64.b64encode(fp.getvalue()).decode()
+    st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
 
-    with tab1:
-        st.subheader("Smart Learn: Ask, Learn, Research")
-        uploaded_file = st.file_uploader("Upload notes/past paper for research", type=['txt','pdf','docx','jpg'])
-        file_context = f"\nContext from uploaded file: {uploaded_file.name}" if uploaded_file else ""
-
-        col1, col2 = st.columns([4,1])
-        with col1: query = st.text_area("Ask anything or paste questions")
-        with col2: utils.voice_input()
-
-        if st.button("Get Answer"):
-            if query:
-                full_prompt = query + file_context
-                result = ai_core.ask_smart_brain(full_prompt, "Student")
-                utils.display_with_pdf(result, "Smart Answer")
-                if st.checkbox("Listen"): utils.text_to_speech(result[:500])
-
-    with tab2:
-        st.subheader("Practicals Lab")
-        subject = st.selectbox("Subject", list(ai_core.UNEB_CURRICULUM_MAP.keys()))
-        topic = st.text_input("Topic for Practical")
-        if st.button("Generate Practical"):
-            result = ai_core.generate_practical(subject, topic)
-            utils.display_with_pdf(result, "Practical")
-
-    with tab3:
-        st.subheader("Quiz & Test Prep")
-        subject = st.selectbox("Subject Quiz", list(ai_core.UNEB_CURRICULUM_MAP.keys()), key="qsub")
-        topic = st.text_input("Topic for Quiz")
-        if st.button("Generate 10 Questions"):
-            result = ai_core.generate_exam_items(subject, topic, 10)
-            utils.display_with_pdf(result, "Quiz")
+def voice_input():
+    audio = mic_recorder(start_prompt="🎤 Speak", stop_prompt="⏹️ Stop", key="voice")
+    return audio
