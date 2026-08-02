@@ -13,13 +13,18 @@ TAB_NAMES = [
 
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal")
+    if st.button("Logout"):
+        for key in st.session_state.keys(): del st.session_state[key]
+        st.rerun()
+
     selected = option_menu(None, TAB_NAMES, menu_icon="cast", default_index=0, orientation="horizontal")
 
     if selected == "Admin Dashboard / RESULT ANALYZER":
         st.subheader("Dashboard")
         try:
             df = pd.read_json("usage_log.json")
-            st.metric("Total Activities", len(df)); st.metric("Flagged Attempts", df['flagged'].sum())
+            col1, col2 = st.columns(2)
+            col1.metric("Total Activities", len(df)); col2.metric("Flagged Attempts", df['flagged'].sum())
             st.dataframe(df.tail(20))
         except: st.info("No data yet")
 
@@ -41,7 +46,6 @@ def show_admin_portal():
         subject = st.selectbox("Subject Bulk", list(ai_core.UNEB_CURRICULUM_MAP.keys())); level = st.selectbox("Level", ["S1","S2","S3","S4","S5","S6"])
         if st.button("Generate 20 Questions"): utils.display_with_pdf(ai_core.generate_exam_items(subject, f"All {level} Topics", 20), "Bulk Exam")
 
-    else: # 9 PLACEHOLDERS
+    else:
         st.subheader(selected)
         st.info("🚀 Coming in v1.1 - This tool is reserved for future update")
-        st.code("# Logic to be added without breaking current system")
