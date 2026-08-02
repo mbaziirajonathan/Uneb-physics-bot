@@ -240,7 +240,7 @@ def show_admin_portal():
         paper_type = st.radio("Paper Type", ["Midterm", "End of Term", "Mock UNEB"])
         if st.button("Generate 20 ITEMS Bulk", type="primary"):
 
- # ========== ADMIN PORTAL - ALL 14 TABS WORKING ==========
+# ========== ADMIN PORTAL - ALL 14 TABS WORKING ==========
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
