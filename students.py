@@ -6,15 +6,21 @@ STUDENT_TABS = ["Smart Learn", "Practicals Lab", "Quiz & Test Prep"]
 
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6")
+    if st.button("Logout"):
+        for key in st.session_state.keys(): del st.session_state[key]
+        st.rerun()
+
     tab1, tab2, tab3 = st.tabs(STUDENT_TABS)
 
     with tab1:
         st.subheader("Smart Learn: Ask, Learn, Research")
         uploaded_file = st.file_uploader("Upload notes/past paper for research", type=['txt','pdf','docx','jpg'])
-        file_context = ""
-        if uploaded_file: file_context = f"\nContext from uploaded file: {uploaded_file.name}"
+        file_context = f"\nContext from uploaded file: {uploaded_file.name}" if uploaded_file else ""
 
-        query = st.text_area("Ask anything or paste questions")
+        col1, col2 = st.columns([4,1])
+        with col1: query = st.text_area("Ask anything or paste questions")
+        with col2: utils.voice_input()
+
         if st.button("Get Answer"):
             if query:
                 full_prompt = query + file_context
