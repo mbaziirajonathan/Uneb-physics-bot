@@ -239,37 +239,170 @@ def show_admin_portal():
         l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
         paper_type = st.radio("Paper Type", ["Midterm", "End of Term", "Mock UNEB"])
         if st.button("Generate 20 ITEMS Bulk", type="primary"):
+
+ # ========== ADMIN PORTAL - ALL 14 TABS WORKING ==========
+def show_admin_portal():
+    st.header("🏫 Admin/Teacher Portal")
+    if st.button("Logout"): st.session_state.clear(); st.rerun()
+
+    TAB_NAMES = [
+        "Admin Dashboard", "Test Paper Generator", "Lesson Plan + SOW",
+        "Single Report Card", "BULK EXAMS GENERATOR", "Performance Analytics",
+        "Student Management", "Question Bank Manager", "Curriculum Planner",
+        "Attendance Tracker", "Fee Management", "Communication Hub",
+        "Resource Library", "Settings & Compliance"
+    ]
+    selected = option_menu(None, TAB_NAMES, orientation="horizontal", styles={"nav-link": {"font-size": "11px"}})
+
+    logs = load_logs()
+    df_logs = pd.DataFrame(logs) if logs else pd.DataFrame()
+
+    # 1. DASHBOARD
+    if selected == "Admin Dashboard":
+        col1,col2,col3,col4 = st.columns(4)
+        col1.metric("Total Activities", len(logs))
+        col2.metric("Flagged Attempts", len([l for l in logs if l.get('flagged')]))
+        col3.metric("Students Active", len(df_logs[df_logs['user']=="Student"]) if not df_logs.empty else 0)
+        col4.metric("Teachers Active", len(df_logs[df_logs['user']=="Admin"]) if not df_logs.empty else 0)
+        st.subheader("Live Activity Feed"); st.dataframe(logs[-50:], use_container_width=True)
+
+    # 2. TEST GENERATOR
+    elif selected == "Test Paper Generator":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="test_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="test_level")
+        t = st.text_input("Topic or 'All Topics'")
+        n = st.slider("Number of Questions",5,50,20)
+        if st.button("Generate Test Paper", type="primary"):
+            display_with_pdf(generate_exam_items(f"Generate {n} UNEB ITEMS on {t}", s, l), f"Test_{s}_{l}")
+
+    # 3. LESSON PLAN
+    elif selected == "Lesson Plan + SOW":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="lp_level")
+        t = st.text_input("Topic")
+        d = st.number_input("Duration minutes",40,120,80)
+        scheme = st.checkbox("Also generate Scheme of Work")
+        if st.button("Generate Lesson Plan"):
+            lp = generate_lesson_plan(s,l,t,d)
+            if scheme:
+                topics = UNEB_CURRICULUM_MAP[s][l]
+                lp += f"\n\n### SCHEME OF WORK {l} {s}\n" + "\n".join([f"Week {i+1}: {topic}" for i, topic in enumerate(topics[:12])])
+            display_with_pdf(lp, f"LessonPlan_{t}")
+
+    # 4. REPORT CARD
+    elif selected == "Single Report Card":
+        name = st.text_input("Student Name")
+        term = st.selectbox("Term", ["Term 1", "Term 2", "Term 3"])
+        scores = {sub: st.number_input(sub,0,100) for sub in ["Mathematics","English","Physics","Chemistry","Biology","History"]}
+        if st.button("Generate Report Card"):
+            data = f"Name: {name}\nTerm: {term}\n" + "\n".join([f"{k}: {v}" for k,v in scores.items()])
+            rc = generate_report_card(data)
+            log_activity("Admin", "Report Generated", name)
+            display_with_pdf(rc, f"Report_{name}")
+
+    # 5. BULK EXAMS
+    elif selected == "BULK EXAMS GENERATOR":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
+        paper_type = st.radio("Paper Type", ["Midterm", "End of Term", "Mock UNEB"])
+        if st.button("Generate 20 ITEMS Bulk", type="primary"):
             bulk = generate_bulk_revision(s,l)
             display_with_pdf(bulk, f"Bulk_{paper_type}_{s}_{l}")
 
+    # 6. PERFORMANCE ANALYTICS - NOW WORKS
     elif selected == "Performance Analytics":
-        st.info("📊 Coming: Class average, Top 10 students, Weak topics analysis from usage_log.json")
-        logs = load_logs()
-        if logs: st.bar_chart([len(logs)])
+        st.subheader("📊 Class Performance")
+        if df_logs.empty: st.warning("No data yet. Students must use the app first.")
+        else:
+            df_logs['date'] = pd.to_datetime(df_logs['timestamp']).dt.date
+            daily = df_logs.groupby('date').size()
+            st.line_chart(daily)
+            st.write("**Most Asked Subjects:**")
+            st.bar_chart(df_logs['details'].str.split().str[0].value_counts().head(5))
 
+    # 7. STUDENT MANAGEMENT - NOW WORKS
     elif selected == "Student Management":
-        st.info("👨‍🎓 Coming: Add/Remove students, Assign classes, View progress")
+        st.subheader("👨‍🎓 Student Database")
+        if "students_db" not in st.session_state: st.session_state.students_db = []
+        name = st.text_input("Add Student Name")
+        cls = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        if st.button("Add Student"):
+            st.session_state.students_db.append({"name": name, "class": cls})
+            st.success(f"Added {name}")
+        st.dataframe(st.session_state.students_db)
 
+    # 8. QUESTION BANK - NOW WORKS
     elif selected == "Question Bank Manager":
-        st.info("📚 Coming: Save generated tests to bank, Tag by topic, Reuse")
+        st.subheader("📚 Save Generated Questions")
+        if "qbank" not in st.session_state: st.session_state.qbank = []
+        topic = st.text_input("Tag Topic")
+        question = st.text_area("Paste Generated Question")
+        if st.button("Save to Bank"):
+            st.session_state.qbank.append({"topic": topic, "q": question})
+            st.success("Saved")
+        st.dataframe(st.session_state.qbank)
 
+    # 9. CURRICULUM PLANNER - NOW WORKS
     elif selected == "Curriculum Planner":
-        st.info("🗓️ Coming: Auto-generate Scheme of Work for whole term based on NCDC")
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        weeks = st.slider("Weeks in Term", 8, 13, 12)
+        if st.button("Generate Scheme of Work"):
+            topics = UNEB_CURRICULUM_MAP[s][l]
+            sow = f"### SCHEME OF WORK: {l} {s}\n"
+            for i in range(weeks):
+                topic = topics[i % len(topics)]
+                sow += f"Week {i+1}: {topic} - Objectives, Activities, Assessment\n"
+            display_with_pdf(sow, f"SOW_{s}_{l}")
 
+    # 10. ATTENDANCE - NOW WORKS
     elif selected == "Attendance Tracker":
-        st.info("✅ Coming: Daily attendance, Export to Excel")
+        st.subheader("✅ Daily Attendance")
+        if "attendance" not in st.session_state: st.session_state.attendance = {}
+        date = st.date_input("Date")
+        for stu in st.session_state.get("students_db", [{"name":"Demo Student"}]):
+            present = st.checkbox(stu["name"], key=stu["name"])
+            st.session_state.attendance[stu["name"]] = present
+        if st.button("Save Attendance"):
+            log_activity("Admin", "Attendance", f"{date}: {st.session_state.attendance}")
+            st.success("Saved")
 
+    # 11. FEE MANAGEMENT - NOW WORKS
     elif selected == "Fee Management":
-        st.info("💰 Coming: Track fees, Generate receipts")
+        st.subheader("💰 Fee Tracker")
+        if "fees" not in st.session_state: st.session_state.fees = []
+        name = st.text_input("Student Name Fee")
+        amount = st.number_input("Amount UGX", 0)
+        if st.button("Record Payment"):
+            st.session_state.fees.append({"name": name, "amount": amount, "date": str(datetime.now().date())})
+            st.success("Recorded")
+        st.dataframe(st.session_state.fees)
 
+    # 12. COMMUNICATION HUB - NOW WORKS
     elif selected == "Communication Hub":
-        st.info("📢 Coming: Send SMS/WhatsApp to parents")
+        st.subheader("📢 Send Message to Parents")
+        msg = st.text_area("Message")
+        recipients = st.multiselect("To", [s["name"] for s in st.session_state.get("students_db",[])])
+        if st.button("Log Message"):
+            log_activity("Admin", "Message Sent", f"To: {recipients} - {msg[:30]}")
+            st.success(f"Message logged for {len(recipients)} parents. Connect Twilio/WhatsApp API to send for real.")
 
+    # 13. RESOURCE LIBRARY - NOW WORKS
     elif selected == "Resource Library":
-        st.info("📁 Coming: Upload past papers, Marking guides")
+        st.subheader("📁 Upload Resources")
+        uploaded = st.file_uploader("Upload Past Paper PDF", type=['pdf','docx','txt'])
+        if uploaded and st.button("Save Resource"):
+            with open(f"/tmp/{uploaded.name}", "wb") as f: f.write(uploaded.getbuffer())
+            st.success(f"Saved {uploaded.name}. Download below.")
+            st.download_button("Download", uploaded, uploaded.name)
 
+    # 14. SETTINGS
     elif selected == "Settings & Compliance":
-        st.info(f"⚙️ Support: {CONTACT}\nLegal: For NCDC use only")
+        st.subheader("⚙️ System Settings")
+        st.info(f"Support: {CONTACT}")
+        st.warning("Legal: For NCDC learning only. Not for live exams.")
+        if st.button("Clear All Logs"):
+            open(LOG_FILE,"w").write("[]"); st.success("Logs Cleared")           
 
 # ========== MAIN ROUTER ==========
 st.title("🎓 DIGITAL UNEB TUTOR 2026 - ALL NCDC SUBJECTS S1-S6")
