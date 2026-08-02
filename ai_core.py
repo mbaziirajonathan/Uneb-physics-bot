@@ -4,10 +4,8 @@ import os
 import json
 import pandas as pd
 from datetime import datetime
-import io
 
-# ========== CONFIG ==========
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 client = Groq(api_key=GROQ_API_KEY)
 
 SMART_SYSTEM = """You are DIGITAL UNEB TUTOR 2026, a Ugandan S1-S6 AI tutor.
@@ -27,15 +25,10 @@ UNEB_CURRICULUM_MAP = {
     "History": {"S1": ["Ancient"], "S2": ["Colonialism"], "S3": ["WW1"], "S4": ["Post Independence"]}
 }
 
-# ========== ANTI-CHEAT ==========
 CHEAT_KEYWORDS = ["exam now", "live exam", "during test", "help me cheat", "give me answers for this test"]
 def check_cheating(query):
-    for word in CHEAT_KEYWORDS:
-        if word in query.lower():
-            return True
-    return False
+    return any(word in query.lower() for word in CHEAT_KEYWORDS)
 
-# ========== LOGGING ==========
 def log_activity(user_type, action, details, flagged=False):
     log_entry = {"timestamp": datetime.now().isoformat(), "user_type": user_type, "action": action, "details": details, "flagged": flagged}
     try:
@@ -46,7 +39,6 @@ def log_activity(user_type, action, details, flagged=False):
         with open("usage_log.json", "w") as f: json.dump(logs, f)
     except: pass
 
-# ========== CORE AI FUNCTIONS - COPIED FROM YOUR APP.PY ==========
 def ask_smart_brain(prompt, user_type="Student"):
     flagged = check_cheating(prompt)
     if flagged:
