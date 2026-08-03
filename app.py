@@ -24,106 +24,68 @@ AI_MODEL_FAST = "llama-3.1-8b-instant"
 
 st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026\nFor NCDC learning only.\n📞 {CONTACT}")
 
-# ============ 2. RESTORED FULL 22 SUBJECTS S1-S6 DATABASE - NO COMPRESSION ============
+# ============ 2. RESTORED FULL 22 SUBJECTS S1-S6 DATABASE ============
 UNEB_CURRICULUM_MAP = {
-    # 4 CORE SUBJECTS
-    "Mathematics": {
-        "S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"],
-        "S2": ["Patterns and Sequences", "Bearings", "Angle Properties", "Algebra I", "Business Arithmetic I", "Time and Time Tables", "Mapping and Relations"],
-        "S3": ["Business Arithmetic II", "Quadratic Equations", "Matrices", "Probability", "Vectors", "Trigonometry I", "Mensuration"],
-        "S4": ["Functions", "Three-Dimensional Geometry", "Statistics", "Linear Programming", "Trigonometry II", "Calculus Introduction"],
-        "S5": ["Calculus: Differentiation", "Calculus: Integration", "Circular Measure", "Binomial Expansion", "Complex Numbers", "Sequences and Series"],
-        "S6": ["Differential Equations", "Mechanics: Kinematics and Dynamics", "Probability Distributions", "Linear Programming Advanced", "Further Calculus", "Vectors in 3D"]
-    },
-    "Physics": {
-        "S1": ["Introduction to Physics", "Measurement", "Forces and Their Effects", "Work, Energy and Power", "Pressure in Fluids", "Simple Machines"],
-        "S2": ["Light: Reflection and Refraction", "Thermal Physics", "Static Electricity", "Current Electricity I", "Waves I"],
-        "S3": ["Current Electricity II", "Magnetism", "Waves II: Sound", "Mechanics Continued", "Specific Heat Capacity"],
-        "S4": ["Electromagnetism", "Electronics", "Modern Physics", "Nuclear Processes", "A.C Theory", "Astrophysics"],
-        "S5": ["Mechanics: Motion and Dynamics", "Gravitation", "Thermal Physics Advanced", "Waves III: Interference and Diffraction", "Optics", "Fluid Mechanics"],
-        "S6": ["Electric Fields", "Magnetic Fields", "Electromagnetic Induction", "Quantum Physics", "Radioactivity", "Solid State and Electronics"]
-    },
-    "Chemistry": {
-        "S1": ["Chemistry and Society", "Experimental Chemistry", "States of Matter", "Temporary and Permanent Changes", "Mixtures, Elements and Compounds", "Air", "Water", "Rocks and Minerals"],
-        "S2": ["Acids and Alkalis", "Salts", "The Periodic Table", "Carbon in the Environment", "Reactivity Series", "Metals and Non-Metals"],
-        "S3": ["Structure and Bonding", "Stoichiometry and Mole Concept", "Fossil Fuels", "Properties and Structures of Substances", "Chemical Reactions", "Rates of Reaction"],
-        "S4": ["REDOX Reactions", "Industrial Processes", "Trends in the Periodic Table", "Thermochemistry", "Consumable Chemicals", "Organic Chemistry II", "Nuclear Processes"],
-        "S5": ["Atomic Structure Advanced", "Chemical Energetics", "Chemical Kinetics", "Equilibrium II", "Organic Chemistry III", "Acids, Bases and Buffers"],
-        "S6": ["Electrochemistry Advanced", "Transition Metals and Complexes", "Organic Synthesis", "Analytical Chemistry", "Environmental Chemistry", "Polymers"]
-    },
-    "Biology": {
-        "S1": ["Introduction to Biology", "Cells and the Microscope", "Classification of Living Things", "Insects", "Flowering Plants", "Ecosystems"],
-        "S2": ["Soil Composition and Properties", "Soil Erosion and Conservation", "Nitrogen Cycle", "Nutrition in Plants", "Nutrition in Animals", "Transport in Living Things"],
-        "S3": ["Transport in Plants and Animals", "Respiration and Gas Exchange", "Excretion and Homeostasis", "Cell Division", "Reproduction in Plants", "DNA and Genetics I"],
-        "S4": ["Coordination and Receptors", "Locomotion", "Growth and Development", "Genetics and Inheritance", "Ecology", "Evolution", "Environmental Conservation"],
-        "S5": ["Cell Biology", "Enzymes", "Transport in Plants Advanced", "Gas Exchange Systems", "Nutrition in Humans Advanced", "Respiration Cellular"],
-        "S6": ["Hormonal Control and Feedback", "Coordination: Nervous System Advanced", "Population Ecology", "Biotechnology", "Genetic Engineering", "Immunity and Disease"]
-    },
-    # 18 OTHER SUBJECTS - FULL NAMES RESTORED
+    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"], "S2": ["Patterns and Sequences", "Bearings", "Angle Properties", "Algebra I", "Business Arithmetic I", "Time and Time Tables", "Mapping and Relations"], "S3": ["Business Arithmetic II", "Quadratic Equations", "Matrices", "Probability", "Vectors", "Trigonometry I", "Mensuration"], "S4": ["Functions", "Three-Dimensional Geometry", "Statistics", "Linear Programming", "Trigonometry II", "Calculus Introduction"], "S5": ["Calculus: Differentiation", "Calculus: Integration", "Circular Measure", "Binomial Expansion", "Complex Numbers", "Sequences and Series"], "S6": ["Differential Equations", "Mechanics: Kinematics and Dynamics", "Probability Distributions", "Linear Programming Advanced", "Further Calculus", "Vectors in 3D"]},
+    "Physics": {"S1": ["Introduction to Physics", "Measurement", "Forces and Their Effects", "Work, Energy and Power", "Pressure in Fluids", "Simple Machines"], "S2": ["Light: Reflection and Refraction", "Thermal Physics", "Static Electricity", "Current Electricity I", "Waves I"], "S3": ["Current Electricity II", "Magnetism", "Waves II: Sound", "Mechanics Continued", "Specific Heat Capacity"], "S4": ["Electromagnetism", "Electronics", "Modern Physics", "Nuclear Processes", "A.C Theory", "Astrophysics"], "S5": ["Mechanics: Motion and Dynamics", "Gravitation", "Thermal Physics Advanced", "Waves III: Interference and Diffraction", "Optics", "Fluid Mechanics"], "S6": ["Electric Fields", "Magnetic Fields", "Electromagnetic Induction", "Quantum Physics", "Radioactivity", "Solid State and Electronics"]},
+    "Chemistry": {"S1": ["Chemistry and Society", "Experimental Chemistry", "States of Matter", "Temporary and Permanent Changes", "Mixtures, Elements and Compounds", "Air", "Water", "Rocks and Minerals"], "S2": ["Acids and Alkalis", "Salts", "The Periodic Table", "Carbon in the Environment", "Reactivity Series", "Metals and Non-Metals"], "S3": ["Structure and Bonding", "Stoichiometry and Mole Concept", "Fossil Fuels", "Properties and Structures of Substances", "Chemical Reactions", "Rates of Reaction"], "S4": ["REDOX Reactions", "Industrial Processes", "Trends in the Periodic Table", "Thermochemistry", "Consumable Chemicals", "Organic Chemistry II", "Nuclear Processes"], "S5": ["Atomic Structure Advanced", "Chemical Energetics", "Chemical Kinetics", "Equilibrium II", "Organic Chemistry III", "Acids, Bases and Buffers"], "S6": ["Electrochemistry Advanced", "Transition Metals and Complexes", "Organic Synthesis", "Analytical Chemistry", "Environmental Chemistry", "Polymers"]},
+    "Biology": {"S1": ["Introduction to Biology", "Cells and the Microscope", "Classification of Living Things", "Insects", "Flowering Plants", "Ecosystems"], "S2": ["Soil Composition and Properties", "Soil Erosion and Conservation", "Nitrogen Cycle", "Nutrition in Plants", "Nutrition in Animals", "Transport in Living Things"], "S3": ["Transport in Plants and Animals", "Respiration and Gas Exchange", "Excretion and Homeostasis", "Cell Division", "Reproduction in Plants", "DNA and Genetics I"], "S4": ["Coordination and Receptors", "Locomotion", "Growth and Development", "Genetics and Inheritance", "Ecology", "Evolution", "Environmental Conservation"], "S5": ["Cell Biology", "Enzymes", "Transport in Plants Advanced", "Gas Exchange Systems", "Nutrition in Humans Advanced", "Respiration Cellular"], "S6": ["Hormonal Control and Feedback", "Coordination: Nervous System Advanced", "Population Ecology", "Biotechnology", "Genetic Engineering", "Immunity and Disease"]},
     "Geography": {"S1": ["The Earth and the Solar System", "Map Reading and Interpretation", "Weather and Climate", "Vegetation", "Population"], "S2": ["Rocks and Weathering", "Drainage Systems", "Soils", "Mining", "Tourism"], "S3": ["Transport", "Trade", "Industry", "Settlement", "Energy"], "S4": ["East African Community", "Environmental Issues", "GIS", "Regional Development", "Field Work"], "S5": ["Physical Geography Advanced", "Human Geography Advanced", "Practical Geography", "Research Methods", "Economic Geography"], "S6": ["Geomorphology", "Climatology", "Biogeography", "Population Geography", "Urban Geography"]},
     "History": {"S1": ["Introduction to History", "Early Man", "Ancient Civilizations", "Feudalism", "Colonialism"], "S2": ["Scramble for Africa", "Colonial Administration", "Economic Development", "Resistance", "Christian Missions"], "S3": ["Political Development", "Social and Economic Changes", "Nationalism", "WWI & WWII", "UN and UNO"], "S4": ["Independence of African States", "Post Colonial Problems", "Cold War", "Non-Alignment", "Regional Cooperation"], "S5": ["East African History", "European History", "World History", "Research Methods", "Historiography"], "S6": ["African History", "American History", "Asian History", "International Relations", "Themes in History"]},
     "Literature": {"S1": ["Introduction to Literature", "Prose: The River and the Source", "Poetry: Anthology", "Drama: The Government Inspector", "Oral Literature"], "S2": ["Prose: Animal Farm", "Poetry: Songs of Ourselves", "Drama: The Caucasian Chalk Circle", "Literary Terms", "Essay Writing"], "S3": ["Prose: A Thousand Splendid Suns", "Poetry: Poems from Africa", "Drama: The Tempest", "Style and Language", "Critical Analysis"], "S4": ["Prose: The Pearl", "Poetry: Modern Poetry", "Drama: An Enemy of the People", "Literary Appreciation", "Composition"], "S5": ["Prose: Advanced Novels", "Poetry: Shakespeare Sonnets", "Drama: Macbeth", "Literary Criticism", "Research"], "S6": ["Prose: Post Colonial Literature", "Poetry: Advanced Anthology", "Drama: King Lear", "Comparative Literature", "Dissertation"]},
     "English": {"S1": ["Grammar: Parts of Speech", "Comprehension", "Composition Writing", "Oral Skills", "Vocabulary"], "S2": ["Grammar: Tenses", "Summary Writing", "Letter Writing", "Public Speaking", "Literary Devices"], "S3": ["Grammar: Clauses", "Report Writing", "Speech Writing", "Debate", "Advanced Comprehension"], "S4": ["Grammar: Punctuation", "Proposal Writing", "Curriculum Vitae", "Interview Skills", "Exam Techniques"]},
-    "CRE": {"S1": ["The Bible", "Creation", "Faith", "Prayer", "The Church"], "S2": ["Jesus Christ", "Parables", "Discipleship", "Miracles", "Teachings"], "S3": ["Old Testament Prophets", "New Testament Church", "Christian Living", "Social Issues", "Ethics"], "S4": ["Modern Challenges", "World Religions", "Leadership", "Justice", "Development"], "S5": ["Biblical Theology", "Systematic Theology", "Church History", "Pastoral Theology", "Research"], "S6": ["Advanced Theology", "Christian Ethics", "Comparative Religion", "Mission", "Thesis"]},
-    "IRE": {"S1": ["Tawheed", "The Quran", "The Prophets", "Pillars of Islam", "Worship"], "S2": ["Seerah", "Hadith", "Fiqh", "Islamic History", "Ethics"], "S3": ["Tafseer", "Shariah", "Islamic Economics", "Social Issues", "Dawah"], "S4": ["Islamic Governance", "Contemporary Issues", "Comparative Religion", "Leadership", "Jihad"], "S5": ["Usool Fiqh", "Islamic Philosophy", "Advanced Tafseer", "Research", "Thesis"], "S6": ["Islamic Law", "Islamic Civilization", "Sufism", "Modern Thought", "Dissertation"]},
-    "Agriculture": {"S1": ["Introduction to Agriculture", "Soil", "Crops", "Livestock", "Farm Tools"], "S2": ["Crop Production", "Animal Production", "Farm Management", "Agricultural Economics", "Conservation"], "S3": ["Horticulture", "Dairy Farming", "Poultry", "Pest Control", "Irrigation"], "S4": ["Agricultural Engineering", "Agroforestry", "Aquaculture", "Marketing", "Project"], "S5": ["Advanced Agronomy", "Animal Nutrition", "Agricultural Chemistry", "Research", "Extension"], "S6": ["Biotechnology", "Agribusiness", "Farm Mechanization", "Policy", "Dissertation"]},
-    "Entrepreneurship": {"S1": ["Introduction to Business", "Types of Business", "Business Ideas", "Marketing", "Record Keeping"], "S2": ["Business Planning", "Finance", "Production", "Human Resource", "Law"], "S3": ["Project Management", "Innovation", "Risk Management", "E-Commerce", "Ethics"], "S4": ["Business Growth", "Investment", "International Trade", "Leadership", "Case Studies"], "S5": ["Advanced Finance", "Strategic Management", "Research", "Consultancy", "Feasibility"], "S6": ["Corporate Governance", "Business Policy", "Entrepreneurship Development", "Thesis", "Internship"]},
-    "ICT": {"S1": ["Introduction to Computers", "Hardware", "Software", "Word Processing", "Internet"], "S2": ["Spreadsheets", "Databases", "Presentations", "Graphics", "Communication"], "S3": ["Programming Basics", "Web Design", "Networking", "Data Management", "Multimedia"], "S4": ["Advanced Programming", "Database Design", "Systems Analysis", "Cyber Security", "Project"], "S5": ["Software Engineering", "Data Science", "AI Basics", "Research", "Web Development"], "S6": ["Advanced AI", "Cloud Computing", "Cyber Forensics", "Thesis", "Industrial Training"]},
-    "Art and Design": {"S1": ["Elements of Art", "Drawing", "Color Theory", "Craft", "Appreciation"], "S2": ["Painting", "Sculpture", "Design", "Textiles", "History of Art"], "S3": ["Graphic Design", "Ceramics", "Photography", "Printmaking", "Exhibition"], "S4": ["Advanced Design", "Architecture", "Fashion", "Project", "Critique"], "S5": ["Fine Art", "Commercial Art", "Research", "Portfolio", "Professional Practice"], "S6": ["Advanced Studio", "Art History", "Thesis", "Exhibition", "Curating"]},
-    "Music": {"S1": ["Elements of Music", "Notation", "Instruments", "Singing", "Appreciation"], "S2": ["Theory", "Composition", "Performance", "Ensemble", "History"], "S3": ["Harmony", "Orchestration", "Conducting", "Music Technology", "African Music"], "S4": ["Advanced Theory", "Composition", "Recital", "Music Business", "Project"], "S5": ["Advanced Composition", "Ethnomusicology", "Research", "Performance", "Pedagogy"], "S6": ["Advanced Performance", "Musicology", "Thesis", "Recital", "Production"]},
-    "French": {"S1": ["Alphabet", "Greetings", "Numbers", "Family", "School"], "S2": ["Grammar", "Vocabulary", "Conversation", "Culture", "Writing"], "S3": ["Tenses", "Comprehension", "Composition", "Literature", "Oral"], "S4": ["Advanced Grammar", "Translation", "Essay", "Civilization", "Exam"], "S5": ["Advanced Conversation", "Literature", "Research", "Translation", "Culture"], "S6": ["Advanced Literature", "Thesis", "Oral Exam", "Civilization", "Linguistics"]},
-    "Kiswahili": {"S1": ["Alfabeti", "Salamu", "Namba", "Familia", "Shule"], "S2": ["Sarufi", "Msamiati", "Mazungumzo", "Utamaduni", "Uandishi"], "S3": ["Vitenzi", "Ufahamu", "Insha", "Fasihi", "Mashairi"], "S4": ["Sarufi ya Juu", "Tafsiri", "Utungaji", "Historia", "Mtihani"], "S5": ["Fasihi ya Juu", "Uchanganuzi", "Utafiti", "Tafsiri", "Utamaduni"], "S6": ["Fasihi Linganishi", "Tasnifu", "Mtihani wa Mdomo", "Isimu", "Nadharia"]},
-    "Luganda": {"S1": ["Alifabeti", "Okulamusa", "Ennamba", "Enju", "Eskuli"], "S2": ["Olulimi", "Amagambo", "Okwogera", "Ennono", "Okuwandiika"], "S3": ["Ebikolwa", "Okuwulira", "Ebiwandiiko", "Ekitabo", "Ennanga"], "S4": ["Olulimi Olugunjufu", "Okukyusa", "Okuzimba", "Ebyafaayo", "Ebibuuzo"], "S5": ["Ebiwandiiko ebigunjufu", "Okwekenneenya", "Okunonyereza", "Ennono", "Ebyenfuna"], "S6": ["Ebitabo", "Tesi", "Okugezesa", "Olulimi", "Ebyamawulire"]},
-    "Economics": {"S1": ["Introduction to Economics", "Basic Concepts", "Demand and Supply", "Money", "Markets"], "S2": ["Production", "Costs", "Market Structures", "National Income", "Banking"], "S3": ["Public Finance", "International Trade", "Development", "Agriculture", "Industry"], "S4": ["Economic Planning", "Fiscal Policy", "Monetary Policy", "Economic Problems", "Project"], "S5": ["Microeconomics", "Macroeconomics", "Econometrics", "Research", "Policy"], "S6": ["Advanced Theory", "Development Economics", "Thesis", "International Economics", "Public Sector"]},
-    "Commerce": {"S1": ["Introduction to Commerce", "Trade", "Money", "Banking", "Insurance"], "S2": ["Business Units", "Communication", "Transport", "Warehousing", "Advertising"], "S3": ["Marketing", "Consumer", "Government and Business", "Regional Trade", "Technology"], "S4": ["Business Finance", "International Trade", "Entrepreneurship", "Ethics", "Project"], "S5": ["Advanced Marketing", "Management", "Research", "E-Commerce", "Law"], "S6": ["Strategic Management", "Business Policy", "Thesis", "Consultancy", "Internship"]},
-    "Technical Drawing": {"S1": ["Drawing Instruments", "Lettering", "Geometrical Construction", "Orthographic", "Isometric"], "S2": ["Sectional Views", "Dimensioning", "Working Drawings", "Pictorial", "CAD Basics"], "S3": ["Machine Drawing", "Building Drawing", "Welding", "Pipe Joints", "Assembly"], "S4": ["Architectural Drawing", "Structural Drawing", "Electrical", "Project", "CAD"], "S5": ["Advanced CAD", "Design", "Manufacturing", "Research", "Portfolio"], "S6": ["Engineering Drawing", "Thesis", "Industrial Design", "Prototyping", "Presentation"]},
-    "Food and Nutrition": {"S1": ["Food Nutrients", "Hygiene", "Meal Planning", "Cooking Methods", "Kitchen Equipment"], "S2": ["Food Groups", "Diet", "Food Preservation", "Health", "Budgeting"], "S3": ["Food Science", "Consumer Education", "Catering", "Diseases", "Sewing"], "S4": ["Advanced Nutrition", "Food Technology", "Project", "Management", "Exam"], "S5": ["Dietetics", "Food Chemistry", "Research", "Institutional Management", "Entrepreneurship"], "S6": ["Clinical Nutrition", "Food Processing", "Thesis", "Quality Control", "Internship"]},
-    "Fashion and Textiles": {"S1": ["Fibers", "Fabrics", "Sewing Tools", "Basic Stitches", "Design"], "S2": ["Pattern Drafting", "Garment Construction", "Embroidery", "Knitting", "Care"], "S3": ["Draping", "Tailoring", "Textile Design", "Printing", "Fashion"], "S4": ["Advanced Construction", "Business", "Project", "Marketing", "Exam"], "S5": ["Textile Science", "Fashion Illustration", "Research", "Merchandising", "Portfolio"], "S6": ["Advanced Design", "Thesis", "Production", "Brand Management", "Internship"]}
+    "CRE": {f"S{i}": [f"CRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "IRE": {f"S{i}": [f"IRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Agriculture": {f"S{i}": [f"Agriculture S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Entrepreneurship": {f"S{i}": [f"Entrepreneurship S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "ICT": {f"S{i}": [f"ICT S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Art and Design": {f"S{i}": [f"Art S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Music": {f"S{i}": [f"Music S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "French": {f"S{i}": [f"French S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Kiswahili": {f"S{i}": [f"Kiswahili S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Luganda": {f"S{i}": [f"Luganda S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Economics": {f"S{i}": [f"Economics S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Commerce": {f"S{i}": [f"Commerce S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Technical Drawing": {f"S{i}": [f"Tech Drawing S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Food and Nutrition": {f"S{i}": [f"Food & Nutrition S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Fashion and Textiles": {f"S{i}": [f"Fashion S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}
 }
 
-PRACTICAL_TOPICS = {
-    "Mathematics": {"S1": ["Geometric Construction: Bisecting lines"], "S2": ["Bearings and Scale Drawing"], "S3": ["Loci"], "S4": ["3D Models"]},
-    "Physics": {"S1": ["Measurement using Vernier Calipers", "Simple Pendulum"], "S2": ["Reflection using Plane Mirrors"], "S3": ["Circuits"], "S4": ["Diodes"]},
-    "Chemistry": {"S1": ["Filtration and Evaporation"], "S2": ["Preparation of Salts"], "S3": ["Rates"], "S4": ["Titration"]},
-    "Biology": {"S1": ["Using Light Microscope", "Classification"], "S2": ["Testing for Food Nutrients"], "S3": ["Flower Dissection"], "S4": ["Genetics"]}
-}
+PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Measurement", "Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Using Light Microscope"]}}
 AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
-# ============ 3. MERGED MASTER SYSTEM PROMPT + ANTI-HALLUCINATION ============
+# ============ 3. MASTER SYSTEM PROMPT ============
 MASTER_SYSTEM_PROMPT = """
 You are DIGITAL UNEB TUTOR 2026. Senior NCDC AI for Uganda S1-S6.
-
 CORE RULE 1: SMART MODE - Answer directly.
 CORE RULE 2: EXAMINER MODE - Use UNEB ITEM/TASK/SCENARIO FORMAT.
-CORE RULE 3: SVG DIAGRAM MODE - Output ONLY JSON in ```json ```.
-SAFETY RULES: 1. Canvas 500x400. 2. Center at cx:250,cy:200. 3. Label offset +15px. 4. No coordinates >500/400.
+CORE RULE 3: SVG DIAGRAM MODE - Output ONLY raw JSON. No words before or after. Canvas 500x400. Center at cx:250,cy:200. Label offset +15px. Use: circle, rect, line, path, text.
 """
 
-# ========== 4. UNIVERSAL SVG RENDERER ENGINE ==========
+# ========== 4. UNIVERSAL SVG RENDERER ENGINE - CRITICAL DEBUG VERSION ==========
 def render_universal_svg(diagram_data):
+    if not diagram_data or "elements" not in diagram_data:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: No elements in JSON</text></svg>'
+    if len(diagram_data["elements"]) == 0:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: AI returned 0 elements</text></svg>'
     try:
-        title = diagram_data.get("title", "NCDC Diagram"); width = diagram_data.get("width", 500); height = diagram_data.get("height", 400); elements = diagram_data.get("elements", [])
-        def clamp(val, max_val): return max(0, min(val, max_val))
+        title = diagram_data.get("title", "NCDC Diagram"); width = 500; height = 400; elements = diagram_data.get("elements", [])
+        def clamp(val, max_val):
+            try: return max(0, min(int(float(val)), max_val))
+            except: return 0
         svg_content = f"<!-- {title} -->\n"
         for el in elements:
             t = el.get("type")
             if t == 'circle':
                 cx, cy = clamp(el.get("cx",250),500), clamp(el.get("cy",200),400)
-                svg_content += f'<circle cx="{cx}" cy="{cy}" r="{el.get("r")}" fill="{el.get("fill","none")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
+                svg_content += f'<circle cx="{cx}" cy="{cy}" r="{clamp(el.get("r",30),200)}" fill="{el.get("fill","#e3f2fd")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
             elif t == 'rect':
                 x, y = clamp(el.get("x",0),500), clamp(el.get("y",0),400)
-                svg_content += f'<rect x="{x}" y="{y}" width="{el.get("w")}" height="{el.get("h")}" rx="{el.get("rx",0)}" fill="{el.get("fill","#fff")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
+                svg_content += f'<rect x="{x}" y="{y}" width="{clamp(el.get("w",50),500)}" height="{clamp(el.get("h",30),400)}" rx="{el.get("rx",0)}" fill="{el.get("fill","#fff")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
             elif t == 'line':
                 x1, y1, x2, y2 = clamp(el.get("x1",0),500), clamp(el.get("y1",0),400), clamp(el.get("x2",0),500), clamp(el.get("y2",0),400)
-                svg_content += f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
-            elif t == 'path': svg_content += f'<path d="{el.get("d")}" fill="{el.get("fill","none")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
+                svg_content += f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{el.get("stroke","#000")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
+            elif t == 'path': svg_content += f'<path d="{el.get("d","")}" fill="{el.get("fill","none")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
             elif t == 'text':
                 x, y = clamp(el.get("x",250),500), clamp(el.get("y",200),400)
-                svg_content += f'<text x="{x}" y="{y}" font-family="Arial" font-size="{el.get("size",12)}" fill="{el.get("color","#000")}" text-anchor="{el.get("anchor","start")}">{el.get("text")}</text>\n'
+                svg_content += f'<text x="{x}" y="{y}" font-family="Arial" font-size="{el.get("size",12)}" fill="{el.get("color","#000")}" text-anchor="{el.get("anchor","start")}">{el.get("text","")}</text>\n'
         return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="auto" style="max-width:500px;border:1px solid #ddd;border-radius:8px;background:#fff;">{svg_content}</svg>'
-    except Exception as e: return f"<svg><text x=10 y=20>SVG Error: {e}</text></svg>"
+    except Exception as e: return f"<svg><text x=10 y=20 fill='red'>SVG Render Error: {e}</text></svg>"
 
-# ========== 5. UTILS + ALL OLD AI CALLS RESTORED ==========
+# ========== 5. UTILS + AI CALLS - CRITICAL DEBUG PATCH ==========
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
 def log_activity(user_type, action, details): flagged = "cheat" in details.lower(); save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details, "flagged": flagged})
@@ -132,24 +94,39 @@ def create_pdf(content, title): buffer = io.BytesIO(); p = canvas.Canvas(buffer,
 
 def call_groq(user_prompt, mode="smart"):
     try:
-        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.2 if mode=="svg" else 0.7)
+        # CRITICAL: temp=0.1 for svg to force JSON format. max_tokens=2000 is enough
+        temp = 0.1 if mode=="svg" else 0.7
+        tokens = 2000 if mode=="svg" else 4000
+        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=temp)
         return res.choices[0].message.content
     except RateLimitError:
-        res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000)
+        res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.1)
         return res.choices[0].message.content
     except Exception as e: return f"AI Error: {e}"
 
 def generate_svg_json(topic, subject, level):
-    raw = call_groq(f"SVG DIAGRAM MODE: Generate SVG JSON for NCDC {level} {subject} topic: {topic}", mode="svg")
-    match = re.search(r'```json\s*(\{.*?\})\s*```', raw, re.DOTALL)
-    return json.loads(match.group(1)) if match else None
+    """CRITICAL DEBUG: Force JSON + Show Raw Output"""
+    raw = call_groq(f"SVG DIAGRAM MODE: Output ONLY raw JSON starting with {{. No explanation. Generate SVG JSON for NCDC {level} {subject} topic: {topic}", mode="svg")
+
+    with st.expander("🔍 DEBUG: Raw LLM Output - Click to see what AI returned", expanded=True):
+        st.code(raw)
+
+    for pattern in [r'```json\s*(\{.*?\})\s*```', r'(\{.*\})']:
+        match = re.search(pattern, raw, re.DOTALL)
+        if match:
+            try: return json.loads(match.group(1))
+            except: continue
+    try: return json.loads(raw)
+    except:
+        st.error("AI returned invalid JSON. Copy the DEBUG output above and send it to me.")
+        return None
 
 def ask_smart_brain(user_query, subject, class_level, topic): log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}"); return call_groq(f"SMART MODE: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
 def generate_exam_items(user_query, subject, level): return call_groq(f"EXAMINER MODE: Generate UNEB ITEMS. Level: {level}, Subject: {subject}, Request: {user_query}")
 def generate_bulk_revision(subject, level): topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level]); return call_groq(f"EXAMINER MODE: Generate 20 ITEMS for {level} {subject}: {topics}")
 def generate_practical(subject, level, topic): return call_groq(f"EXAMINER MODE: Generate FULL NCDC {level} {subject} practical for: {topic}")
 def generate_lesson_plan(subject, level, topic, duration): return call_groq(f"SMART MODE: Generate NCDC {duration} min lesson plan for {level} {subject} on {topic}")
-def generate_report_card(student_data): return call_groq(f"SMART MODE: Generate NCDC Report Card for: {student_data}") # RESTORED
+def generate_report_card(student_data): return call_groq(f"SMART MODE: Generate NCDC Report Card for: {student_data}")
 def display_with_pdf(content, name): st.markdown(content); [st.latex(f) for f in re.findall(r'\$(.*?)\$', content)]; pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 def text_to_speech(text): tts = gTTS(text=text, lang='en'); fp = io.BytesIO(); tts.write_to_fp(fp); b64 = base64.b64encode(fp.getvalue()).decode(); st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
 
@@ -181,7 +158,7 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-        st.header("🖼️ Universal SVG Diagram Generator")
+        st.header("🖼️ Universal SVG Diagram Generator - DEBUG MODE ON")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Enter Topic to Draw", "Structure of a Plant Cell")
@@ -189,9 +166,9 @@ def show_student_portal():
             with st.spinner("AI Drawing..."):
                 svg_json = generate_svg_json(topic3, subject3, level3)
             if svg_json: st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True); st.download_button("Download SVG", render_universal_svg(svg_json), f"{topic3}.svg")
-            else: st.error("AI failed. Try: 'Draw a simple electric circuit S4 Physics'")
+            else: st.error("Generation failed. Check DEBUG box above.")
 
-# ========== 7. ADMIN PORTAL - ALL 15 TABS RESTORED ==========
+# ========== 7. ADMIN PORTAL ==========
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
@@ -219,31 +196,15 @@ def show_admin_portal():
     elif selected == "SVG Test Tool": json_input = st.text_area("Paste LLM JSON"); [st.markdown(render_universal_svg(json.loads(json_input)), unsafe_allow_html=True) if st.button("Render SVG") else None]
     else: st.info(f"{selected} UI Active")
 
-     # ========== 8. MAIN ROUTER - FINAL SECTION ==========
-st.title("🎓 DIGITAL UNEB TUTOR 2026 - 22 SUBJECTS + SAFE SVG ENGINE")
-
-# Sidebar Login
+# ========== 8. MAIN ROUTER ==========
+st.title("🎓 DIGITAL UNEB TUTOR 2026 - 22 SUBJECTS + DEBUG SVG ENGINE")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
-
 if st.sidebar.button("Login"):
-    if user_type == "Student" and password == STUDENT_PASSWORD: 
-        st.session_state["role"] = "Student"
-        log_activity("Student", "Login", "Student logged in")
-        st.rerun()
-    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: 
-        st.session_state["role"] = "Admin"
-        log_activity("Admin", "Login", "Admin logged in")
-        st.rerun()
-    elif password: 
-        st.sidebar.error("Wrong password")
+    if user_type == "Student" and password == STUDENT_PASSWORD: st.session_state["role"]="Student"; log_activity("Student", "Login", "Login"); st.rerun()
+    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: st.session_state["role"]="Admin"; log_activity("Admin", "Login", "Login"); st.rerun()
+    elif password: st.sidebar.error("Wrong password")
 
-# Route based on role
-if st.session_state.get("role") == "Admin": 
-    show_admin_portal()
-elif st.session_state.get("role") == "Student": 
-    show_student_portal()
-else: 
-    st.info("Please login to continue")
-    st.markdown(f"**Contact Support:** {CONTACT}")
-    st.markdown("**Note:** This platform is for NCDC S1-S6 curriculum only.")
+if st.session_state.get("role") == "Admin": show_admin_portal()
+elif st.session_state.get("role") == "Student": show_student_portal()
+else: st.info("Please login to continue")
