@@ -258,7 +258,7 @@ def show_student_portal():
             ans = ask_smart_brain(ask_q, subject, level, "General"); display_with_pdf(ans, "Answer")
             if st.checkbox("🔊 Listen"): text_to_speech(ans[:500])
 
-     with tab2:
+    with tab2:
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
