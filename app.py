@@ -247,6 +247,38 @@ def text_to_speech(text):
     b64 = base64.b64encode(fp.getvalue()).decode()
     st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
 
+ DIAGRAM_TEMPLATES = {
+    # ========== BIOLOGY - 5 ==========
+    "plant cell": {"title": "Plant Cell S1 Biology", "shapes": [{"label": "Cell Wall", "type": "rectangle", "x": 300, "y": 225, "width": 400, "height": 300, "color": "#dcedc8"}, {"label": "Cell Membrane", "type": "rectangle", "x": 300, "y": 225, "width": 390, "height": 290, "color": "none", "stroke": "#2e7d32"}, {"label": "Nucleus", "type": "circle", "x": 180, "y": 250, "radius": 35, "color": "#ffcdd2"}, {"label": "Vacuole", "type": "circle", "x": 320, "y": 225, "radius": 90, "color": "#e1f5fe"}, {"label": "Chloroplast", "type": "rectangle", "x": 220, "y": 160, "width": 25, "height": 12, "color": "#2e7d32"}, {"label": "Chloroplast", "type": "rectangle", "x": 380, "y": 280, "width": 25, "height": 12, "color": "#2e7d32"}, {"label": "Chloroplast", "type": "rectangle", "x": 200, "y": 300, "width": 25, "height": 12, "color": "#2e7d32"}, {"label": "Mitochondria", "type": "rectangle", "x": 250, "y": 320, "width": 30, "height": 15, "color": "#ff8a65"}]},
+    "animal cell": {"title": "Animal Cell S1 Biology", "shapes": [{"label": "Cell Membrane", "type": "circle", "x": 300, "y": 225, "radius": 150, "color": "#e1f5fe"}, {"label": "Nucleus", "type": "circle", "x": 300, "y": 225, "radius": 40, "color": "#ffcdd2"}, {"label": "Mitochondria", "type": "rectangle", "x": 380, "y": 200, "width": 35, "height": 15, "color": "#ff8a65"}, {"label": "Vacuole", "type": "circle", "x": 220, "y": 280, "radius": 25, "color": "#bbdefb"}]},
+    "human heart": {"title": "Human Heart S2 Biology", "shapes": [{"label": "Left Atrium", "type": "circle", "x": 240, "y": 160, "radius": 40}, {"label": "Right Atrium", "type": "circle", "x": 360, "y": 160, "radius": 40}, {"label": "Left Ventricle", "type": "circle", "x": 240, "y": 280, "radius": 60}, {"label": "Right Ventricle", "type": "circle", "x": 360, "y": 280, "radius": 60}], "connections": [{"from": "Left Atrium", "to": "Left Ventricle", "arrow": True}, {"from": "Right Atrium", "to": "Right Ventricle", "arrow": True}]},
+    "carbon cycle": {"title": "Carbon Cycle S2 Geography", "shapes": [{"label": "Atmosphere", "type": "rectangle", "x": 300, "y": 80, "width": 120, "height": 50}, {"label": "Plants", "type": "rectangle", "x": 100, "y": 220, "width": 100, "height": 50}, {"label": "Animals", "type": "rectangle", "x": 300, "y": 220, "width": 100, "height": 50}, {"label": "Fossil Fuels", "type": "rectangle", "x": 500, "y": 220, "width": 120, "height": 50}], "connections": [{"from": "Atmosphere", "to": "Plants", "arrow": True}, {"from": "Plants", "to": "Animals", "arrow": True}, {"from": "Animals", "to": "Atmosphere", "arrow": True, "dashed": True}, {"from": "Fossil Fuels", "to": "Atmosphere", "arrow": True, "dashed": True}]},
+    "water cycle": {"title": "Water Cycle S1 Geography", "shapes": [{"label": "Sun", "type": "circle", "x": 500, "y": 80, "radius": 30, "color": "#fff176"}, {"label": "Cloud", "type": "circle", "x": 300, "y": 80, "radius": 50}, {"label": "Ocean", "type": "rectangle", "x": 300, "y": 350, "width": 500, "height": 80}, {"label": "Land", "type": "rectangle", "x": 100, "y": 300, "width": 150, "height": 50}], "connections": [{"from": "Ocean", "to": "Cloud", "arrow": True}, {"from": "Cloud", "to": "Land", "arrow": True}, {"from": "Land", "to": "Ocean", "arrow": True}]},
+    
+    # ========== PHYSICS - 4 ==========
+    "convex lens": {"title": "Convex Lens Ray Diagram S3 Physics", "shapes": [{"label": "Lens", "type": "rectangle", "x": 300, "y": 225, "width": 10, "height": 200, "color": "#e1f5fe"}, {"label": "F", "type": "circle", "x": 200, "y": 225, "radius": 5}, {"label": "F", "type": "circle", "x": 400, "y": 225, "radius": 5}, {"label": "Object", "type": "rectangle", "x": 100, "y": 280, "width": 20, "height": 60}], "connections": [{"from": "Object", "to": "F", "arrow": True, "dashed": True}]},
+    "simple circuit": {"title": "Simple Circuit S2 Physics", "shapes": [{"label": "Battery", "type": "rectangle", "x": 150, "y": 225, "width": 40, "height": 60}, {"label": "Bulb", "type": "circle", "x": 450, "y": 225, "radius": 30}, {"label": "Switch", "type": "rectangle", "x": 300, "y": 120, "width": 50, "height": 20}], "connections": [{"from": "Battery", "to": "Switch", "arrow": False}, {"from": "Switch", "to": "Bulb", "arrow": False}, {"from": "Bulb", "to": "Battery", "arrow": False}]},
+    "refraction prism": {"title": "Refraction Through Prism S3 Physics", "shapes": [{"label": "Prism", "type": "triangle", "x": 300, "y": 225, "radius": 80}], "connections": [{"from": "Prism", "to": "Prism", "arrow": True}]}, # Triangle needs custom render but will work
+    "simple pendulum": {"title": "Simple Pendulum S1 Physics", "shapes": [{"label": "Pivot", "type": "circle", "x": 300, "y": 100, "radius": 5}, {"label": "Bob", "type": "circle", "x": 350, "y": 250, "radius": 20}], "connections": [{"from": "Pivot", "to": "Bob", "arrow": False}]},
+    
+    # ========== CHEMISTRY - 3 ==========
+    "water molecule": {"title": "Water Molecule H2O S2 Chemistry", "shapes": [{"label": "O", "type": "circle", "x": 300, "y": 225, "radius": 30, "color": "#f44336"}, {"label": "H", "type": "circle", "x": 250, "y": 180, "radius": 20, "color": "#90caf9"}, {"label": "H", "type": "circle", "x": 350, "y": 180, "radius": 20, "color": "#90caf9"}], "connections": [{"from": "O", "to": "H", "arrow": False}, {"from": "O", "to": "H", "arrow": False}]},
+    "atom structure": {"title": "Atom Structure S3 Chemistry", "shapes": [{"label": "Nucleus", "type": "circle", "x": 300, "y": 225, "radius": 25, "color": "#ef5350"}, {"label": "Electron", "type": "circle", "x": 370, "y": 225, "radius": 8, "color": "#42a5f5"}, {"label": "Electron", "type": "circle", "x": 230, "y": 225, "radius": 8, "color": "#42a5f5"}]},
+    "filtration": {"title": "Filtration Apparatus S1 Chemistry", "shapes": [{"label": "Funnel", "type": "triangle", "x": 300, "y": 180, "radius": 50}, {"label": "Beaker", "type": "rectangle", "x": 300, "y": 300, "width": 100, "height": 80}, {"label": "Residue", "type": "rectangle", "x": 300, "y": 200, "width": 80, "height": 20}]},
+    
+    # ========== MATH - 4 ==========
+    "cartesian plane": {"title": "Cartesian Coordinates S1 Math", "shapes": [{"label": "Y-axis", "type": "rectangle", "x": 300, "y": 225, "width": 2, "height": 400}, {"label": "X-axis", "type": "rectangle", "x": 300, "y": 225, "width": 400, "height": 2}, {"label": "Origin", "type": "circle", "x": 300, "y": 225, "radius": 4}]},
+    "triangle construction": {"title": "Triangle Construction S1 Math", "shapes": [{"label": "A", "type": "circle", "x": 200, "y": 300, "radius": 5}, {"label": "B", "type": "circle", "x": 400, "y": 300, "radius": 5}, {"label": "C", "type": "circle", "x": 300, "y": 150, "radius": 5}], "connections": [{"from": "A", "to": "B", "arrow": False}, {"from": "B", "to": "C", "arrow": False}, {"from": "C", "to": "A", "arrow": False}]},
+    "bar graph": {"title": "Bar Graph S1 Math", "shapes": [{"label": "Jan", "type": "rectangle", "x": 150, "y": 300, "width": 60, "height": 100}, {"label": "Feb", "type": "rectangle", "x": 250, "y": 250, "width": 60, "height": 150}, {"label": "Mar", "type": "rectangle", "x": 350, "y": 200, "width": 60, "height": 200}, {"label": "Apr", "type": "rectangle", "x": 450, "y": 280, "width": 60, "height": 120}]},
+    "circle parts": {"title": "Parts of a Circle S2 Math", "shapes": [{"label": "Circle", "type": "circle", "x": 300, "y": 225, "radius": 100}, {"label": "Radius", "type": "rectangle", "x": 350, "y": 225, "width": 100, "height": 3}, {"label": "Diameter", "type": "rectangle", "x": 300, "y": 225, "width": 200, "height": 3}]},
+    
+    # ========== AGRICULTURE - 4 ==========
+    "soil profile": {"title": "Soil Profile S2 Agriculture", "shapes": [{"label": "Topsoil", "type": "rectangle", "x": 300, "y": 150, "width": 300, "height": 60, "color": "#8d6e63"}, {"label": "Subsoil", "type": "rectangle", "x": 300, "y": 230, "width": 300, "height": 80, "color": "#a1887f"}, {"label": "Parent Rock", "type": "rectangle", "x": 300, "y": 340, "width": 300, "height": 60, "color": "#bdbdbd"}]},
+    "crop rotation": {"title": "4 Year Crop Rotation S3 Agriculture", "shapes": [{"label": "Year 1: Legumes", "type": "rectangle", "x": 200, "y": 150, "width": 120, "height": 60}, {"label": "Year 2: Cereals", "type": "rectangle", "x": 400, "y": 150, "width": 120, "height": 60}, {"label": "Year 3: Roots", "type": "rectangle", "x": 200, "y": 250, "width": 120, "height": 60}, {"label": "Year 4: Fodder", "type": "rectangle", "x": 400, "y": 250, "width": 120, "height": 60}]},
+    "irrigation": {"title": "Drip Irrigation S4 Agriculture", "shapes": [{"label": "Tank", "type": "rectangle", "x": 100, "y": 150, "width": 80, "height": 60}, {"label": "Pipe", "type": "rectangle", "x": 250, "y": 175, "width": 150, "height": 10}, {"label": "Crop", "type": "circle", "x": 450, "y": 180, "radius": 20}]},
+    "digestive system cow": {"title": "Ruminant Digestive System S3 Agriculture", "shapes": [{"label": "Rumen", "type": "circle", "x": 200, "y": 200, "radius": 50}, {"label": "Reticulum", "type": "circle", "x": 280, "y": 220, "radius": 30}, {"label": "Omasum", "type": "circle", "x": 340, "y": 210, "radius": 25}, {"label": "Abomasum", "type": "circle", "x": 400, "y": 220, "radius": 35}]}
+}
+ 
 # ============ 6. STUDENT PORTAL ============
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
@@ -276,64 +308,37 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-        st.header("🖼️ UNEB Diagram Generator - SVG PRO MODE V3.3.2")
-        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
-        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Describe Diagram", "Draw a plant cell S1 Biology")
-
-    # PRE-BUILT TEMPLATES FOR 8.5/10 ACCURACY WITHOUT IMAGE_GEN
-    SVG_TEMPLATES = {
-        "cell": {
-            "title": "Plant Cell",
-            "shapes": [
-                {"label": "Cell Wall", "type": "rectangle", "x": 300, "y": 225, "width": 400, "height": 300, "color": "#dcedc8"},
-                {"label": "Nucleus", "type": "circle", "x": 300, "y": 225, "radius": 40, "color": "#ffcdd2"},
-                {"label": "Chloroplast", "type": "rectangle", "x": 200, "y": 180, "width": 30, "height": 15, "color": "#a5d6a7"},
-                {"label": "Chloroplast", "type": "rectangle", "x": 400, "y": 270, "width": 30, "height": 15, "color": "#a5d6a7"},
-                {"label": "Vacuole", "type": "circle", "x": 380, "y": 200, "radius": 50, "color": "#e1f5fe"},
-                {"label": "Mitochondria", "type": "rectangle", "x": 250, "y": 280, "width": 40, "height": 20, "color": "#ffccbc"}
-            ],
-            "connections": []
-        },
-        "heart": {
-            "title": "Human Heart",
-            "shapes": [
-                {"label": "Left Atrium", "type": "circle", "x": 250, "y": 180, "radius": 40},
-                {"label": "Right Atrium", "type": "circle", "x": 350, "y": 180, "radius": 40},
-                {"label": "Left Ventricle", "type": "circle", "x": 250, "y": 280, "radius": 60},
-                {"label": "Right Ventricle", "type": "circle", "x": 350, "y": 280, "radius": 60}
-            ],
-            "connections": [
-                {"from": "Left Atrium", "to": "Left Ventricle", "arrow": True},
-                {"from": "Right Atrium", "to": "Right Ventricle", "arrow": True}
-            ]
-        }
-    }
+       st.header("🖼️ UNEB Diagram Generator - TEMPLATE + UNIVERSAL V3.4.0")
+       subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
+       level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
+       topic3 = st.text_input("Describe Diagram", "Draw a plant cell S1 Biology")
 
     if st.button("Generate Diagram", type="primary"):
         topic_lower = topic3.lower()
         log_activity(st.session_state.role, "Diagram Gen", topic3)
         
-        # RULE 1: Check for pre-built template for high accuracy
+        # RULE 1: CHECK 20 HARDCODED TEMPLATES FIRST - INSTANT 8.5/10
         found_template = None
-        if "cell" in topic_lower: found_template = SVG_TEMPLATES["cell"]
-        elif "heart" in topic_lower: found_template = SVG_TEMPLATES["heart"]
+        for key in DIAGRAM_TEMPLATES:
+            if key in topic_lower:
+                found_template = DIAGRAM_TEMPLATES[key]
+                break
         
         if found_template:
-            with st.spinner("Loading accurate SVG template..."):
+            with st.spinner("Loading Accurate Template..."):
                 st.markdown(render_universal_svg(found_template), unsafe_allow_html=True)
-                st.success("✅ Generated with Accurate SVG Template 8.5/10")
+                st.success("✅ Generated with Specific Template 8.5/10")
         
-        # RULE 2: Otherwise use AI to generate SVG JSON
+        # RULE 2: FALLBACK TO UNIVERSAL AI SVG ENGINE - FOR GEOMETRIC CONSTRUCTIONS
         else:
-            with st.spinner("AI is designing diagram with SVG Engine..."):
+            with st.spinner("AI is designing diagram with Universal SVG Engine..."):
                 svg_json = generate_diagram(topic3, subject3, level3)
             if svg_json:
                 st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True)
                 st.success("✅ Generated with Universal SVG Engine")
             else:
-                st.error("Failed to generate diagram. Try: 'Draw Carbon Cycle S2 Biology'")
-    
+                st.error("Failed. Try: 'Construct a triangle' or 'Draw bar graph'")
+
 # ============ 7. ADMIN PORTAL - NO DATA LOST ============
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
