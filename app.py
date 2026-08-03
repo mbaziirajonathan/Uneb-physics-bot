@@ -128,7 +128,7 @@ def show_student_portal():
             with st.spinner("Rendering with Python Engine..."): raw_svg = generate_diagram(topic3, subject3, level3)
             st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True); st.success("✅ Generated with Python Engine 10/10 - Pixel Perfect")
 
-  def show_admin_portal():
+def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     TAB_NAMES = ["Admin Dashboard", "UNEB Paper Generator", "Lesson Plan + SOW", "Single Report Card", "BULK EXAMS GENERATOR", "Performance Analytics", "Student Management", "Question Bank Manager", "Curriculum Planner"]
