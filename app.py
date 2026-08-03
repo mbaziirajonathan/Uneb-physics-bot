@@ -276,10 +276,10 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-    st.header("🖼️ UNEB Diagram Generator - SVG PRO MODE V3.3.2")
-    subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
-    level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-    topic3 = st.text_input("Describe Diagram", "Draw a plant cell S1 Biology")
+        st.header("🖼️ UNEB Diagram Generator - SVG PRO MODE V3.3.2")
+        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
+        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
+        topic3 = st.text_input("Describe Diagram", "Draw a plant cell S1 Biology")
 
     # PRE-BUILT TEMPLATES FOR 8.5/10 ACCURACY WITHOUT IMAGE_GEN
     SVG_TEMPLATES = {
