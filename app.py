@@ -46,8 +46,10 @@ UNEB_CURRICULUM_MAP = {
 }
 PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Light Microscope"]}}
 
-def svg_header(title): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="black"/></marker></defs><text x="400" y="40" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">{title}</text>'
-def svg_footer(): return '</svg>'
+def svg_header(title):
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="black"/></marker></defs><text x="400" y="40" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold">{title}</text>'
+def svg_footer():
+    return '</svg>'
 
 def draw_cone(): return svg_header("Cone - S1 Mathematics") + '<ellipse cx="400" cy="420" rx="150" ry="50" fill="#bbdefb" stroke="black" stroke-width="2"/><path d="M 250 420 L 400 200 L 550 420" fill="#90caf9" stroke="black" stroke-width="2"/><line x1="400" y1="200" x2="400" y2="420" stroke="red" stroke-width="2" stroke-dasharray="5,5"/><g><line x1="400" y1="420" x2="550" y2="420" stroke="black" marker-end="url(#arrow)"/><text x="480" y="440" font-family="Arial" font-size="14">Radius r</text></g><g><line x1="420" y1="200" x2="420" y2="420" stroke="black" marker-end="url(#arrow)"/><text x="430" y="310" font-family="Arial" font-size="14">Height h</text></g>' + svg_footer()
 def draw_cylinder(): return svg_header("Cylinder - S1 Mathematics") + '<ellipse cx="400" cy="200" rx="120" ry="40" fill="#c8e6c9" stroke="black" stroke-width="2"/><rect x="280" y="200" width="240" height="200" fill="#a5d6a7" stroke="black" stroke-width="2"/><ellipse cx="400" cy="400" rx="120" ry="40" fill="#81c784" stroke="black" stroke-width="2"/>' + svg_footer()
@@ -79,86 +81,194 @@ PYTHON_DRAW_ENGINE = {"cone": draw_cone, "cylinder": draw_cylinder, "sphere": dr
 
 MASTER_SYSTEM_PROMPT = "You are DIGITAL UNEB TUTOR 2026 PRO. Senior NCDC UNEB Examiner for Uganda S1-S6. Use ITEM/TASK/SCENARIO. For math show Given, Formula, Substitution, Answer."
 
-def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
-def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
-def log_activity(user_type, action, details): flagged = "cheat" in details.lower(); save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details, "flagged": flagged})
-def create_pdf(content, title): buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10);
-for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
-p.save(); buffer.seek(0); return buffer
+def load_logs():
+    return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
+def save_log(entry):
+    logs = load_logs()
+    logs.append(entry)
+    json.dump(logs, open(LOG_FILE,"w"))
+def log_activity(user_type, action, details):
+    flagged = "cheat" in details.lower()
+    save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details, "flagged": flagged})
+def create_pdf(content, title):
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50,800,title)
+    y=770
+    p.setFont("Helvetica", 10)
+    for i,line in enumerate(content.split('\n')[:80]):
+        p.drawString(50,y-(i*14),line[:95])
+    p.save()
+    buffer.seek(0)
+    return buffer
 def call_groq(user_prompt):
-    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.7); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.1); return res.choices[0].message.content
-    except Exception as e: return f"AI Error: {e}"
+    try:
+        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.7)
+        return res.choices[0].message.content
+    except RateLimitError:
+        res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.1)
+        return res.choices[0].message.content
+    except Exception as e:
+        return f"AI Error: {e}"
 def generate_diagram(topic, subject, level):
-    topic_lower = topic.lower(); log_activity(st.session_state.role, "Diagram Gen", topic)
+    topic_lower = topic.lower()
+    log_activity(st.session_state.role, "Diagram Gen", topic)
     for key, func in PYTHON_DRAW_ENGINE.items():
-        if key in topic_lower: return func()
+        if key in topic_lower:
+            return func()
     return f'{svg_header("Not Found")}<text x="400" y="300" text-anchor="middle" font-size="16" fill="red">Diagram "{topic}" not in 30-template library</text>{svg_footer()}'
-def render_universal_svg(raw_svg): return f'<div style="width:100%; max-width:800px; margin:auto; background:white; padding:10px; border-radius:8px;">{raw_svg}</div>'
-def ask_smart_brain(user_query, subject, class_level, topic): log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}"); return call_groq(f"SMART MODE: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
-def generate_exam_items(user_query, subject, level): return call_groq(f"UNEB EXAMINER MODE: Level: {level}, Subject: {subject}, Request: {user_query}")
-def generate_bulk_revision(subject, level): topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level]); return call_groq(f"UNEB EXAMINER MODE: Generate 20 UNEB ITEM/TASK/SCENARIO for {level} {subject}: {topics}")
-def generate_practical(subject, level, topic): return call_groq(f"UNEB EXAMINER MODE: Generate FULL NCDC {level} {subject} practical with method, apparatus, results table for: {topic}")
-def generate_lesson_plan(subject, level, topic, duration): return call_groq(f"SMART MODE: Generate NCDC {duration} min lesson plan for {level} {subject} on {topic}")
-def generate_report_card(student_data): return call_groq(f"SMART MODE: Generate NCDC Report Card with comments for: {student_data}")
-def display_with_pdf(content, name): st.markdown(content); [st.latex(f) for f in re.findall(r'\$(.*?)\$', content)]; pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
-def text_to_speech(text): tts = gTTS(text=text, lang='en'); fp = io.BytesIO(); tts.write_to_fp(fp); b64 = base64.b64encode(fp.getvalue()).decode(); st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
+def render_universal_svg(raw_svg):
+    return f'<div style="width:100%; max-width:800px; margin:auto; background:white; padding:10px; border-radius:8px;">{raw_svg}</div>'
+def ask_smart_brain(user_query, subject, class_level, topic):
+    log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}")
+    return call_groq(f"SMART MODE: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
+def generate_exam_items(user_query, subject, level):
+    return call_groq(f"UNEB EXAMINER MODE: Level: {level}, Subject: {subject}, Request: {user_query}")
+def generate_bulk_revision(subject, level):
+    topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level])
+    return call_groq(f"UNEB EXAMINER MODE: Generate 20 UNEB ITEM/TASK/SCENARIO for {level} {subject}: {topics}")
+def generate_practical(subject, level, topic):
+    return call_groq(f"UNEB EXAMINER MODE: Generate FULL NCDC {level} {subject} practical with method, apparatus, results table for: {topic}")
+def generate_lesson_plan(subject, level, topic, duration):
+    return call_groq(f"SMART MODE: Generate NCDC {duration} min lesson plan for {level} {subject} on {topic}")
+def generate_report_card(student_data):
+    return call_groq(f"SMART MODE: Generate NCDC Report Card with comments for: {student_data}")
+def display_with_pdf(content, name):
+    st.markdown(content)
+    for f in re.findall(r'\$(.*?)\$', content):
+        st.latex(f)
+    pdf = create_pdf(content, name)
+    st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='en')
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    b64 = base64.b64encode(fp.getvalue()).decode()
+    st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
 
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
+    if st.button("Logout"):
+        st.session_state.clear()
+        st.rerun()
     tab1, tab2, tab3 = st.tabs(["🔍 Smart Search + Solver", "📖 Learn Topic", "🖼️ Diagram Generator"])
     with tab1:
-        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj"); level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level"); ask_q = st.text_area("Ask anything")
+        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
+        level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
+        ask_q = st.text_area("Ask anything")
         mic_recorder(key="voice")
-        if st.button("Ask AI Brain", type="primary") and ask_q: ans = ask_smart_brain(ask_q, subject, level, "General"); display_with_pdf(ans, "Answer");
-        if st.checkbox("🔊 Listen"): text_to_speech(ans[:500])
+        if st.button("Ask AI Brain", type="primary") and ask_q:
+            ans = ask_smart_brain(ask_q, subject, level, "General")
+            display_with_pdf(ans, "Answer")
+        if st.checkbox("🔊 Listen"):
+            text_to_speech(ans[:500])
     with tab2:
-        subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj"); level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level"); topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic"); mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
-        if mode == "📖 Theory" and st.button("Teach Me"): raw = ask_smart_brain(f"Teach {topic2} step by step", subject2, level2, topic2); display_with_pdf(raw, "Theory")
-        elif mode == "🧠 AOI" and st.button("Generate AOI"): raw = ask_smart_brain(f"Design AOI project for {topic2}", subject2, level2, topic2); display_with_pdf(raw, "AOI")
-        elif mode == "🧪 Practicals Lab": prac = st.selectbox("Select Practical", PRACTICAL_TOPICS.get(subject2,{}).get(level2,["No practicals"]))
-        if st.button("Generate Practical"): report = generate_practical(subject2,level2,prac); display_with_pdf(report, "Practical")
-        elif mode == "📝 UNEB Quiz Mode" and st.button("Generate 10 UNEB ITEMS"): quiz = generate_exam_items(f"Generate 10 UNEB ITEM/TASK/SCENARIO on {topic2}", subject2, level2); display_with_pdf(quiz, "Quiz")
-        elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
+        subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
+        level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
+        topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
+        mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
+        if mode == "📖 Theory" and st.button("Teach Me"):
+            raw = ask_smart_brain(f"Teach {topic2} step by step", subject2, level2, topic2)
+            display_with_pdf(raw, "Theory")
+        elif mode == "🧠 AOI" and st.button("Generate AOI"):
+            raw = ask_smart_brain(f"Design AOI project for {topic2}", subject2, level2, topic2)
+            display_with_pdf(raw, "AOI")
+        elif mode == "🧪 Practicals Lab":
+            prac = st.selectbox("Select Practical", PRACTICAL_TOPICS.get(subject2,{}).get(level2,["No practicals"]))
+            if st.button("Generate Practical"):
+                report = generate_practical(subject2,level2,prac)
+                display_with_pdf(report, "Practical")
+        elif mode == "📝 UNEB Quiz Mode" and st.button("Generate 10 UNEB ITEMS"):
+            quiz = generate_exam_items(f"Generate 10 UNEB ITEM/TASK/SCENARIO on {topic2}", subject2, level2)
+            display_with_pdf(quiz, "Quiz")
+        elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"):
+            bulk = generate_bulk_revision(subject2, level2)
+            display_with_pdf(bulk, "Bulk")
     with tab3:
         st.header("🖼️ UNEB Diagram Generator - PYTHON ENGINE V3.5.0")
-        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj"); level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level"); topic3 = st.text_input("Describe Diagram", "Draw a cone")
+        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
+        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
+        topic3 = st.text_input("Describe Diagram", "Draw a cone")
         if st.button("Generate Diagram", type="primary"):
-            with st.spinner("Rendering with Python Engine..."): raw_svg = generate_diagram(topic3, subject3, level3)
-            st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True); st.success("✅ Generated with Python Engine 10/10 - Pixel Perfect")
+            with st.spinner("Rendering with Python Engine..."):
+                raw_svg = generate_diagram(topic3, subject3, level3)
+            st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True)
+            st.success("✅ Generated with Python Engine 10/10 - Pixel Perfect")
 
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
+    if st.button("Logout"):
+        st.session_state.clear()
+        st.rerun()
     TAB_NAMES = ["Admin Dashboard", "UNEB Paper Generator", "Lesson Plan + SOW", "Single Report Card", "BULK EXAMS GENERATOR", "Performance Analytics", "Student Management", "Question Bank Manager", "Curriculum Planner"]
-    selected = option_menu(None, TAB_NAMES, orientation="horizontal"); logs = load_logs(); df_logs = pd.DataFrame(logs) if logs else pd.DataFrame()
-    if selected == "Admin Dashboard": col1,col2,col3 = st.columns(3); col1.metric("Total Activities", len(logs)); col2.metric("Flagged", len([l for l in logs if l.get('flagged')])); col3.metric("Users", len(set([l['user'] for l in logs])) if logs else 0); st.dataframe(logs[-50:])
-    elif selected == "UNEB Paper Generator": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); n = st.slider("Questions", 5, 50, 20)
-    if st.button("Generate UNEB Paper"): paper = generate_exam_items(f"Generate {n} UNEB ITEM/TASK/SCENARIO on {t}", s, l); display_with_pdf(paper, "UNEB_Test")
-    elif selected == "Lesson Plan + SOW": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj"); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="lp_level"); t = st.text_input("Topic", key="lp_topic"); d = st.number_input("Minutes", 40, 120, 80)
-    if st.button("Generate Lesson Plan"): plan = generate_lesson_plan(s, l, t, d); display_with_pdf(plan, "LessonPlan")
-    elif selected == "Single Report Card": name = st.text_input("Student Name"); scores = {sub: st.number_input(sub, 0, 100) for sub in ["Math", "English", "Science"]}
-    if st.button("Generate Report"): report = generate_report_card(f"Name: {name}\nScores: {scores}"); display_with_pdf(report, "Report")
-    elif selected == "BULK EXAMS GENERATOR": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj"); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
-    if st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(s, l); display_with_pdf(bulk, "Bulk")
+    selected = option_menu(None, TAB_NAMES, orientation="horizontal")
+    logs = load_logs()
+    df_logs = pd.DataFrame(logs) if logs else pd.DataFrame()
+    if selected == "Admin Dashboard":
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Activities", len(logs))
+        col2.metric("Flagged", len([l for l in logs if l.get('flagged')]))
+        col3.metric("Users", len(set([l['user'] for l in logs])) if logs else 0)
+        st.dataframe(logs[-50:])
+    elif selected == "UNEB Paper Generator":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        t = st.text_input("Topic")
+        n = st.slider("Questions", 5, 50, 20)
+        if st.button("Generate UNEB Paper"):
+            paper = generate_exam_items(f"Generate {n} UNEB ITEM/TASK/SCENARIO on {t}", s, l)
+            display_with_pdf(paper, "UNEB_Test")
+    elif selected == "Lesson Plan + SOW":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="lp_level")
+        t = st.text_input("Topic", key="lp_topic")
+        d = st.number_input("Minutes", 40, 120, 80)
+        if st.button("Generate Lesson Plan"):
+            plan = generate_lesson_plan(s, l, t, d)
+            display_with_pdf(plan, "LessonPlan")
+    elif selected == "Single Report Card":
+        name = st.text_input("Student Name")
+        scores = {sub: st.number_input(sub, 0, 100) for sub in ["Math", "English", "Science"]}
+        if st.button("Generate Report"):
+            report = generate_report_card(f"Name: {name}\nScores: {scores}")
+            display_with_pdf(report, "Report")
+    elif selected == "BULK EXAMS GENERATOR":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
+        if st.button("Generate 20 UNEB ITEMS"):
+            bulk = generate_bulk_revision(s, l)
+            display_with_pdf(bulk, "Bulk")
     elif selected == "Performance Analytics":
-    if not df_logs.empty: st.line_chart(df_logs.groupby(pd.to_datetime(df_logs['timestamp']).dt.date).size())
-    else: st.info("No data yet")
+        if not df_logs.empty:
+            df_chart = df_logs.groupby(pd.to_datetime(df_logs['timestamp']).dt.date).size()
+            st.line_chart(df_chart)
+        else:
+            st.info("No data yet")
     elif selected == "Student Management":
-    if "students_db" not in st.session_state: st.session_state.students_db = []
-    name = st.text_input("Add Student Name")
-    if st.button("Add Student"): st.session_state.students_db.append({"name": name}); st.success("Added")
-    st.dataframe(st.session_state.students_db)
+        if "students_db" not in st.session_state:
+            st.session_state.students_db = []
+        name = st.text_input("Add Student Name")
+        if st.button("Add Student"):
+            st.session_state.students_db.append({"name": name})
+            st.success("Added")
+        st.dataframe(st.session_state.students_db)
     elif selected == "Question Bank Manager":
-    if "qbank" not in st.session_state: st.session_state.qbank = []
-    q = st.text_area("Enter Question")
-    if st.button("Save Question"): st.session_state.qbank.append({"q": q}); st.success("Saved")
-    st.dataframe(st.session_state.qbank)
-    elif selected == "Curriculum Planner": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="cp_subj"); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="cp_level")
-    if st.button("Generate SOW"): sow = "\n".join([f"Week {i+1}: {t}" for i, t in enumerate(UNEB_CURRICULUM_MAP[s][l])]); display_with_pdf(sow, "SOW")
+        if "qbank" not in st.session_state:
+            st.session_state.qbank = []
+        q = st.text_area("Enter Question")
+        if st.button("Save Question"):
+            st.session_state.qbank.append({"q": q})
+            st.success("Saved")
+        st.dataframe(st.session_state.qbank)
+    elif selected == "Curriculum Planner":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="cp_subj")
+        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="cp_level")
+        if st.button("Generate SOW"):
+            sow = "\n".join([f"Week {i+1}: {t}" for i, t in enumerate(UNEB_CURRICULUM_MAP[s][l])])
+            display_with_pdf(sow, "SOW")
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.5.0")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.5.1")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 
@@ -179,4 +289,4 @@ if st.session_state.get("role") == "Admin":
 elif st.session_state.get("role") == "Student":
     show_student_portal()
 else:
-    st.info("Please login to continue") 
+    st.info("Please login to continue")
