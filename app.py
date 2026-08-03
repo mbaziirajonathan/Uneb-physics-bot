@@ -45,28 +45,35 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Measurement", "Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Using Light Microscope"]}}
-AOI_FRAMEWORK = {"S1": "Community Problem", "S2": "Local Industry", "S3": "National Issue", "S4": "Global Challenge", "S5": "Research", "S6": "Professional"}
 
-# ============ 3. MASTER SYSTEM PROMPT ============
+# ============ 3. LOOP-LOCKED SYSTEM PROMPT + TEMPLATES ============
 MASTER_SYSTEM_PROMPT = """
 You are DIGITAL UNEB TUTOR 2026. Senior NCDC AI for Uganda S1-S6.
-CORE RULE 1: SMART MODE - Answer directly.
-CORE RULE 2: EXAMINER MODE - Use UNEB ITEM/TASK/SCENARIO FORMAT.
-CORE RULE 3: SVG DIAGRAM MODE - Output ONLY raw JSON. No words before or after. Canvas 500x400. Center at cx:250,cy:200. Label offset +15px. Use: circle, rect, line, path, text.
-"""
 
-# ========== 4. UNIVERSAL SVG RENDERER ENGINE - CRITICAL DEBUG VERSION ==========
+CORE RULE 3: SVG DIAGRAM MODE - OUTPUT ONLY RAW JSON. NO WORDS. NO EXPLANATION.
+STRICT LAYOUT LAW - VIOLATE = FAIL:
+1. CANVAS: 500x400. Anchor ALL diagrams at cx:250, cy:200
+2. TEMPLATES: You MUST use the exact coordinates from templates below. Do not invent cx/cy.
+3. LABELS: Every part needs leader line + text. text size 11, anchor middle. Offset +20px from shape.
+4. VISIBILITY: strokeWidth 2 minimum. Use fills with opacity.
+
+TEMPLATE LOCK FOR ALL SUBJECTS:
+BIOLOGY CELL: {"elements":[{"type":"circle","cx":250,"cy":200,"r":80,"fill":"#e8f5e9","stroke":"#2e7d32"},{"type":"circle","cx":250,"cy":200,"r":20,"fill":"#1b5e20"},{"type":"line","x1":250,"y1":220,"x2":250,"y2":260},{"type":"text","x":250,"y":280,"text":"Nucleus","size":11,"anchor":"middle"}]}
+ATOM: {"elements":[{"type":"circle","cx":250,"cy":200,"r":15,"fill":"#000"},{"type":"circle","cx":250,"cy":200,"r":60,"fill":"none","stroke":"#555","strokeDasharray":"4"},{"type":"circle","cx":310,"cy":200,"r":6,"fill":"#1976d2"},{"type":"line","x1":310,"y1":200,"x2":340,"y2":200},{"type":"text","x":345,"y":204,"text":"Electron","size":11}]}
+PHYSICS CIRCUIT: {"elements":[{"type":"rect","x":200,"y":180,"w":100,"h":40,"fill":"#fff","stroke":"#000"},{"type":"line","x1":300,"y1":200,"x2":350,"y2":200},{"type":"text","x":250,"y":175,"text":"Battery","size":11,"anchor":"middle"}]}
+GEOGRAPHY MAP: {"elements":[{"type":"path","d":"M150,100 L350,100 L350,300 L150,300 Z","fill":"#c8e6c9","stroke":"#2e7d32"},{"type":"text","x":250,"y":50,"text":"Map Title","size":12,"anchor":"middle"}]}
+MATH GRAPH: {"elements":[{"type":"line","x1":50,"y1":200,"x2":450,"y2":200},{"type":"line","x1":250,"y1":50,"x2":250,"y2":350},{"type":"text","x":460,"y":200,"text":"X","size":11}]}
+"""
+# ========== 4. UNIVERSAL SVG RENDERER ENGINE ==========
 def render_universal_svg(diagram_data):
     if not diagram_data or "elements" not in diagram_data:
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: No elements in JSON</text></svg>'
-    if len(diagram_data["elements"]) == 0:
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: AI returned 0 elements</text></svg>'
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: Invalid JSON</text></svg>'
     try:
-        title = diagram_data.get("title", "NCDC Diagram"); width = 500; height = 400; elements = diagram_data.get("elements", [])
+        width, height, elements = 500, 400, diagram_data.get("elements", [])
         def clamp(val, max_val):
             try: return max(0, min(int(float(val)), max_val))
             except: return 0
-        svg_content = f"<!-- {title} -->\n"
+        svg_content = ""
         for el in elements:
             t = el.get("type")
             if t == 'circle':
@@ -77,24 +84,22 @@ def render_universal_svg(diagram_data):
                 svg_content += f'<rect x="{x}" y="{y}" width="{clamp(el.get("w",50),500)}" height="{clamp(el.get("h",30),400)}" rx="{el.get("rx",0)}" fill="{el.get("fill","#fff")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
             elif t == 'line':
                 x1, y1, x2, y2 = clamp(el.get("x1",0),500), clamp(el.get("y1",0),400), clamp(el.get("x2",0),500), clamp(el.get("y2",0),400)
-                svg_content += f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{el.get("stroke","#000")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
+                svg_content += f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{el.get("stroke","#000")}" stroke-width="{el.get("strokeWidth",2)}" stroke-dasharray="{el.get("strokeDasharray","")}" />\n'
             elif t == 'path': svg_content += f'<path d="{el.get("d","")}" fill="{el.get("fill","none")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
             elif t == 'text':
                 x, y = clamp(el.get("x",250),500), clamp(el.get("y",200),400)
-                svg_content += f'<text x="{x}" y="{y}" font-family="Arial" font-size="{el.get("size",12)}" fill="{el.get("color","#000")}" text-anchor="{el.get("anchor","start")}">{el.get("text","")}</text>\n'
+                svg_content += f'<text x="{x}" y="{y}" font-family="Arial" font-size="{el.get("size",11)}" fill="{el.get("color","#000")}" text-anchor="{el.get("anchor","start")}">{el.get("text","")}</text>\n'
         return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="auto" style="max-width:500px;border:1px solid #ddd;border-radius:8px;background:#fff;">{svg_content}</svg>'
-    except Exception as e: return f"<svg><text x=10 y=20 fill='red'>SVG Render Error: {e}</text></svg>"
+    except Exception as e: return f"<svg><text x=10 y=20 fill='red'>Render Error: {e}</text></svg>"
 
-# ========== 5. UTILS + AI CALLS - CRITICAL DEBUG PATCH ==========
+# ========== 5. UTILS + AI CALLS - NO JSON PRINT ==========
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
 def log_activity(user_type, action, details): flagged = "cheat" in details.lower(); save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details, "flagged": flagged})
-
 def create_pdf(content, title): buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10); [p.drawString(50,y-(i*14),line[:95]) for i,line in enumerate(content.split('\n')[:80])]; p.save(); buffer.seek(0); return buffer
 
 def call_groq(user_prompt, mode="smart"):
     try:
-        # CRITICAL: temp=0.1 for svg to force JSON format. max_tokens=2000 is enough
         temp = 0.1 if mode=="svg" else 0.7
         tokens = 2000 if mode=="svg" else 4000
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=temp)
@@ -105,21 +110,17 @@ def call_groq(user_prompt, mode="smart"):
     except Exception as e: return f"AI Error: {e}"
 
 def generate_svg_json(topic, subject, level):
-    """CRITICAL DEBUG: Force JSON + Show Raw Output"""
-    raw = call_groq(f"SVG DIAGRAM MODE: Output ONLY raw JSON starting with {{. No explanation. Generate SVG JSON for NCDC {level} {subject} topic: {topic}", mode="svg")
+    """CRITICAL: Parse JSON and NEVER show it to user"""
+    raw = call_groq(f"SVG DIAGRAM MODE: Topic: {level} {subject} - {topic}. Use template. Output ONLY JSON.", mode="svg")
 
-    with st.expander("🔍 DEBUG: Raw LLM Output - Click to see what AI returned", expanded=True):
-        st.code(raw)
-
+    # 3-layer extraction, then hide raw
     for pattern in [r'```json\s*(\{.*?\})\s*```', r'(\{.*\})']:
         match = re.search(pattern, raw, re.DOTALL)
         if match:
             try: return json.loads(match.group(1))
             except: continue
     try: return json.loads(raw)
-    except:
-        st.error("AI returned invalid JSON. Copy the DEBUG output above and send it to me.")
-        return None
+    except: return None
 
 def ask_smart_brain(user_query, subject, class_level, topic): log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}"); return call_groq(f"SMART MODE: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
 def generate_exam_items(user_query, subject, level): return call_groq(f"EXAMINER MODE: Generate UNEB ITEMS. Level: {level}, Subject: {subject}, Request: {user_query}")
@@ -158,15 +159,17 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-        st.header("🖼️ Universal SVG Diagram Generator - DEBUG MODE ON")
+        st.header("🖼️ Textbook-Accuracy SVG Generator")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Enter Topic to Draw", "Structure of a Plant Cell")
         if st.button("Generate Diagram", type="primary"):
-            with st.spinner("AI Drawing..."):
+            with st.spinner("AI Drawing with Template Lock..."):
                 svg_json = generate_svg_json(topic3, subject3, level3)
-            if svg_json: st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True); st.download_button("Download SVG", render_universal_svg(svg_json), f"{topic3}.svg")
-            else: st.error("Generation failed. Check DEBUG box above.")
+            if svg_json:
+                st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True) # NO JSON SHOWN
+                st.download_button("Download SVG", render_universal_svg(svg_json), f"{topic3}.svg")
+            else: st.error("AI failed to follow template. Try: 'Bohr Model of Atom' or 'Plant Cell'")
 
 # ========== 7. ADMIN PORTAL ==========
 def show_admin_portal():
@@ -197,7 +200,7 @@ def show_admin_portal():
     else: st.info(f"{selected} UI Active")
 
 # ========== 8. MAIN ROUTER ==========
-st.title("🎓 DIGITAL UNEB TUTOR 2026 - 22 SUBJECTS + DEBUG SVG ENGINE")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 - TEMPLATE-LOCKED SVG ENGINE")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
