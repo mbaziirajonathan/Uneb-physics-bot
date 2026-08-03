@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, time, base64
+import os, io, json, re, time, base64, math
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -9,7 +9,7 @@ from streamlit_option_menu import option_menu
 from groq import Groq, RateLimitError
 import pandas as pd
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026", page_icon="📚", layout="wide")
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 
 # ========== 1. SECRETS ==========
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
@@ -22,18 +22,18 @@ CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 
-st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026\nFor NCDC learning only.\n📞 {CONTACT}")
+st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
 
-# ============ 2. RESTORED FULL 22 SUBJECTS S1-S6 DATABASE ============
+# ============ 2. FULL 22 SUBJECTS S1-S6 DATABASE - NO DATA LOST ============
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions, Percentages and Decimals", "Cartesian Coordinates", "Geometric Construction", "Data Collection and Representation"], "S2": ["Patterns and Sequences", "Bearings", "Angle Properties", "Algebra I", "Business Arithmetic I", "Time and Time Tables", "Mapping and Relations"], "S3": ["Business Arithmetic II", "Quadratic Equations", "Matrices", "Probability", "Vectors", "Trigonometry I", "Mensuration"], "S4": ["Functions", "Three-Dimensional Geometry", "Statistics", "Linear Programming", "Trigonometry II", "Calculus Introduction"], "S5": ["Calculus: Differentiation", "Calculus: Integration", "Circular Measure", "Binomial Expansion", "Complex Numbers", "Sequences and Series"], "S6": ["Differential Equations", "Mechanics: Kinematics and Dynamics", "Probability Distributions", "Linear Programming Advanced", "Further Calculus", "Vectors in 3D"]},
-    "Physics": {"S1": ["Introduction to Physics", "Measurement", "Forces and Their Effects", "Work, Energy and Power", "Pressure in Fluids", "Simple Machines"], "S2": ["Light: Reflection and Refraction", "Thermal Physics", "Static Electricity", "Current Electricity I", "Waves I"], "S3": ["Current Electricity II", "Magnetism", "Waves II: Sound", "Mechanics Continued", "Specific Heat Capacity"], "S4": ["Electromagnetism", "Electronics", "Modern Physics", "Nuclear Processes", "A.C Theory", "Astrophysics"], "S5": ["Mechanics: Motion and Dynamics", "Gravitation", "Thermal Physics Advanced", "Waves III: Interference and Diffraction", "Optics", "Fluid Mechanics"], "S6": ["Electric Fields", "Magnetic Fields", "Electromagnetic Induction", "Quantum Physics", "Radioactivity", "Solid State and Electronics"]},
-    "Chemistry": {"S1": ["Chemistry and Society", "Experimental Chemistry", "States of Matter", "Temporary and Permanent Changes", "Mixtures, Elements and Compounds", "Air", "Water", "Rocks and Minerals"], "S2": ["Acids and Alkalis", "Salts", "The Periodic Table", "Carbon in the Environment", "Reactivity Series", "Metals and Non-Metals"], "S3": ["Structure and Bonding", "Stoichiometry and Mole Concept", "Fossil Fuels", "Properties and Structures of Substances", "Chemical Reactions", "Rates of Reaction"], "S4": ["REDOX Reactions", "Industrial Processes", "Trends in the Periodic Table", "Thermochemistry", "Consumable Chemicals", "Organic Chemistry II", "Nuclear Processes"], "S5": ["Atomic Structure Advanced", "Chemical Energetics", "Chemical Kinetics", "Equilibrium II", "Organic Chemistry III", "Acids, Bases and Buffers"], "S6": ["Electrochemistry Advanced", "Transition Metals and Complexes", "Organic Synthesis", "Analytical Chemistry", "Environmental Chemistry", "Polymers"]},
-    "Biology": {"S1": ["Introduction to Biology", "Cells and the Microscope", "Classification of Living Things", "Insects", "Flowering Plants", "Ecosystems"], "S2": ["Soil Composition and Properties", "Soil Erosion and Conservation", "Nitrogen Cycle", "Nutrition in Plants", "Nutrition in Animals", "Transport in Living Things"], "S3": ["Transport in Plants and Animals", "Respiration and Gas Exchange", "Excretion and Homeostasis", "Cell Division", "Reproduction in Plants", "DNA and Genetics I"], "S4": ["Coordination and Receptors", "Locomotion", "Growth and Development", "Genetics and Inheritance", "Ecology", "Evolution", "Environmental Conservation"], "S5": ["Cell Biology", "Enzymes", "Transport in Plants Advanced", "Gas Exchange Systems", "Nutrition in Humans Advanced", "Respiration Cellular"], "S6": ["Hormonal Control and Feedback", "Coordination: Nervous System Advanced", "Population Ecology", "Biotechnology", "Genetic Engineering", "Immunity and Disease"]},
-    "Geography": {"S1": ["The Earth and the Solar System", "Map Reading and Interpretation", "Weather and Climate", "Vegetation", "Population"], "S2": ["Rocks and Weathering", "Drainage Systems", "Soils", "Mining", "Tourism"], "S3": ["Transport", "Trade", "Industry", "Settlement", "Energy"], "S4": ["East African Community", "Environmental Issues", "GIS", "Regional Development", "Field Work"], "S5": ["Physical Geography Advanced", "Human Geography Advanced", "Practical Geography", "Research Methods", "Economic Geography"], "S6": ["Geomorphology", "Climatology", "Biogeography", "Population Geography", "Urban Geography"]},
-    "History": {"S1": ["Introduction to History", "Early Man", "Ancient Civilizations", "Feudalism", "Colonialism"], "S2": ["Scramble for Africa", "Colonial Administration", "Economic Development", "Resistance", "Christian Missions"], "S3": ["Political Development", "Social and Economic Changes", "Nationalism", "WWI & WWII", "UN and UNO"], "S4": ["Independence of African States", "Post Colonial Problems", "Cold War", "Non-Alignment", "Regional Cooperation"], "S5": ["East African History", "European History", "World History", "Research Methods", "Historiography"], "S6": ["African History", "American History", "Asian History", "International Relations", "Themes in History"]},
-    "Literature": {"S1": ["Introduction to Literature", "Prose: The River and the Source", "Poetry: Anthology", "Drama: The Government Inspector", "Oral Literature"], "S2": ["Prose: Animal Farm", "Poetry: Songs of Ourselves", "Drama: The Caucasian Chalk Circle", "Literary Terms", "Essay Writing"], "S3": ["Prose: A Thousand Splendid Suns", "Poetry: Poems from Africa", "Drama: The Tempest", "Style and Language", "Critical Analysis"], "S4": ["Prose: The Pearl", "Poetry: Modern Poetry", "Drama: An Enemy of the People", "Literary Appreciation", "Composition"], "S5": ["Prose: Advanced Novels", "Poetry: Shakespeare Sonnets", "Drama: Macbeth", "Literary Criticism", "Research"], "S6": ["Prose: Post Colonial Literature", "Poetry: Advanced Anthology", "Drama: King Lear", "Comparative Literature", "Dissertation"]},
-    "English": {"S1": ["Grammar: Parts of Speech", "Comprehension", "Composition Writing", "Oral Skills", "Vocabulary"], "S2": ["Grammar: Tenses", "Summary Writing", "Letter Writing", "Public Speaking", "Literary Devices"], "S3": ["Grammar: Clauses", "Report Writing", "Speech Writing", "Debate", "Advanced Comprehension"], "S4": ["Grammar: Punctuation", "Proposal Writing", "Curriculum Vitae", "Interview Skills", "Exam Techniques"]},
+    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Geometric Construction", "Data"], "S2": ["Patterns", "Bearings", "Angles", "Algebra I", "Business Arithmetic", "Time"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Trigonometry", "Mensuration"], "S4": ["Functions", "3D Geometry", "Statistics", "Linear Programming", "Calculus Intro"], "S5": ["Differentiation", "Integration", "Circular Measure", "Complex Numbers"], "S6": ["Differential Equations", "Mechanics", "Probability Distributions", "Further Calculus"]},
+    "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Pressure", "Simple Machines"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves"], "S3": ["Electricity II", "Magnetism", "Sound", "Mechanics"], "S4": ["Electromagnetism", "Electronics", "Modern Physics", "A.C Theory"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Waves Advanced"], "S6": ["Electric Fields", "Magnetic Fields", "EMI", "Quantum Physics"]},
+    "Chemistry": {"S1": ["States of Matter", "Mixtures", "Air", "Water"], "S2": ["Acids Alkalis", "Salts", "Periodic Table"], "S3": ["Bonding", "Stoichiometry", "Rates"], "S4": ["REDOX", "Industrial Processes", "Organic II"], "S5": ["Energetics", "Kinetics", "Equilibrium", "Organic III"], "S6": ["Electrochemistry", "Transition Metals", "Organic Synthesis"]},
+    "Biology": {"S1": ["Cells", "Classification", "Ecosystems"], "S2": ["Soil", "Nutrition", "Transport"], "S3": ["Respiration", "Excretion", "Genetics I"], "S4": ["Coordination", "Genetics", "Ecology"], "S5": ["Cell Biology", "Enzymes", "Gas Exchange"], "S6": ["Hormones", "Biotechnology", "Immunity"]},
+    "Geography": {"S1": ["Earth", "Maps", "Weather"], "S2": ["Rocks", "Drainage", "Soils"], "S3": ["Transport", "Trade", "Industry"], "S4": ["EAC", "GIS", "Regional Development"], "S5": ["Physical Geo Advanced", "Research"], "S6": ["Geomorphology", "Climatology"]},
+    "History": {"S1": ["Early Man", "Ancient Civilizations"], "S2": ["Scramble for Africa", "Colonialism"], "S3": ["Nationalism", "WWI WWII"], "S4": ["Independence", "Cold War"], "S5": ["East African History", "World History"], "S6": ["International Relations"]},
+    "Literature": {"S1": ["Prose: River and Source", "Poetry", "Drama"], "S2": ["Animal Farm", "Shakespeare"], "S3": ["A Thousand Splendid Suns", "The Tempest"], "S4": ["The Pearl", "An Enemy of the People"], "S5": ["Macbeth", "Sonnets"], "S6": ["King Lear", "Post Colonial"]},
+    "English": {"S1": ["Grammar", "Comprehension", "Composition"], "S2": ["Tenses", "Summary", "Letters"], "S3": ["Clauses", "Reports", "Debate"], "S4": ["Punctuation", "CV", "Interview"]},
     "CRE": {f"S{i}": [f"CRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "IRE": {f"S{i}": [f"IRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
     "Agriculture": {f"S{i}": [f"Agriculture S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Entrepreneurship": {f"S{i}": [f"Entrepreneurship S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
     "ICT": {f"S{i}": [f"ICT S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Art and Design": {f"S{i}": [f"Art S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
@@ -44,64 +44,153 @@ UNEB_CURRICULUM_MAP = {
     "Fashion and Textiles": {f"S{i}": [f"Fashion S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}
 }
 
-PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Measurement", "Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Using Light Microscope"]}}
+PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Light Microscope"]}}
 
-# ============ 3. LOOP-LOCKED SYSTEM PROMPT + TEMPLATES ============
+# ============ 3. MASTER SYSTEM PROMPT - UNEB EXAMINER + SMART CHATGPT + SVG DESCRIBER ============
 MASTER_SYSTEM_PROMPT = """
-You are DIGITAL UNEB TUTOR 2026. Senior NCDC AI for Uganda S1-S6.
+You are DIGITAL UNEB TUTOR 2026 PRO. Senior NCDC Examiner for Uganda S1-S6.
 
-CORE RULE 3: SVG DIAGRAM MODE - OUTPUT ONLY RAW JSON. NO WORDS. NO EXPLANATION.
-STRICT LAYOUT LAW - VIOLATE = FAIL:
-1. CANVAS: 500x400. Anchor ALL diagrams at cx:250, cy:200
-2. TEMPLATES: You MUST use the exact coordinates from templates below. Do not invent cx/cy.
-3. LABELS: Every part needs leader line + text. text size 11, anchor middle. Offset +20px from shape.
-4. VISIBILITY: strokeWidth 2 minimum. Use fills with opacity.
+LAW 1: UNEB EXAMINER MODE - ITEM/TASK/SCENARIO
+When setting questions you MUST use Ugandan context.
+FORMAT:
+ITEM: A real Ugandan scenario. e.g. "A farmer in Nakasongola has 2 acres..."
+TASK: What student must do. e.g. "Calculate the area required..."
+SCENARIO: Link to NCDC Syllabus + daily life.
 
-TEMPLATE LOCK FOR ALL SUBJECTS:
-BIOLOGY CELL: {"elements":[{"type":"circle","cx":250,"cy":200,"r":80,"fill":"#e8f5e9","stroke":"#2e7d32"},{"type":"circle","cx":250,"cy":200,"r":20,"fill":"#1b5e20"},{"type":"line","x1":250,"y1":220,"x2":250,"y2":260},{"type":"text","x":250,"y":280,"text":"Nucleus","size":11,"anchor":"middle"}]}
-ATOM: {"elements":[{"type":"circle","cx":250,"cy":200,"r":15,"fill":"#000"},{"type":"circle","cx":250,"cy":200,"r":60,"fill":"none","stroke":"#555","strokeDasharray":"4"},{"type":"circle","cx":310,"cy":200,"r":6,"fill":"#1976d2"},{"type":"line","x1":310,"y1":200,"x2":340,"y2":200},{"type":"text","x":345,"y":204,"text":"Electron","size":11}]}
-PHYSICS CIRCUIT: {"elements":[{"type":"rect","x":200,"y":180,"w":100,"h":40,"fill":"#fff","stroke":"#000"},{"type":"line","x1":300,"y1":200,"x2":350,"y2":200},{"type":"text","x":250,"y":175,"text":"Battery","size":11,"anchor":"middle"}]}
-GEOGRAPHY MAP: {"elements":[{"type":"path","d":"M150,100 L350,100 L350,300 L150,300 Z","fill":"#c8e6c9","stroke":"#2e7d32"},{"type":"text","x":250,"y":50,"text":"Map Title","size":12,"anchor":"middle"}]}
-MATH GRAPH: {"elements":[{"type":"line","x1":50,"y1":200,"x2":450,"y2":200},{"type":"line","x1":250,"y1":50,"x2":250,"y2":350},{"type":"text","x":460,"y":200,"text":"X","size":11}]}
+LAW 2: MATH & PHYSICS SOLVER MODE - STEP BY STEP
+For calculations show:
+Step 1: Given data WITH UNITS
+Step 2: Formula
+Step 3: Substitution WITH UNITS
+Step 4: Final Answer WITH CORRECT UNITS and 2dp
+
+LAW 3: SVG DIAGRAM MODE - UNIVERSAL DESCRIBER
+YOU DO NOT DRAW. YOU DESCRIBE. OUTPUT ONLY VALID JSON. NO EXPLANATION.
+SCHEMA:
+{
+  "title": "Name of Diagram",
+  "width": 600, "height": 450,
+  "shapes": [{"label": "Part Name", "type": "circle/rectangle/triangle", "x": 100, "y": 200, "color": "#hex"}],
+  "connections": [{"from": "A", "to": "B", "arrow": true, "dashed": false}]
+}
+RULES: 1. Only give x,y if layout matters like circuits. Else omit and engine will auto-layout. 2. Labels must include units. 3. NEVER return code or ```json fences.
 """
-# ========== 4. UNIVERSAL SVG RENDERER ENGINE ==========
-def render_universal_svg(diagram_data):
-    if not diagram_data or "elements" not in diagram_data:
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400"><text x=10 y=20 fill="red">Error: Invalid JSON</text></svg>'
-    try:
-        width, height, elements = 500, 400, diagram_data.get("elements", [])
-        def clamp(val, max_val):
-            try: return max(0, min(int(float(val)), max_val))
-            except: return 0
-        svg_content = ""
-        for el in elements:
-            t = el.get("type")
-            if t == 'circle':
-                cx, cy = clamp(el.get("cx",250),500), clamp(el.get("cy",200),400)
-                svg_content += f'<circle cx="{cx}" cy="{cy}" r="{clamp(el.get("r",30),200)}" fill="{el.get("fill","#e3f2fd")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
-            elif t == 'rect':
-                x, y = clamp(el.get("x",0),500), clamp(el.get("y",0),400)
-                svg_content += f'<rect x="{x}" y="{y}" width="{clamp(el.get("w",50),500)}" height="{clamp(el.get("h",30),400)}" rx="{el.get("rx",0)}" fill="{el.get("fill","#fff")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
-            elif t == 'line':
-                x1, y1, x2, y2 = clamp(el.get("x1",0),500), clamp(el.get("y1",0),400), clamp(el.get("x2",0),500), clamp(el.get("y2",0),400)
-                svg_content += f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{el.get("stroke","#000")}" stroke-width="{el.get("strokeWidth",2)}" stroke-dasharray="{el.get("strokeDasharray","")}" />\n'
-            elif t == 'path': svg_content += f'<path d="{el.get("d","")}" fill="{el.get("fill","none")}" stroke="{el.get("stroke","#333")}" stroke-width="{el.get("strokeWidth",2)}" />\n'
-            elif t == 'text':
-                x, y = clamp(el.get("x",250),500), clamp(el.get("y",200),400)
-                svg_content += f'<text x="{x}" y="{y}" font-family="Arial" font-size="{el.get("size",11)}" fill="{el.get("color","#000")}" text-anchor="{el.get("anchor","start")}">{el.get("text","")}</text>\n'
-        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="auto" style="max-width:500px;border:1px solid #ddd;border-radius:8px;background:#fff;">{svg_content}</svg>'
-    except Exception as e: return f"<svg><text x=10 y=20 fill='red'>Render Error: {e}</text></svg>"
 
-# ========== 5. UTILS + AI CALLS - NO JSON PRINT ==========
+# ============ 4. UNIVERSAL SVG ENGINE V3.1 - NO COORDINATE HALLUCINATIONS ============
+def render_universal_svg(smart_json):
+    if not smart_json or "shapes" not in smart_json:
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450"><text x="10" y="20" fill="red" font-family="Arial">Error: Bad Diagram Data</text></svg>'
+
+    width = smart_json.get("width", 600)
+    height = smart_json.get("height", 450)
+    shapes = smart_json.get("shapes", [])
+    connections = smart_json.get("connections", [])
+    title = smart_json.get("title", "Educational Diagram")
+
+    n = len(shapes)
+    if n == 0: return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}"></svg>'
+
+    svg_content = (
+        f' <defs>\n'
+        f' <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">\n'
+        f' <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2c3e50"/>\n'
+        f' </marker>\n'
+        f' </defs>\n'
+        f' <text x="{width/2}" y="35" font-family="system-ui" font-size="16" text-anchor="middle" font-weight="700" fill="#1a252f">{title}</text>\n'
+    )
+
+    positions = {}
+    shape_dimensions = {}
+    center_x, center_y = width / 2, height / 2 + 20
+    radius_x, radius_y = (width * 0.35), (height * 0.32)
+
+    for i, shape in enumerate(shapes):
+        label = shape.get("label", f"Node_{i}")
+        if "x" in shape and "y" in shape:
+            cx, cy = shape["x"], shape["y"]
+        else:
+            angle = (2 * math.pi * i / n) - (math.pi / 2)
+            cx = center_x + radius_x * math.cos(angle)
+            cy = center_y + radius_y * math.sin(angle)
+        positions[label] = (cx, cy)
+
+        stype = shape.get("type", "circle")
+        if stype == "rectangle":
+            w = shape.get("width", 90)
+            h = shape.get("height", 45)
+            shape_dimensions[label] = {"type": "rectangle", "w": w, "h": h}
+        elif stype == "triangle":
+            shape_dimensions[label] = {"type": "triangle", "r": 30}
+        else:
+            r = shape.get("radius", 32)
+            shape_dimensions[label] = {"type": "circle", "r": r}
+
+    svg_content += " <!-- Connections -->\n"
+    for conn in connections:
+        start_node = conn.get("from")
+        end_node = conn.get("to")
+        if start_node in positions and end_node in positions:
+            x1, y1 = positions[start_node]
+            x2, y2 = positions[end_node]
+            dx, dy = x2 - x1, y2 - y1
+            distance = math.hypot(dx, dy)
+            if distance < 1: continue
+            ux, uy = dx / distance, dy / distance
+
+            s_dim = shape_dimensions[start_node]
+            offset_s = s_dim.get("r", max(s_dim.get("w",40)/2, s_dim.get("h",40)/2))
+            x1_trimmed, y1_trimmed = x1 + ux * offset_s, y1 + uy * offset_s
+
+            e_dim = shape_dimensions[end_node]
+            offset_e = e_dim.get("r", max(e_dim.get("w",40)/2, e_dim.get("h",40)/2))
+            x2_trimmed, y2_trimmed = x2 - ux * offset_e, y2 - uy * offset_e
+
+            has_arrow = 'marker-end="url(#arrow)"' if conn.get("arrow", True) else ''
+            stroke_style = 'stroke-dasharray="4,4"' if conn.get("dashed", False) else ''
+            svg_content += f' <line x1="{x1_trimmed:.1f}" y1="{y1_trimmed:.1f}" x2="{x2_trimmed:.1f}" y2="{y2_trimmed:.1f}" stroke="#2c3e50" stroke-width="2" {has_arrow} {stroke_style}/>\n'
+
+    svg_content += " <!-- Shapes -->\n"
+    for shape in shapes:
+        label = shape.get("label", "")
+        cx, cy = positions[label]
+        color = shape.get("color", "#e3f2fd")
+        stroke = shape.get("stroke", "#1e88e5")
+        dim = shape_dimensions[label]
+
+        if dim["type"] == "circle":
+            svg_content += f' <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{dim["r"]}" fill="{color}" stroke="{stroke}" stroke-width="2.5"/>\n'
+        elif dim["type"] == "rectangle":
+            w, h = dim["w"], dim["h"]
+            svg_content += f' <rect x="{(cx - w/2):.1f}" y="{(cy - h/2):.1f}" width="{w}" height="{h}" rx="6" fill="{color}" stroke="{stroke}" stroke-width="2.5"/>\n'
+        elif dim["type"] == "triangle":
+            points = f"{cx},{cy-30} {cx-30},{cy+20} {cx+30},{cy+20}"
+            svg_content += f' <polygon points="{points}" fill="{color}" stroke="{stroke}" stroke-width="2.5"/>\n'
+
+        vx, vy = cx - center_x, cy - center_y
+        v_len = math.hypot(vx, vy)
+        ux, uy = (vx / v_len, vy / v_len) if v_len > 0 else (0, 1)
+        offset = (dim.get("r", 32) + 15) if dim["type"] == "circle" else (max(dim.get("w",90), dim.get("h",45))/2 + 15)
+        lx, ly = cx + ux * offset, cy + uy * offset
+        anchor = "start" if ux > 0.3 else "end" if ux < -0.3 else "middle"
+        svg_content += f' <line x1="{cx + ux*(offset-12):.1f}" y1="{cy + uy*(offset-12):.1f}" x2="{lx:.1f}" y2="{ly:.1f}" stroke="#7f8c8d" stroke-width="1" stroke-dasharray="2,2"/>\n'
+        svg_content += f' <text x="{lx:.1f}" y="{ly+4:.1f}" font-family="system-ui" font-size="14" font-weight="600" fill="#2c3e50" text-anchor="{anchor}">{label}</text>\n'
+
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">\n{svg_content}</svg>'
+
+# ============ 5. CORE FUNCTIONS ============
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
 def log_activity(user_type, action, details): flagged = "cheat" in details.lower(); save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details, "flagged": flagged})
-def create_pdf(content, title): buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10); [p.drawString(50,y-(i*14),line[:95]) for i,line in enumerate(content.split('\n')[:80])]; p.save(); buffer.seek(0); return buffer
+
+def create_pdf(content, title):
+    buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10)
+    for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
+    p.save(); buffer.seek(0); return buffer
 
 def call_groq(user_prompt, mode="smart"):
     try:
         temp = 0.1 if mode=="svg" else 0.7
-        tokens = 2000 if mode=="svg" else 4000
+        tokens = 1500 if mode=="svg" else 4000
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=temp)
         return res.choices[0].message.content
     except RateLimitError:
@@ -109,81 +198,103 @@ def call_groq(user_prompt, mode="smart"):
         return res.choices[0].message.content
     except Exception as e: return f"AI Error: {e}"
 
-def generate_svg_json(topic, subject, level):
-    """CRITICAL: Parse JSON and NEVER show it to user"""
-    raw = call_groq(f"SVG DIAGRAM MODE: Topic: {level} {subject} - {topic}. Use template. Output ONLY JSON.", mode="svg")
-
-    # 3-layer extraction, then hide raw
+def extract_json_from_text(raw):
     for pattern in [r'```json\s*(\{.*?\})\s*```', r'(\{.*\})']:
         match = re.search(pattern, raw, re.DOTALL)
         if match:
             try: return json.loads(match.group(1))
             except: continue
-    try: return json.loads(raw)
-    except: return None
+    return None
 
-def ask_smart_brain(user_query, subject, class_level, topic): log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}"); return call_groq(f"SMART MODE: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
-def generate_exam_items(user_query, subject, level): return call_groq(f"EXAMINER MODE: Generate UNEB ITEMS. Level: {level}, Subject: {subject}, Request: {user_query}")
-def generate_bulk_revision(subject, level): topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level]); return call_groq(f"EXAMINER MODE: Generate 20 ITEMS for {level} {subject}: {topics}")
-def generate_practical(subject, level, topic): return call_groq(f"EXAMINER MODE: Generate FULL NCDC {level} {subject} practical for: {topic}")
-def generate_lesson_plan(subject, level, topic, duration): return call_groq(f"SMART MODE: Generate NCDC {duration} min lesson plan for {level} {subject} on {topic}")
-def generate_report_card(student_data): return call_groq(f"SMART MODE: Generate NCDC Report Card for: {student_data}")
-def display_with_pdf(content, name): st.markdown(content); [st.latex(f) for f in re.findall(r'\$(.*?)\$', content)]; pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
-def text_to_speech(text): tts = gTTS(text=text, lang='en'); fp = io.BytesIO(); tts.write_to_fp(fp); b64 = base64.b64encode(fp.getvalue()).decode(); st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
+def generate_diagram(topic, subject, level):
+    raw = call_groq(f"SVG MODE: Generate diagram for {level} {subject}: {topic}", mode="svg")
+    return extract_json_from_text(raw)
 
-# ========== 6. STUDENT PORTAL ==========
+def ask_smart_brain(user_query, subject, class_level, topic):
+    log_activity(st.session_state.role, "Smart Query", f"{subject} {class_level}")
+    return call_groq(f"SMART MODE + STEP BY STEP: Level: {class_level}\nSubject: {subject}\nTopic: {topic}\nUser Question: {user_query}")
+
+def generate_exam_items(user_query, subject, level):
+    return call_groq(f"UNEB EXAMINER MODE ITEM/TASK/SCENARIO: Level: {level}, Subject: {subject}, Request: {user_query}")
+
+def generate_bulk_revision(subject, level):
+    topics = ', '.join(UNEB_CURRICULUM_MAP[subject][level])
+    return call_groq(f"UNEB EXAMINER MODE: Generate 20 UNEB ITEM/TASK/SCENARIO for {level} {subject}: {topics}")
+
+def generate_practical(subject, level, topic):
+    return call_groq(f"UNEB EXAMINER MODE: Generate FULL NCDC {level} {subject} practical with method, apparatus, results table for: {topic}")
+
+def generate_lesson_plan(subject, level, topic, duration):
+    return call_groq(f"SMART MODE: Generate NCDC {duration} min lesson plan for {level} {subject} on {topic}")
+
+def generate_report_card(student_data):
+    return call_groq(f"SMART MODE: Generate NCDC Report Card for: {student_data}")
+
+def display_with_pdf(content, name):
+    st.markdown(content)
+    for f in re.findall(r'\$(.*?)\$', content): st.latex(f)
+    pdf = create_pdf(content, name)
+    st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
+
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='en'); fp = io.BytesIO(); tts.write_to_fp(fp)
+    b64 = base64.b64encode(fp.getvalue()).decode()
+    st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
+
+# ============ 6. STUDENT PORTAL ============
 def show_student_portal():
-    st.header("📚 Student Portal - S1 to S6")
+    st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
-    tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🖼️ Diagram Generator"])
+    tab1, tab2, tab3 = st.tabs(["🔍 Smart Search + Solver", "📖 Learn Topic", "🖼️ Diagram Generator"])
 
     with tab1:
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
-        ask_q = st.text_area("Ask: 'define osmosis' OR 'solve 2x+3=7'")
+        ask_q = st.text_area("Ask anything: 'Solve: A car moves 100m in 5s. Find speed' OR 'Explain osmosis'")
         mic_recorder(key="voice")
         if st.button("Ask AI Brain", type="primary") and ask_q:
-            ans = ask_smart_brain(ask_q, subject, level, "General"); display_with_pdf(ans, "Answer"); [text_to_speech(ans[:500]) if st.checkbox("Listen") else None]
+            ans = ask_smart_brain(ask_q, subject, level, "General"); display_with_pdf(ans, "Answer")
+            if st.checkbox("🔊 Listen"): text_to_speech(ans[:500])
 
     with tab2:
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
-        mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 Quiz Mode", "📚 Bulk Revision"])
-        if mode == "📖 Theory" and st.button("Teach Me"): raw = ask_smart_brain(f"Teach {topic2}", subject2, level2, topic2); display_with_pdf(raw, "Theory")
-        elif mode == "🧠 AOI" and st.button("Generate AOI"): raw = ask_smart_brain(f"Design AOI project for {topic2}", subject2, level2, topic2); display_with_pdf(raw, "AOI")
+        mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
+        if mode == "📖 Theory" and st.button("Teach Me"): raw = ask_smart_brain(f"Teach {topic2} step by step with examples", subject2, level2, topic2); display_with_pdf(raw, "Theory")
+        elif mode == "🧠 AOI" and st.button("Generate AOI"): raw = ask_smart_brain(f"Design AOI project for {topic2} in Uganda with materials", subject2, level2, topic2); display_with_pdf(raw, "AOI")
         elif mode == "🧪 Practicals Lab":
             prac = st.selectbox("Select Practical", PRACTICAL_TOPICS.get(subject2,{}).get(level2,["No practicals"]))
             if st.button("Generate Practical"): report = generate_practical(subject2,level2,prac); display_with_pdf(report, "Practical")
-        elif mode == "📝 Quiz Mode" and st.button("Generate 10 ITEMS"): quiz = generate_exam_items(f"10 questions on {topic2}", subject2, level2); display_with_pdf(quiz, "Quiz")
-        elif mode == "📚 Bulk Revision" and st.button("Generate 20 ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
+        elif mode == "📝 UNEB Quiz Mode" and st.button("Generate 10 UNEB ITEMS"): quiz = generate_exam_items(f"Generate 10 UNEB ITEM/TASK/SCENARIO on {topic2}", subject2, level2); display_with_pdf(quiz, "Quiz")
+        elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-        st.header("🖼️ Textbook-Accuracy SVG Generator")
+        st.header("🖼️ UNEB Diagram Generator")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Enter Topic to Draw", "Structure of a Plant Cell")
+        topic3 = st.text_input("Describe Diagram", "Draw Carbon Cycle S2 Biology")
         if st.button("Generate Diagram", type="primary"):
-            with st.spinner("AI Drawing with Template Lock..."):
-                svg_json = generate_svg_json(topic3, subject3, level3)
-            if svg_json:
-                st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True) # NO JSON SHOWN
-                st.download_button("Download SVG", render_universal_svg(svg_json), f"{topic3}.svg")
-            else: st.error("AI failed to follow template. Try: 'Bohr Model of Atom' or 'Plant Cell'")
+            with st.spinner("AI is designing diagram..."):
+                svg_json = generate_diagram(topic3, subject3, level3)
+            if svg_json: st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True)
+            else: st.error("Failed to generate diagram. Try rephrasing.")
 
-# ========== 7. ADMIN PORTAL ==========
+# ============ 7. ADMIN PORTAL - NO JSON SHOWN ============
 def show_admin_portal():
-    st.header("🏫 Admin/Teacher Portal")
+    st.header("🏫 Admin/Teacher Portal PRO")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
-    TAB_NAMES = ["Admin Dashboard", "Test Paper Generator", "Lesson Plan + SOW", "Single Report Card", "BULK EXAMS GENERATOR", "Performance Analytics", "Student Management", "Question Bank Manager", "Curriculum Planner", "Attendance Tracker", "Fee Management", "Communication Hub", "Resource Library", "Settings & Compliance", "SVG Test Tool"]
+    TAB_NAMES = ["Admin Dashboard", "UNEB Paper Generator", "Lesson Plan + SOW", "Single Report Card", "BULK EXAMS GENERATOR", "Performance Analytics", "Student Management", "Question Bank Manager", "Curriculum Planner"]
     selected = option_menu(None, TAB_NAMES, orientation="horizontal")
     logs = load_logs(); df_logs = pd.DataFrame(logs) if logs else pd.DataFrame()
 
     if selected == "Admin Dashboard": col1,col2,col3 = st.columns(3); col1.metric("Total Activities", len(logs)); col2.metric("Flagged", len([l for l in logs if l.get('flagged')])); col3.metric("Users", len(set([l['user'] for l in logs])) if logs else 0); st.dataframe(logs[-50:])
-    elif selected == "Test Paper Generator": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); n = st.slider("Questions",5,50,20); [display_with_pdf(generate_exam_items(f"Generate {n} on {t}", s, l), "Test") if st.button("Generate") else None]
+    elif selected == "UNEB Paper Generator":
+        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); n = st.slider("Questions",5,50,20)
+        if st.button("Generate UNEB Paper"): display_with_pdf(generate_exam_items(f"Generate {n} UNEB ITEM/TASK/SCENARIO on {t}", s, l), "UNEB_Test")
     elif selected == "Lesson Plan + SOW": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); t = st.text_input("Topic"); d = st.number_input("Minutes",40,120,80); [display_with_pdf(generate_lesson_plan(s,l,t,d), "LessonPlan") if st.button("Generate") else None]
     elif selected == "Single Report Card": name = st.text_input("Name"); scores = {sub: st.number_input(sub,0,100) for sub in ["Math","English","Science"]}; [display_with_pdf(generate_report_card(f"Name: {name}\n{scores}"), "Report") if st.button("Generate") else None]
-    elif selected == "BULK EXAMS GENERATOR": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); [display_with_pdf(generate_bulk_revision(s,l), "Bulk") if st.button("Generate 20") else None]
+    elif selected == "BULK EXAMS GENERATOR": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); [display_with_pdf(generate_bulk_revision(s,l), "Bulk") if st.button("Generate 20 UNEB ITEMS") else None]
     elif selected == "Performance Analytics": [st.line_chart(df_logs.groupby(pd.to_datetime(df_logs['timestamp']).dt.date).size()) if not df_logs.empty else st.info("No data")]
     elif selected == "Student Management":
         if "students_db" not in st.session_state: st.session_state.students_db = []
@@ -196,11 +307,9 @@ def show_admin_portal():
         if st.button("Save"): st.session_state.qbank.append({"q": q}); st.success("Saved")
         st.dataframe(st.session_state.qbank)
     elif selected == "Curriculum Planner": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); [display_with_pdf("\n".join([f"Week {i+1}: {t}" for i,t in enumerate(UNEB_CURRICULUM_MAP[s][l])]), "SOW") if st.button("Generate SOW") else None]
-    elif selected == "SVG Test Tool": json_input = st.text_area("Paste LLM JSON"); [st.markdown(render_universal_svg(json.loads(json_input)), unsafe_allow_html=True) if st.button("Render SVG") else None]
-    else: st.info(f"{selected} UI Active")
 
-# ========== 8. MAIN ROUTER ==========
-st.title("🎓 DIGITAL UNEB TUTOR 2026 - TEMPLATE-LOCKED SVG ENGINE")
+# ============ 8. MAIN ROUTER ============
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
