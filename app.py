@@ -46,15 +46,15 @@ UNEB_CURRICULUM_MAP = {
 
 PRACTICAL_TOPICS = {"Mathematics": {"S1": ["Geometric Construction"]}, "Physics": {"S1": ["Simple Pendulum"]}, "Chemistry": {"S1": ["Filtration"]}, "Biology": {"S1": ["Light Microscope"]}}
 
-# ============ 3. MASTER SYSTEM PROMPT - UNEB EXAMINER + SMART CHATGPT + SVG DESCRIBER ============
+# ============ 3. MASTER SYSTEM PROMPT V3.2 - SUBJECT AWARE RULES ============
 MASTER_SYSTEM_PROMPT = """
 You are DIGITAL UNEB TUTOR 2026 PRO. Senior NCDC Examiner for Uganda S1-S6.
 
 LAW 1: UNEB EXAMINER MODE - ITEM/TASK/SCENARIO
 When setting questions you MUST use Ugandan context.
 FORMAT:
-ITEM: A real Ugandan scenario. e.g. "A farmer in Nakasongola has 2 acres..."
-TASK: What student must do. e.g. "Calculate the area required..."
+ITEM: A real Ugandan scenario. e.g. "A boda boda rider in Kampala..."
+TASK: What student must do. e.g. "Calculate the..."
 SCENARIO: Link to NCDC Syllabus + daily life.
 
 LAW 2: MATH & PHYSICS SOLVER MODE - STEP BY STEP
@@ -64,19 +64,30 @@ Step 2: Formula
 Step 3: Substitution WITH UNITS
 Step 4: Final Answer WITH CORRECT UNITS and 2dp
 
-LAW 3: SVG DIAGRAM MODE - UNIVERSAL DESCRIBER
-YOU DO NOT DRAW. YOU DESCRIBE. OUTPUT ONLY VALID JSON. NO EXPLANATION.
+LAW 3: SVG DIAGRAM MODE - SUBJECT AWARE RULES. OUTPUT ONLY VALID JSON. NO TEXT.
 SCHEMA:
-{
-  "title": "Name of Diagram",
-  "width": 600, "height": 450,
-  "shapes": [{"label": "Part Name", "type": "circle/rectangle/triangle", "x": 100, "y": 200, "color": "#hex"}],
-  "connections": [{"from": "A", "to": "B", "arrow": true, "dashed": false}]
-}
-RULES: 1. Only give x,y if layout matters like circuits. Else omit and engine will auto-layout. 2. Labels must include units. 3. NEVER return code or ```json fences.
+{"title": "string", "width": 600, "height": 450, "shapes": [{"label": "string", "type": "circle/rectangle/triangle", "x": number, "y": number, "width": number, "height": number}], "connections": [{"from": "string", "to": "string", "arrow": bool, "dashed": bool}]}
+
+SUBJECT RULES - YOU MUST FOLLOW:
+1. IF TOPIC HAS: refraction, reflection, lens, mirror, light -> RAY DIAGRAM RULE
+   MUST INCLUDE: "Air", "Glass/Water" as rectangles, "Normal" as dashed line, "Incident Ray" and "Refracted Ray" as lines with arrows. Show boundary.
+
+2. IF TOPIC HAS: circuit, battery, bulb, resistor, current -> CIRCUIT RULE
+   MUST INCLUDE: "Battery", "Bulb", "Resistor" as rectangles. MUST USE manual x,y to form a loop. Connect with lines.
+
+3. IF TOPIC HAS: cell, cycle, ecosystem, food web, heart, organ -> BIOLOGY CYCLE RULE
+   USE AUTO-LAYOUT. Use circles and rectangles. Connect with arrows to show flow.
+
+4. IF TOPIC HAS: bar graph, statistics, data -> GRAPH RULE
+   Use rectangles for bars. Label axes.
+
+5. IF TOPIC HAS: triangle, angle, vector, force -> GEOMETRY RULE
+   Use triangle and arrow shapes. Include units in labels: "Force: 20N"
+
+GENERAL RULES: 1. NEVER use dots for rays. 2. Labels must be clear and not overlap. 3. NEVER return ```json fences.
 """
 
-# ============ 4. UNIVERSAL SVG ENGINE V3.1 - NO COORDINATE HALLUCINATIONS ============
+# ============ 4. UNIVERSAL SVG ENGINE V3.2 - SCALED ============
 def render_universal_svg(smart_json):
     if not smart_json or "shapes" not in smart_json:
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450"><text x="10" y="20" fill="red" font-family="Arial">Error: Bad Diagram Data</text></svg>'
@@ -147,7 +158,7 @@ def render_universal_svg(smart_json):
 
             has_arrow = 'marker-end="url(#arrow)"' if conn.get("arrow", True) else ''
             stroke_style = 'stroke-dasharray="4,4"' if conn.get("dashed", False) else ''
-            svg_content += f' <line x1="{x1_trimmed:.1f}" y1="{y1_trimmed:.1f}" x2="{x2_trimmed:.1f}" y2="{y2_trimmed:.1f}" stroke="#2c3e50" stroke-width="2" {has_arrow} {stroke_style}/>\n'
+            svg_content += f' <line x1="{x1_trimmed:.1f}" y1="{y1_trimmed:.1f}" x2="{x2_trimmed:.1f}" y2="{y2_trimmed:.1f}" stroke="#2c3e50" stroke-width="2.5" {has_arrow} {stroke_style}/>\n'
 
     svg_content += " <!-- Shapes -->\n"
     for shape in shapes:
@@ -169,11 +180,12 @@ def render_universal_svg(smart_json):
         vx, vy = cx - center_x, cy - center_y
         v_len = math.hypot(vx, vy)
         ux, uy = (vx / v_len, vy / v_len) if v_len > 0 else (0, 1)
-        offset = (dim.get("r", 32) + 15) if dim["type"] == "circle" else (max(dim.get("w",90), dim.get("h",45))/2 + 15)
+        offset = (dim.get("r", 32) + 25) if dim["type"] == "circle" else (max(dim.get("w",90), dim.get("h",45))/2 + 25)
         lx, ly = cx + ux * offset, cy + uy * offset
         anchor = "start" if ux > 0.3 else "end" if ux < -0.3 else "middle"
+        text_color = "#ffffff" if st.get_option("theme.base") == "dark" else "#2c3e50"
         svg_content += f' <line x1="{cx + ux*(offset-12):.1f}" y1="{cy + uy*(offset-12):.1f}" x2="{lx:.1f}" y2="{ly:.1f}" stroke="#7f8c8d" stroke-width="1" stroke-dasharray="2,2"/>\n'
-        svg_content += f' <text x="{lx:.1f}" y="{ly+4:.1f}" font-family="system-ui" font-size="14" font-weight="600" fill="#2c3e50" text-anchor="{anchor}">{label}</text>\n'
+        svg_content += f' <text x="{lx:.1f}" y="{ly+4:.1f}" font-family="system-ui" font-size="14" font-weight="600" fill="{text_color}" text-anchor="{anchor}">{label}</text>\n'
 
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px;">\n{svg_content}</svg>'
 
@@ -207,7 +219,7 @@ def extract_json_from_text(raw):
     return None
 
 def generate_diagram(topic, subject, level):
-    raw = call_groq(f"SVG MODE: Generate diagram for {level} {subject}: {topic}", mode="svg")
+    raw = call_groq(f"SVG MODE: Generate diagram for {level} {subject}: {topic}. Follow SUBJECT RULES strictly.", mode="svg")
     return extract_json_from_text(raw)
 
 def ask_smart_brain(user_query, subject, class_level, topic):
@@ -270,15 +282,15 @@ def show_student_portal():
         elif mode == "📚 Bulk Revision" and st.button("Generate 20 UNEB ITEMS"): bulk = generate_bulk_revision(subject2, level2); display_with_pdf(bulk, "Bulk")
 
     with tab3:
-        st.header("🖼️ UNEB Diagram Generator")
+        st.header("🖼️ UNEB Diagram Generator - Scaled")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Describe Diagram", "Draw Carbon Cycle S2 Biology")
+        topic3 = st.text_input("Describe Diagram", "Draw ray diagram of refraction from Air to Glass S2 Physics")
         if st.button("Generate Diagram", type="primary"):
             with st.spinner("AI is designing diagram..."):
                 svg_json = generate_diagram(topic3, subject3, level3)
             if svg_json: st.markdown(render_universal_svg(svg_json), unsafe_allow_html=True)
-            else: st.error("Failed to generate diagram. Try rephrasing.")
+            else: st.error("Failed to generate diagram. Try: 'Draw Carbon Cycle S2 Biology'")
 
 # ============ 7. ADMIN PORTAL - NO JSON SHOWN ============
 def show_admin_portal():
@@ -309,7 +321,7 @@ def show_admin_portal():
     elif selected == "Curriculum Planner": s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys())); l = st.selectbox("Class", [f"S{i}" for i in range(1,7)]); [display_with_pdf("\n".join([f"Week {i+1}: {t}" for i,t in enumerate(UNEB_CURRICULUM_MAP[s][l])]), "SOW") if st.button("Generate SOW") else None]
 
 # ============ 8. MAIN ROUTER ============
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.2")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
