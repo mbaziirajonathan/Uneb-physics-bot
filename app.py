@@ -25,21 +25,12 @@ AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
 
-### CRITICAL SYSTEM PROMPT - NCDC LOCKED + UGANDAN CONTEXT ###
+### CRITICAL SYSTEM PROMPT - NCDC LOCKED ###
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - NCDC UGANDA EXAMINER.
 Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner for Uganda S1-S6.
+CRITICAL RULES: 1. Use ONLY NCDC 2026 + Ugandan examples. 2. UNEB ITEM/TASK/SCENARIO format. 3. Diagrams: Title, Numbered labels 1.2.3., Arrows, DPI 300. Save to 'auto_diagram.png'. 4. NO HALLUCINATION."""
 
-CRITICAL RULES:
-1. NCDC LOCK: Use ONLY NCDC 2026 curriculum. Use Ugandan examples only: Kampala, Nile, Lake Victoria, Matoke, Boda, UPE, etc. No foreign examples.
-2. UNEB FORMAT: All questions must be ITEM, TASK, SCENARIO based. Real life Ugandan context.
-3. CHAIN OF THOUGHT: For every problem: 1.Understand 2.Formula 3.Substitute 4.Answer.
-4. DIAGRAM RULES: Generate matplotlib code. MUST have Title, Numbered labels 1.2.3., Arrows, Legend, DPI 300. Save to 'auto_diagram.png'. Use 3D when needed.
-5. NO HALLUCINATION: If topic not in NCDC, say "Not in NCDC S1-S6 syllabus" then give closest.
-6. TONE: Smart like ChatGPT but strict NCDC examiner.
-
-Spatial Examples: Atom shells, Cone h/r/l, Circuit series, Cell parts, Heart chambers."""
-
-### RESTORED ALL 14 NCDC SUBJECTS S1-S6 ###
+### 14 NCDC SUBJECTS RESTORED ###
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Percentages", "Algebra I"], "S2": ["Patterns", "Bearings", "Angles", "Algebra II", "Sets", "Rates"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Similarity", "Trigonometry I"], "S4": ["Functions", "3D Geometry", "Statistics", "Circle Geometry", "Binomials"], "S5": ["Differentiation", "Integration", "Permutations", "Complex Numbers"], "S6": ["Differential Equations", "Mechanics", "Statistics II", "Linear Programming"]},
     "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Density", "Pressure"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism", "Waves II", "Atomic Physics"], "S4": ["Electromagnetism", "Electronics", "Radioactivity", "Astrophysics"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Thermal Physics II"], "S6": ["Electric Fields", "Magnetic Fields", "Nuclear Physics", "Quantum Physics"]},
@@ -57,11 +48,10 @@ UNEB_CURRICULUM_MAP = {
     "Fine Art": {"S1": ["Drawing", "Color"], "S2": ["Painting", "Sculpture"], "S3": ["Craft", "Design"], "S4": ["Art History", "Printmaking"], "S5": ["Advanced Painting", "Textiles"], "S6": ["Exhibition", "Career in Art"]}
 }
 
-### RESTORED FULL PRACTICALS DATABASE - 3 SCIENCES ###
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "To verify Ohm's Law V=IR", "apparatus": "Cell, Ammeter, Voltmeter, Rheostat", "procedure": "1. Connect circuit. 2. Vary rheostat. 3. Record V and I.", "observations": "I vs V Table", "questions": ["State Ohm's law"], "safety": "No short circuit"}, "Simple Pendulum": {"objective": "Find g", "apparatus": "Bob, String, Stopwatch", "procedure": "Time 20 oscillations", "observations": "T vs L", "questions": ["Plot T^2 vs L"], "safety": "Safe height"}, "Refraction": {"objective": "Find refractive index", "apparatus": "Glass block, Pins", "procedure": "Trace rays", "observations": "i vs r", "questions": ["Snell's Law"], "safety": "Handle glass"}}, "S5-S6": {"RC Circuit": {"objective": "Find time constant", "apparatus": "Capacitor, Resistor", "procedure": "Charge and discharge", "observations": "V vs t", "questions": ["Define tau"], "safety": "Discharge"}, "Young's Modulus": {"objective": "Find Y", "apparatus": "Wire, Masses", "procedure": "Measure extension", "observations": "F vs e", "questions": ["Calculate Y"], "safety": "Goggles"}}},
-    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate sand and salt", "apparatus": "Beaker, Filter", "procedure": "Dissolve, Filter, Evaporate", "observations": "Residue, Filtrate", "questions": ["Name methods"], "safety": "Goggles"}, "Titration": {"objective": "Find NaOH conc", "apparatus": "Burette, Pipette", "procedure": "Titrate", "observations": "Titre", "questions": ["Calculate molarity"], "safety": "Acid burns"}, "Oxygen Prep": {"objective": "Prepare O2", "apparatus": "KClO3, MnO2", "procedure": "Heat", "observations": "Relights splint", "questions": ["Equation"], "safety": "Heat"}}, "S5-S6": {"Rate of Reaction": {"objective": "Effect of temp", "apparatus": "Mg, HCl", "procedure": "React at different temps", "observations": "Time", "questions": ["Explain rate"], "safety": "Fumes"}, "Electrolysis": {"objective": "Electrolyse CuSO4", "apparatus": "Electrodes", "procedure": "Pass current", "observations": "Deposits", "questions": ["Half equations"], "safety": "Low voltage"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope, Onion", "procedure": "Prepare slide", "observations": "Draw cell", "questions": ["Function nucleus"], "safety": "Clean lens"}, "Food Tests": {"objective": "Test nutrients", "apparatus": "Iodine, Benedict", "procedure": "Add reagents", "observations": "Color change", "questions": ["Test protein"], "safety": "No tasting"}, "Osmosis": {"objective": "Potato osmosis", "apparatus": "Potato, Sucrose", "procedure": "Place in solutions", "observations": "Mass change", "questions": ["Define osmosis"], "safety": "Sharp knife"}}, "S5-S6": {"Enzyme Action": {"objective": "Effect of pH", "apparatus": "Amylase, Starch", "procedure": "Test at pH", "observations": "Time", "questions": ["Optimum pH"], "safety": "Sterile"}, "Transpiration": {"objective": "Measure rate", "apparatus": "Potometer", "procedure": "Record bubble", "observations": "Distance", "questions": ["Factors"], "safety": "Water"}}}
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "To verify Ohm's Law V=IR", "apparatus": "Cell, Ammeter, Voltmeter", "procedure": "Connect circuit", "observations": "I vs V", "questions": ["State Ohm's law"], "safety": "No short circuit"}, "Simple Pendulum": {"objective": "Find g", "apparatus": "Bob, String", "procedure": "Time 20 oscillations", "observations": "T vs L", "questions": ["Plot T^2"], "safety": "Safe"}, "Refraction": {"objective": "Find n", "apparatus": "Glass block", "procedure": "Trace rays", "observations": "i vs r", "questions": ["Snell"], "safety": "Care"}}, "S5-S6": {"RC Circuit": {"objective": "Find tau", "apparatus": "C,R", "procedure": "Charge", "observations": "V vs t", "questions": ["tau"], "safety": "Discharge"}, "Young's Modulus": {"objective": "Find Y", "apparatus": "Wire", "procedure": "Extend", "observations": "F vs e", "questions": ["Y"], "safety": "Goggles"}}},
+    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate sand/salt", "apparatus": "Beaker", "procedure": "Dissolve", "observations": "Residue", "questions": ["Methods"], "safety": "Goggles"}, "Titration": {"objective": "Find conc", "apparatus": "Burette", "procedure": "Titrate", "observations": "Titre", "questions": ["Molarity"], "safety": "Acid"}, "Oxygen": {"objective": "Prep O2", "apparatus": "KClO3", "procedure": "Heat", "observations": "Splint", "questions": ["Eqn"], "safety": "Heat"}}, "S5-S6": {"Rate": {"objective": "Effect temp", "apparatus": "Mg", "procedure": "React", "observations": "Time", "questions": ["Rate"], "safety": "Fumes"}, "Electrolysis": {"objective": "CuSO4", "apparatus": "Electrodes", "procedure": "Current", "observations": "Deposit", "questions": ["Half"], "safety": "Low V"}}},
+    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope", "procedure": "Slide", "observations": "Draw", "questions": ["Nucleus"], "safety": "Clean"}, "Food Tests": {"objective": "Test food", "apparatus": "Iodine", "procedure": "Reagent", "observations": "Color", "questions": ["Protein"], "safety": "No taste"}, "Osmosis": {"objective": "Potato", "apparatus": "Potato", "procedure": "Soak", "observations": "Mass", "questions": ["Osmosis"], "safety": "Knife"}}, "S5-S6": {"Enzyme": {"objective": "pH effect", "apparatus": "Amylase", "procedure": "Test", "observations": "Time", "questions": ["pH"], "safety": "Sterile"}, "Transpiration": {"objective": "Rate", "apparatus": "Potometer", "procedure": "Bubble", "observations": "Distance", "questions": ["Factors"], "safety": "Water"}}}
 }
 
 ### CORE FUNCTIONS ###
@@ -76,26 +66,38 @@ def call_groq(user_prompt):
     try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.3); return res.choices[0].message.content
     except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.3); return res.choices[0].message.content
 
-### CRITICAL AUTO-RENDER ENGINE ###
+### ADVANCED LOOP ENGINE - BATCH DIAGRAM GENERATOR ###
 def auto_render_pixel_diagram(topic, subject, level):
-    st.info("🤖 CRITICAL MODE: AI generating labeled 3D diagram...")
-    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. CRITICAL: Title, numbered labels with ax.text/ax.annotate, arrows, legend. Use Ugandan context if relevant. Save: plt.savefig('auto_diagram.png', dpi=300, bbox_inches='tight'); plt.close()"
+    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. CRITICAL: Title, numbered labels 1.2.3., arrows, legend. Ugandan context if possible. Save: plt.savefig('auto_diagram_{topic}.png', dpi=300, bbox_inches='tight'); plt.close()"
     code = call_groq(prompt).replace("```python","").replace("```","")
     try:
         exec_globals = {"plt": plt, "np": np}
         exec(code, exec_globals)
-        return "auto_diagram.png" if os.path.exists("auto_diagram.png") else "ERROR: No savefig"
+        fname = f"auto_diagram_{topic}.png".replace(" ", "_")
+        return fname if os.path.exists(fname) else "ERROR"
     except Exception as e: return f"ERROR: {e}"
+
+def batch_generate_diagrams(subject, level, topic_list):
+    results = []
+    progress = st.progress(0)
+    for i, topic in enumerate(topic_list):
+        st.write(f"Rendering {i+1}/{len(topic_list)}: {topic}")
+        img_path = auto_render_pixel_diagram(topic, subject, level)
+        if "ERROR" not in img_path:
+            results.append({"topic": topic, "path": img_path})
+        progress.progress((i+1)/len(topic_list))
+        time.sleep(0.5) # Rate limit
+    return results
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
     data = PRACTICAL_DATABASE.get(subject,{}).get(level_group,{}).get(prac_name,{})
-    if not data: return "Practical not in NCDC database for this level"
-    prompt = f"Expand this NCDC practical into full UNEB report format for {subject} {level}. Use Ugandan school lab context: {data}"
+    if not data: return "Practical not in NCDC database"
+    prompt = f"Expand this NCDC practical into full UNEB report for {subject} {level} Ugandan context: {data}"
     return call_groq(prompt)
 
 def generate_uneb_item_task(subject, level, topic):
-    prompt = f"Generate 1 UNEB ITEM/TASK/SCENARIO question for {level} {subject} topic: {topic}. MUST use Ugandan context: market in Kampala, boda, school in Gulu, Lake Victoria. Provide scenario, task, and marking guide."
+    prompt = f"Generate 1 UNEB ITEM/TASK/SCENARIO for {level} {subject} topic: {topic}. Use Ugandan context: Kampala market, boda, Lake Victoria. Provide scenario, task, marking guide."
     return call_groq(prompt)
 
 def display_with_pdf(content, name):
@@ -107,7 +109,7 @@ def display_with_pdf(content, name):
 def show_student_portal():
     st.header("📚 Student Portal - NCDC S1 to S6 - 14 SUBJECTS")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
-    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🎨 Diagram Generator", "📝 UNEB ITEM/TASK"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🎨 Batch Diagram Generator", "📝 UNEB ITEM/TASK"])
 
     with tab1:
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
@@ -129,32 +131,45 @@ def show_student_portal():
             raw = call_groq(f"Teach {topic2} with Ugandan examples for {level2} {subject2}")
             display_with_pdf(raw, "Theory")
         elif mode == "🧠 AOI" and st.button("Generate AOI"):
-            aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}. Use Ugandan scenario.")
+            aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}. Ugandan scenario.")
             display_with_pdf(aoi, "AOI")
         elif mode == "🧪 Practicals Lab":
             if subject2 in PRACTICAL_DATABASE:
                 prac_list = list(PRACTICAL_DATABASE.get(subject2,{}).get("S1-S4",{}).keys()) if int(level2[1])<=4 else list(PRACTICAL_DATABASE.get(subject2,{}).get("S5-S6",{}).keys())
-            else: prac_list = ["No practicals for this subject"]
+            else: prac_list = ["No practicals"]
             prac = st.selectbox("Select Practical", prac_list)
             if st.button("Generate Practical"):
                 report = generate_practical(subject2,level2,prac)
                 display_with_pdf(report, "Practical")
         elif mode == "📚 Bulk Revision" and st.button("Generate Revision"):
-            rev = call_groq(f"Generate full NCDC revision notes + 20 Ugandan scenario questions for {topic2} {level2} {subject2}")
+            rev = call_groq(f"Generate NCDC revision + 20 Ugandan questions for {topic2} {level2} {subject2}")
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 Diagram Generator - CRITICAL AI RENDER")
-        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
-        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Describe Diagram:", "Draw human heart with 4 chambers")
-        if st.button("Generate Diagram", type="primary"):
-            log_activity("Student", "Generate Diagram", topic3)
-            img_path = auto_render_pixel_diagram(topic3, subject3, level3)
-            if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
+        st.header("🎨 Batch Diagram Generator - LOOP ALL TOPICS")
+        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="batch_subj")
+        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="batch_level")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            mode = st.radio("Batch Mode", ["1 Topic", "All Topics in Class", "Selected Topics"])
+        with col2:
+            if mode == "1 Topic":
+                topic_single = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject3][level3])
+                topic_list = [topic_single]
+            elif mode == "All Topics in Class":
+                topic_list = UNEB_CURRICULUM_MAP[subject3][level3]
+                st.info(f"Will generate {len(topic_list)} diagrams")
             else:
-                st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
-                with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
+                topic_list = st.multiselect("Select Topics", UNEB_CURRICULUM_MAP[subject3][level3])
+
+        if st.button("Generate Batch Diagrams", type="primary"):
+            log_activity("Student", "Batch Generate", f"{subject3} {level3}")
+            results = batch_generate_diagrams(subject3, level3, topic_list)
+            st.success(f"Generated {len(results)} diagrams")
+            for r in results:
+                st.image(r["path"], caption=f"{r['topic']}", use_container_width=True)
+                with open(r["path"], "rb") as file: st.download_button("📥 Download", file, r["path"], key=r["path"])
 
     with tab4:
         st.header("📝 UNEB ITEM/TASK/SCENARIO GENERATOR")
@@ -179,7 +194,7 @@ def show_admin_portal():
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
         st.write(UNEB_CURRICULUM_MAP[subj][level])
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.8 NCDC FULL RESTORE")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.9 BATCH LOOP ENGINE")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
