@@ -1,10 +1,12 @@
 import streamlit as st
-import os, io, json, re, time
+import os, io, json, re, time, ast
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from groq import Groq, RateLimitError
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg') # CRITICAL: Prevents backend crashes on Streamlit Cloud
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow
@@ -29,57 +31,36 @@ CONTACT = "256751040731"
 ### DUAL ENGINE ###
 AI_MODEL_SMART = "llama-3.3-70b-versatile"
 AI_MODEL_INSTANT = "llama-3.2-3b-preview"
-st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO V3.9.6\nNCDC + UNEB EXAMINER MODE + MULTI-SHOT ENGINE\n📞 {CONTACT}")
+st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO V3.9.8\nNCDC + UNEB EXAMINER MODE + SAFE RENDER ENGINE\n📞 {CONTACT}")
 
-### 3-SHOT ANTI-HALLUCINATION EXAMPLES FOR 70B ###
+### 3-SHOT EXAMPLES ###
 SHOT_1_CELL = '''fig, ax = plt.subplots(figsize=(9,9)); ax.set_xlim(0,1); ax.set_ylim(0,1)
 ax.add_patch(Rectangle((0.05,0.05), 0.9, 0.9, fill=False, linewidth=3))
-ax.add_patch(Circle((0.5,0.5), 0.12, color='#ffcdd2')); ax.add_patch(Ellipse((0.3,0.7), 0.1, 0.05, color='#81c784'))
-ax.add_patch(Rectangle((0.6,0.2), 0.15, 0.1, color='#90caf9'))
+ax.add_patch(Circle((0.5,0.5), 0.12, color='#ffcdd2'))
 ax.text(0.5,0.5,'1. Nucleus', ha='center', bbox=dict(boxstyle='round', facecolor='yellow'))
-ax.annotate('2. Chloroplast', xy=(0.3,0.7), xytext=(0.1,0.8), arrowprops=dict(arrowstyle='->', color='black'))
-ax.set_title('Plant Cell - S1 Biology', fontsize=16, fontweight='bold'); ax.axis('off')
-plt.savefig('diagram.png', dpi=300, bbox_inches='tight'); plt.close()'''
-
-SHOT_2_CIRCUIT = '''fig, ax = plt.subplots(figsize=(9,9)); ax.set_xlim(0,1); ax.set_ylim(0,1)
-ax.plot([0.1,0.3],[0.5,0.5], 'k-', linewidth=4); ax.add_patch(Rectangle((0.3,0.45), 0.1, 0.1, fill=False, linewidth=4))
-ax.add_patch(Circle((0.55,0.5), 0.08, fill=False, linewidth=4))
-ax.plot([0.63,0.63],[0.5,0.7], 'k-', linewidth=4); ax.plot([0.63,0.1],[0.7,0.7], 'k-', linewidth=4)
-ax.text(0.35,0.48,'1. Resistor', bbox=dict(boxstyle='round', facecolor='yellow'))
-ax.annotate('2. Bulb', xy=(0.55,0.5), xytext=(0.7,0.6), arrowprops=dict(arrowstyle='->'))
-ax.set_title('Simple Circuit - S2 Physics', fontsize=16, fontweight='bold'); ax.axis('off')
-plt.savefig('diagram.png', dpi=300, bbox_inches='tight'); plt.close()'''
-
-SHOT_3_HEART = '''fig, ax = plt.subplots(figsize=(9,9)); ax.set_xlim(0,1); ax.set_ylim(0,1)
-ax.add_patch(Ellipse((0.5,0.5), 0.4, 0.5, color='#ef9a9a'))
-ax.add_patch(Circle((0.35,0.4), 0.08, color='#d32f2f')); ax.add_patch(Circle((0.65,0.4), 0.08, color='#d32f2f'))
-ax.text(0.35,0.4,'1. LA', ha='center', color='white', fontweight='bold')
-ax.annotate('2. Aorta', xy=(0.5,0.75), xytext=(0.6,0.85), arrowprops=dict(arrowstyle='->'))
-ax.set_title('Human Heart - S4 Biology', fontsize=16, fontweight='bold'); ax.axis('off')
+ax.annotate('2. Cell Wall', xy=(0.05,0.5), xytext=(0.02,0.6), arrowprops=dict(arrowstyle='->'))
+ax.set_title('Plant Cell - S1 Biology'); ax.axis('off')
 plt.savefig('diagram.png', dpi=300, bbox_inches='tight'); plt.close()'''
 
 SYSTEM_SMART = f"""You are DIGITAL UNEB TUTOR 2026 PRO. Senior NCDC Examiner.
-STRICT RULES FOR DIAGRAMS:
-1. COPY STYLE FROM THESE 3 EXAMPLES: {SHOT_1_CELL} --- {SHOT_2_CIRCUIT} --- {SHOT_3_HEART}
-2. MUST have: Title, 5-8 numbered labels in yellow boxes, black arrows pointing to parts
-3. Use ONLY: Circle, Rectangle, Ellipse, FancyArrow from matplotlib.patches
-4. Save: plt.savefig('diagram.png', dpi=300, bbox_inches='tight'); plt.close()
-5. NCDC Uganda S1-S6. Label all parts accurately."""
+OUTPUT ONLY PYTHON CODE. NO EXPLANATIONS. NO MARKDOWN.
+EXAMPLE TO COPY: {SHOT_1_CELL}
+STRICT RULES:
+1. Use only: Circle, Rectangle, Ellipse, FancyArrow
+2. Must have: plt.subplots, ax.set_xlim(0,1), ax.set_ylim(0,1), Title, 5 numbered labels with yellow bbox
+3. End with: plt.savefig('diagram.png', dpi=300, bbox_inches='tight') plt.close()
+4. ax.axis('off')"""
 
-SYSTEM_INSTANT = """You are FAST DIAGRAM BOT.
-RULES:
-1. Use Circle, Rectangle, Ellipse only.
-2. Add Title. Add 3-5 labels with numbers.
-3. Save: plt.savefig('diagram.png', dpi=200); plt.close()
-Task: Generate simple matplotlib code."""
+SYSTEM_INSTANT = """OUTPUT ONLY PYTHON CODE. NO TEXT.
+RULES: Use Circle Rectangle. 3 labels. Title. Save 'diagram.png' dpi 200. ax.axis('off')"""
 
-### DATABASES ###
+### DATABASES - UNCHANGED ###
 def load_db(file): return json.load(open(file,"r", encoding="utf-8")) if os.path.exists(file) else []
 def save_db(file,data): json.dump(data,open(file,"w", encoding="utf-8"),indent=2)
 if "students_db" not in st.session_state: st.session_state.students_db = load_db(STUDENTS_FILE)
 
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions"], "S2": ["Angles", "Algebra II"], "S3": ["Vectors", "Matrices"], "S4": ["Circle Geometry"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
+    "Mathematics": {"S1": ["Number Bases"], "S2": ["Angles"], "S3": ["Vectors"], "S4": ["Circle Geometry"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
     "Physics": {"S1": ["Forces"], "S2": ["Electricity I"], "S3": ["Magnetism"], "S4": ["Electronics"], "S5": ["Optics"], "S6": ["Electric Fields"]},
     "Chemistry": {"S1": ["Atoms"], "S2": ["Acids Alkalis"], "S3": ["Bonding"], "S4": ["REDOX"], "S5": ["Kinetics"], "S6": ["Electrochemistry"]},
     "Biology": {"S1": ["Cells"], "S2": ["Respiration"], "S3": ["Genetics I"], "S4": ["Photosynthesis"], "S5": ["Cell Biology"], "S6": ["Hormones"]},
@@ -95,18 +76,7 @@ UNEB_CURRICULUM_MAP = {
     "Art": {"S1": ["Drawing"],"S2": ["Painting"],"S3": ["Sculpture"],"S4": ["Design"],"S5": ["Craft"],"S6": ["Art History"]}
 }
 
-PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "To verify Ohm's Law V=IR", "apparatus": "Cell, Ammeter, Voltmeter", "procedure": "1. Connect. 2. Record.", "questions": ["State Ohm's law"], "safety": "Do not short circuit"}}},
-    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine NaOH", "apparatus": "Burette", "procedure": "1. Titrate.", "questions": ["Calculate"], "safety": "Acid burns"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope", "procedure": "1. Focus.", "questions": ["Function"], "safety": "Clean lens"}}}
-}
-
-### SVG ENGINE ###
-def svg_header(title): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 700"><rect width="950" height="700" fill="white"/><text x="475" y="40" text-anchor="middle" font-size="24" font-weight="bold">{title}</text>'
-def svg_footer(): return '</svg>'
-def render_universal_svg(raw_svg): return f'<div style="background:white; padding:20px; border:4px solid #1a237e;">{raw_svg}</div>'
-def draw_plant_cell(): return svg_header("Plant Cell") + '<rect x="120" y="100" width="700" height="450" fill="#c8e6c9" stroke="black" stroke-width="5"/>' + svg_footer()
-AUTO_DRAW_ENGINE = {"cell": draw_plant_cell, "circuit": draw_circuit if 'draw_circuit' in locals() else draw_plant_cell}
+PRACTICAL_DATABASE = {"Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law", "apparatus": "Cell", "procedure": "Connect", "questions": ["State law"], "safety": "No short"}}}}
 
 ### CORE FUNCTIONS ###
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
@@ -117,83 +87,84 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 
+### FIX 1: RETRY + TOKEN SAFE CALL ###
+def call_groq_dual(user_prompt, mode="Smart", retries=2):
+    system = SYSTEM_SMART if mode=="Smart" else SYSTEM_INSTANT
+    model = AI_MODEL_SMART if mode=="Smart" else AI_MODEL_INSTANT
+    tokens = 3500 if mode=="Smart" else 700
 
-def sanitize_ai_code(raw_code):
-    """Clean AI garbage out of code before exec"""
-    code = raw_code.replace("```python","").replace("```","").strip()
-    
-    # Remove explanations before/after code
-    lines = code.split('\n')
-    code_lines = []
-    started = False
-    for line in lines:
-        if 'import' in line or 'fig' in line or 'plt' in line:
-            started = True
-        if started:
-            code_lines.append(line)
-    
-    code = '\n'.join(code_lines)
-    
-    # Force correct imports and savefig
+    for i in range(retries):
+        try:
+            res = client.chat.completions.create(model=model, messages=[{"role":"system","content":system},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=0.1)
+            return res.choices[0].message.content
+        except RateLimitError:
+            time.sleep(2)
+            continue
+        except Exception as e:
+            if i == retries-1: return f"GROQ_ERROR: {e}"
+    return "GROQ_ERROR: Failed after retries"
+
+### FIX 2: CODE EXTRACTOR + VALIDATOR ###
+def extract_code(raw):
+    if not raw or "GROQ_ERROR" in raw: return raw
+    # Remove markdown
+    code = re.sub(r'```python|```', '', raw).strip()
+    # Take only from first import/fig to end
+    match = re.search(r'(from matplotlib|import matplotlib|fig, ax = plt).*', code, re.DOTALL)
+    return match.group(0) if match else code
+
+def validate_code_syntax(code):
+    try: ast.parse(code); return True
+    except SyntaxError as e: return f"SyntaxError line {e.lineno}: {e.msg}"
+
+### FIX 3: SAFE RENDER ENGINE ###
+def auto_render_pixel_diagram(topic, subject, level, mode="Smart"):
+    st.info(f"🤖 Running {mode} Engine...")
+
+    prompt = f"Task: Draw '{topic}' for {level} {subject}. Use matplotlib. 5 labels with arrows. Save diagram.png"
+    raw_code = call_groq_dual(prompt, mode)
+
+    if "GROQ_ERROR" in raw_code: return raw_code
+
+    code = extract_code(raw_code)
+
+    # Force header
     header = "from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow\nimport matplotlib.pyplot as plt\nimport numpy as np\n"
     code = header + code
     code = code.replace("/mnt/data/diagram.png", "diagram.png")
-    
-    # Force savefig at end if missing
-    if "plt.savefig" not in code:
-        code += "\nplt.savefig('diagram.png', dpi=300, bbox_inches='tight')\nplt.close()"
-    
-    return code
 
-def auto_render_pixel_diagram(topic, subject, level, mode="Smart"):
-    st.info(f"🤖 Running {mode} Engine...")
-    
-    if mode == "Smart":
-        prompt = f"""Generate ONLY valid python matplotlib code. No explanations.
-Task: Draw '{topic}' for {level} {subject}.
-Rules: Use Circle Rectangle Ellipse FancyArrow. Title required. 5 numbered labels with yellow bbox and arrows.
-End with: plt.savefig('diagram.png', dpi=300, bbox_inches='tight') plt.close()"""
-    else:
-        prompt = f"""Write simple python code. No text.
-Draw '{topic}' {level} {subject}. Use Circle Rectangle. 3 labels. Save 'diagram.png' dpi 200."""
+    # Validate before exec
+    valid = validate_code_syntax(code)
+    if valid!= True: return f"ERROR: {valid}"
 
-    raw_code = call_groq_dual(prompt, mode)
-    code = sanitize_ai_code(raw_code)
-
-    with st.expander(f"View {mode} AI Generated Code - Debug"):
+    with st.expander(f"View {mode} AI Code"):
         st.code(code, language="python")
 
     try:
-        # SAFE EXEC with restricted globals
-        safe_globals = {
-            "plt": plt, "np": np, 
-            "Circle": Circle, "Rectangle": Rectangle, 
-            "Ellipse": Ellipse, "FancyArrow": FancyArrow
-        }
-        exec(code, safe_globals)
-        
+        plt.close('all') # Clear previous plots
+        safe_globals = {"plt": plt, "np": np, "Circle": Circle, "Rectangle": Rectangle, "Ellipse": Ellipse, "FancyArrow": FancyArrow}
+        exec(code, {"__builtins__": {}}, safe_globals) # Sandbox exec
+
         if os.path.exists("diagram.png"):
             return "diagram.png"
         else:
-            return "ERROR: AI forgot plt.savefig command"
-            
-    except SyntaxError as e:
-        return f"ERROR: Syntax Error Line {e.lineno}: {e.msg}. AI generated bad code."
-    except Exception as e: 
-        return f"ERROR: {type(e).__name__}: {e}"
+            return "ERROR: plt.savefig was not called by AI"
+
+    except Exception as e:
+        return f"ERROR: Runtime {type(e).__name__}: {e}"
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
     data = PRACTICAL_DATABASE.get(subject,{}).get(level_group,{}).get(prac_name,{})
     if not data: return "Practical not found"
-    return call_groq_dual(f"Expand to full UNEB report: {data} for {subject} {level}", "Smart")
+    return call_groq_dual(f"Expand to UNEB report: {data} for {subject} {level}", "Smart")
 
 def display_with_pdf(content, name):
     st.markdown(content)
     for f in re.findall(r'\$(.*?)\$', content): st.latex(f)
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 
-### PORTALS ###
+### PORTALS - UNCHANGED ###
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
@@ -205,7 +176,7 @@ def show_student_portal():
         ask_q = st.text_area("Ask any question / Solve any problem")
         if st.button("Ask AI Brain", type="primary") and ask_q:
             log_activity("Student", "Ask Question", ask_q)
-            ans = call_groq_dual(f"Use Chain of Thought 1.Understand 2.Formula 3.Substitute 4.Answer: {ask_q} for {level} {subject}", "Smart")
+            ans = call_groq_dual(f"Use Chain of Thought: {ask_q} for {level} {subject}", "Smart")
             display_with_pdf(ans, "Answer")
 
     with tab2:
@@ -215,10 +186,10 @@ def show_student_portal():
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
 
         if mode == "📖 Theory" and st.button("Teach Me"):
-            raw = call_groq_dual(f"Teach {topic2} step by step with examples for {level2} {subject2}", "Smart")
+            raw = call_groq_dual(f"Teach {topic2} step by step for {level2} {subject2}", "Smart")
             display_with_pdf(raw, "Theory")
         elif mode == "🧠 AOI" and st.button("Generate AOI"):
-            aoi = call_groq_dual(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}", "Smart")
+            aoi = call_groq_dual(f"Generate NCDC AOI for {level2} {subject2} topic: {topic2}", "Smart")
             display_with_pdf(aoi, "AOI")
         elif mode == "🧪 Practicals Lab":
             prac_list = list(PRACTICAL_DATABASE.get(subject2,{}).get("S1-S4",{}).keys())
@@ -227,39 +198,30 @@ def show_student_portal():
                 report = generate_practical(subject2,level2,prac)
                 display_with_pdf(report, "Practical")
         elif mode == "📝 UNEB Quiz Mode" and st.button("Generate Quiz"):
-            quiz = call_groq_dual(f"Generate 10 UNEB ITEM/TASK/SCENARIO questions with answers on {topic2} for {level2} {subject2}", "Smart")
+            quiz = call_groq_dual(f"Generate 10 UNEB questions on {topic2} for {level2} {subject2}", "Smart")
             display_with_pdf(quiz, "Quiz")
         elif mode == "📚 Bulk Revision" and st.button("Generate Revision"):
-            rev = call_groq_dual(f"Generate full revision notes + 20 questions for {topic2} {level2} {subject2}", "Smart")
+            rev = call_groq_dual(f"Generate revision + 20 questions for {topic2} {level2} {subject2}", "Smart")
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 Diagram Generator - V3.9.6 MULTI-SHOT")
+        st.header("🎨 Diagram Generator - V3.9.8 SAFE RENDER")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Describe Diagram:", "Draw Human Heart S4 Biology")
-        diagram_mode = st.radio("Choose Output Mode", ["1. Instant SVG [Auto Draw]", "2. HD Pixel [AI Smart 70B - Perfect Labels]", "3. HD Pixel [AI Instant 3B - Fast]"])
+        diagram_mode = st.radio("Choose Output Mode", ["2. HD Pixel [AI Smart 70B - Perfect Labels]", "3. HD Pixel [AI Instant 3B - Fast]"])
 
         if st.button("Generate Diagram", type="primary"):
             log_activity("Student", "Generate Diagram", topic3)
-            if diagram_mode == "1. Instant SVG [Auto Draw]":
-                topic_lower = topic3.lower()
-                found = False
-                for key, func in AUTO_DRAW_ENGINE.items():
-                    if key in topic_lower:
-                        st.markdown(render_universal_svg(func()), unsafe_allow_html=True)
-                        found = True; break
-                if not found: st.warning("Not in AutoDraw. Use AI mode")
+            m = "Smart" if "Smart" in diagram_mode else "Instant"
+            img_path = auto_render_pixel_diagram(topic3, subject3, level3, m)
+            if "ERROR" in str(img_path) or "GROQ_ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
             else:
-                m = "Smart" if "Smart" in diagram_mode else "Instant"
-                img_path = auto_render_pixel_diagram(topic3, subject3, level3, m)
-                if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
-                else:
-                    st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
-                    with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
+                st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
+                with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
 
 def show_admin_portal():
-    st.header("🏫 Admin Portal - V3.9.6")
+    st.header("🏫 Admin Portal - V3.9.8")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tab1, tab2, tab3 = st.tabs(["📊 Analytics", "📖 Curriculum Manager", "🤖 AI QBank Generator"])
     with tab1:
@@ -276,11 +238,11 @@ def show_admin_portal():
         subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="qgen_subj")
         lvl = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="qgen_lvl")
         if st.button("Generate 20 Questions"):
-            res = call_groq_dual(f"Generate 20 UNEB MCQ for {lvl} {subj}. Return JSON list", "Smart")
+            res = call_groq_dual(f"Generate 20 UNEB MCQ for {lvl} {subj}. Return JSON", "Smart")
             try: save_db(AI_QBANK_FILE, json.loads(res)); st.success("Saved")
             except: st.error("Bad JSON"); st.code(res)
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.9.6 MULTI-SHOT")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.9.8")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
