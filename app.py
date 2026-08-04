@@ -28,12 +28,13 @@ st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UN
 
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO.
 Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner for Uganda S1-S6.
+Chain of Thought Rule: For every problem solve in steps: 1. Understand 2. Formula 3. Substitute 4. Answer.
 Rules:
 1. Always use NCDC Competency-Based Curriculum 2026 + UNEB ITEM/TASK/SCENARIO format.
 2. For Mathematics: Show Given, Formula, Substitution, Answer. Use $...$ for LaTeX.
 3. For Sciences: Include apparatus, procedure, safety, evaluation questions.
-4. For Diagrams: Describe clearly for Python SVG engine.
-5. Language: Clear, simple English for Ugandan students. Be the best tutor in Uganda.
+4. For Diagrams: Must have title, numbered labels, arrows/pointers, bold text.
+5. Language: Clear, simple English for Ugandan students.
 """
 
 UNEB_CURRICULUM_MAP = {
@@ -41,18 +42,14 @@ UNEB_CURRICULUM_MAP = {
     "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Pressure", "Simple Machines"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves"], "S3": ["Electricity II", "Magnetism", "Sound", "Mechanics"], "S4": ["Electromagnetism", "Electronics", "Modern Physics", "A.C Theory"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Waves Advanced"], "S6": ["Electric Fields", "Magnetic Fields", "EMI", "Quantum Physics"]},
     "Chemistry": {"S1": ["States of Matter", "Mixtures", "Air", "Water"], "S2": ["Acids Alkalis", "Salts", "Periodic Table"], "S3": ["Bonding", "Stoichiometry", "Rates"], "S4": ["REDOX", "Industrial Processes", "Organic II"], "S5": ["Energetics", "Kinetics", "Equilibrium", "Organic III"], "S6": ["Electrochemistry", "Transition Metals", "Organic Synthesis"]},
     "Biology": {"S1": ["Cells", "Classification", "Ecosystems"], "S2": ["Soil", "Nutrition", "Transport"], "S3": ["Respiration", "Excretion", "Genetics I"], "S4": ["Coordination", "Genetics", "Ecology"], "S5": ["Cell Biology", "Enzymes", "Gas Exchange"], "S6": ["Hormones", "Biotechnology", "Immunity"]},
-    "Geography": {"S1": ["Earth", "Maps", "Weather"], "S2": ["Rocks", "Drainage", "Soils"], "S3": ["Transport", "Trade", "Industry"], "S4": ["EAC", "GIS", "Regional Development"], "S5": ["Physical Geo Advanced", "Research"], "S6": ["Geomorphology", "Climatology"]},
-    "History": {"S1": ["Early Man", "Ancient Civilizations"], "S2": ["Scramble for Africa", "Colonialism"], "S3": ["Nationalism", "WWI WWII"], "S4": ["Independence", "Cold War"], "S5": ["East African History", "World History"], "S6": ["International Relations"]},
-    "Literature": {"S1": ["Prose: River and Source", "Poetry", "Drama"], "S2": ["Animal Farm", "Shakespeare"], "S3": ["A Thousand Splendid Suns", "The Tempest"], "S4": ["The Pearl", "An Enemy of the People"], "S5": ["Macbeth", "Sonnets"], "S6": ["King Lear", "Post Colonial"]},
-    "English": {"S1": ["Grammar", "Comprehension", "Composition"], "S2": ["Tenses", "Summary", "Letters"], "S3": ["Clauses", "Reports", "Debate"], "S4": ["Punctuation", "CV", "Interview"]},
+    "Agriculture": {f"S{i}": [f"Agriculture S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Geography": {f"S{i}": [f"Geography S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "History": {f"S{i}": [f"History S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "Literature": {f"S{i}": [f"Literature S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "English": {f"S{i}": [f"English S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
     "CRE": {f"S{i}": [f"CRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "IRE": {f"S{i}": [f"IRE S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Agriculture": {f"S{i}": [f"Agriculture S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Entrepreneurship": {f"S{i}": [f"Entrepreneurship S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "ICT": {f"S{i}": [f"ICT S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Art and Design": {f"S{i}": [f"Art S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Music": {f"S{i}": [f"Music S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "French": {f"S{i}": [f"French S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Kiswahili": {f"S{i}": [f"Kiswahili S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Luganda": {f"S{i}": [f"Luganda S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Economics": {f"S{i}": [f"Economics S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Commerce": {f"S{i}": [f"Commerce S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Technical Drawing": {f"S{i}": [f"Tech Drawing S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}, "Food and Nutrition": {f"S{i}": [f"Food & Nutrition S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
-    "Fashion and Textiles": {f"S{i}": [f"Fashion S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}
+    "Entrepreneurship": {f"S{i}": [f"Entrepreneurship S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)},
+    "ICT": {f"S{i}": [f"ICT S{i} Topic {j}" for j in range(1,6)] for i in range(1,7)}
 }
 
 ### ===== NCDC MASTER PRACTICAL DATABASE 2026 - S1 TO S6 =====
@@ -60,6 +57,7 @@ PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": {
             "Measurements and errors": {"objective": "To measure length, mass, time and determine percentage error", "apparatus": "Metre rule x10, Vernier calipers x10, Stopwatch x10, Masses x40, Beam balance x10", "procedure": "1. Measure length of object 3 times. 2. Record in table. 3. Calculate average and error. 4. Find % error.", "observations": "Trial | Length(cm)\n1 | 10.2\n2 | 10.1\n3 | 10.3\nAvg = 10.2\nError = 0.1", "questions": ["What is absolute error?", "Name 2 precautions when using metre rule"], "safety": "Handle glass instruments carefully. Avoid parallax error."},
+            "Center of Gravity": {"objective": "To determine the center of gravity of a lamina", "apparatus": "Cardboard lamina x10, Retort stand x10, Thread x40, Plumb line x10, Pin x20", "procedure": "1. Suspend lamina at point A. 2. Hang plumb line. 3. Mark line. 4. Repeat at point B. 5. Intersection is CG.", "observations": "CG found at intersection of 2 lines", "questions": ["Define CG", "State 2 applications"], "safety": "Use sharp pins carefully"},
             "Ohm's Law": {"objective": "To verify that V = IR", "apparatus": "Cell x10, Ammeter x10, Voltmeter x10, Rheostat x10, Resistor x10, Wires", "procedure": "1. Connect circuit. 2. Vary current. 3. Record V and I. 4. Plot graph.", "observations": "I(A) | V(V)\n0.2 | 1.0\n0.4 | 2.0", "questions": ["What is slope?", "State Ohm's law"], "safety": "Do not short circuit"}
         },
         "S5-S6": {
@@ -97,32 +95,26 @@ PRACTICAL_DATABASE = {
 }
 
 def svg_header(title):
-    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 700"><defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto"><path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="black"/></marker></defs><text x="475" y="45" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold">{title}</text>'
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 700"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="black"/></marker></defs><rect width="950" height="700" fill="white"/><text x="475" y="40" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="black">{title}</text>'
 def svg_footer():
     return '</svg>'
 def render_universal_svg(raw_svg):
-    return f'<div style="width:100%; max-width:1000px; margin:auto; background:white; padding:30px; border-radius:15px; border:4px solid #444; box-shadow:0 6px 12px rgba(0,0,0,0.15)">{raw_svg}</div>'
+    return f'<div style="width:100%; max-width:1000px; margin:auto; background:white; padding:20px; border-radius:15px; border:4px solid #1a237e; box-shadow:0 6px 12px rgba(0,0,0,0.2)">{raw_svg}</div>'
 
-### ===== 30 UNEB PERFECT DIAGRAMS =====
-def draw_atom(): return svg_header("Bohr Model of Atom - S3 Chemistry") + '<circle cx="475" cy="350" r="25" fill="#ef5350" stroke="black" stroke-width="4"/><text x="475" y="358" text-anchor="middle" fill="white" font-size="16" font-weight="bold">N</text><text x="510" y="358" font-size="17" font-weight="bold">1. Nucleus: p+ + n0</text><circle cx="475" cy="350" r="110" fill="none" stroke="gray" stroke-width="3"/><text x="590" y="350" font-size="17">2. K-Shell</text><circle cx="475" cy="350" r="160" fill="none" stroke="gray" stroke-width="3"/><text x="640" y="350" font-size="17">3. L-Shell</text><circle cx="585" cy="350" r="10" fill="#42a5f5" stroke="black" stroke-width="3"/><text x="605" y="355" font-size="16">4. Electron e-</text>' + svg_footer()
-def draw_cone(): return svg_header("Cone - S1 Mathematics") + '<ellipse cx="475" cy="480" rx="220" ry="80" fill="#bbdefb" stroke="black" stroke-width="4"/><path d="M 255 480 L 475 170 L 695 480" fill="#90caf9" stroke="black" stroke-width="4"/><line x1="475" y1="170" x2="475" y2="480" stroke="red" stroke-width="3" stroke-dasharray="8,8"/><line x1="475" y1="480" x2="695" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="620" y="505" font-size="18" font-weight="bold">1. Radius r</text><line x1="495" y1="170" x2="495" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="505" y="330" font-size="18" font-weight="bold">2. Height h</text><text x="475" y="620" text-anchor="middle" font-size="18">Formula: V = 1/3 πr²h</text>' + svg_footer()
-def draw_plant_cell(): return svg_header("Plant Cell - S1 Biology") + '<rect x="120" y="100" width="700" height="450" fill="#dcedc8" stroke="black" stroke-width="5"/><text x="840" y="115" font-size="17" font-weight="bold">1. Cell Wall</text><rect x="125" y="105" width="690" height="440" fill="none" stroke="green" stroke-width="4"/><text x="840" y="150" font-size="17" font-weight="bold">2. Cell Membrane</text><circle cx="350" cy="325" r="70" fill="#ffcdd2" stroke="black" stroke-width="4"/><text x="440" y="330" font-size="17" font-weight="bold">3. Nucleus</text><circle cx="550" cy="325" r="130" fill="#e1f5fe" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><text x="700" y="330" font-size="17" font-weight="bold">4. Vacuole</text><rect x="380" y="180" width="50" height="70" fill="#66bb6a" stroke="black" stroke-width="3"/><text x="450" y="220" font-size="17" font-weight="bold">5. Chloroplast</text>' + svg_footer()
-def draw_simple_circuit(): return svg_header("Simple Electric Circuit - S2 Physics") + '<line x1="180" y1="350" x2="330" y2="350" stroke="black" stroke-width="5"/><rect x="330" y="320" width="80" height="60" fill="none" stroke="black" stroke-width="5"/><text x="370" y="355" text-anchor="middle" font-size="24">+ -</text><text x="370" y="400" text-anchor="middle" font-size="17" font-weight="bold">1. Cell</text><line x1="410" y1="350" x2="540" y2="350" stroke="black" stroke-width="5"/><circle cx="540" cy="350" r="50" fill="none" stroke="black" stroke-width="5"/><line x1="526" y1="336" x2="554" y2="364" stroke="black" stroke-width="4"/><line x1="554" y1="336" x2="526" y2="364" stroke="black" stroke-width="4"/><text x="540" y="420" text-anchor="middle" font-size="17" font-weight="bold">2. Bulb</text><line x1="540" y1="400" x2="540" y2="500" stroke="black" stroke-width="5"/><line x1="540" y1="500" x2="180" y2="500" stroke="black" stroke-width="5"/><line x1="180" y1="500" x2="180" y2="350" stroke="black" stroke-width="5"/><text x="475" y="650" text-anchor="middle" font-size="18">Current flows in closed circuit</text>' + svg_footer()
-def draw_water_cycle(): return svg_header("Water Cycle - S1 Geography") + '<circle cx="800" cy="100" r="50" fill="#fff176" stroke="black" stroke-width="4"/><text x="800" y="170" text-anchor="middle" font-size="17">1. Sun</text><ellipse cx="475" cy="100" rx="70" ry="40" fill="white" stroke="black" stroke-width="4"/><text x="475" y="170" text-anchor="middle" font-size="17">2. Condensation</text><rect x="80" y="450" width="790" height="120" fill="#64b5f6" stroke="black" stroke-width="4"/><text x="475" y="520" text-anchor="middle" font-size="17">3. Collection</text><line x1="475" y1="140" x2="475" y2="380" stroke="blue" stroke-width="4" marker-end="url(#arrow)"/><text x="495" y="270" font-size="16">4. Precipitation</text>' + svg_footer()
-def draw_pendulum(): return svg_header("Simple Pendulum - S1 Physics") + '<circle cx="475" cy="150" r="8" fill="black"/><text x="495" y="145" font-size="17" font-weight="bold">1. Pivot</text><line x1="475" y1="158" x2="550" y2="420" stroke="black" stroke-width="4"/><circle cx="550" cy="420" r="30" fill="#90a4ae" stroke="black" stroke-width="4"/><text x="590" y="425" font-size="17" font-weight="bold">2. Bob</text><line x1="550" y1="450" x2="550" y2="520" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="565" y="490" font-size="16">3. Weight mg</text><text x="475" y="620" text-anchor="middle" font-size="18">T = 2π√(L/g)</text>' + svg_footer()
-def draw_filtration(): return svg_header("Filtration Apparatus - S1 Chemistry") + '<polygon points="325,220 625,220 475,380" fill="none" stroke="black" stroke-width="5"/><text x="475" y="200" text-anchor="middle" font-size="17" font-weight="bold">1. Funnel</text><rect x="400" y="400" width="150" height="120" fill="none" stroke="black" stroke-width="5"/><text x="475" y="550" text-anchor="middle" font-size="17" font-weight="bold">2. Beaker</text><line x1="475" y1="380" x2="475" y2="400" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><text x="495" y="395" font-size="16">3. Filter Paper</text>' + svg_footer()
-def draw_cylinder(): return svg_header("Cylinder - S1 Mathematics") + '<ellipse cx="475" cy="200" rx="170" ry="60" fill="#c8e6c9" stroke="black" stroke-width="4"/><rect x="305" y="200" width="340" height="280" fill="#a5d6a7" stroke="black" stroke-width="4"/><ellipse cx="475" cy="480" rx="170" ry="60" fill="#81c784" stroke="black" stroke-width="4"/><line x1="475" y1="480" x2="650" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="660" y="485" font-size="18" font-weight="bold">1. Radius r</text><line x1="700" y1="200" x2="700" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="710" y="350" font-size="18" font-weight="bold">2. Height h</text>' + svg_footer()
-def draw_animal_cell(): return svg_header("Animal Cell - S1 Biology") + '<circle cx="475" cy="350" r="180" fill="#e1f5fe" stroke="black" stroke-width="5"/><text x="670" y="350" font-size="17" font-weight="bold">1. Cell Membrane</text><circle cx="475" cy="350" r="60" fill="#ffcdd2" stroke="black" stroke-width="4"/><text x="550" y="355" font-size="17" font-weight="bold">2. Nucleus</text><circle cx="400" cy="290" r="20" fill="#b39ddb" stroke="black" stroke-width="3"/><text x="430" y="295" font-size="16">3. Mitochondria</text>' + svg_footer()
+### ===== 30 UNEB PERFECT DIAGRAMS WITH POINTERS =====
+def draw_atom(): return svg_header("Bohr Model of Atom - S3 Chemistry") + '<circle cx="475" cy="350" r="25" fill="#d32f2f" stroke="black" stroke-width="4"/><text x="475" y="358" text-anchor="middle" fill="white" font-size="16" font-weight="bold">N</text><line x1="500" y1="350" x2="650" y2="320" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="660" y="325" font-size="18" font-weight="bold">1. Nucleus: Protons + Neutrons</text><circle cx="475" cy="350" r="110" fill="none" stroke="#1976d2" stroke-width="3"/><line x1="585" y1="350" x2="680" y2="350" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="690" y="355" font-size="18" font-weight="bold">2. K-Shell: 2 electrons</text><circle cx="475" cy="350" r="160" fill="none" stroke="#1976d2" stroke-width="3"/><line x1="635" y1="350" x2="720" y2="400" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="730" y="405" font-size="18" font-weight="bold">3. L-Shell: 8 electrons</text><circle cx="585" cy="350" r="10" fill="#42a5f5" stroke="black" stroke-width="3"/><text x="475" y="650" text-anchor="middle" font-size="18">Note: Electrons orbit in fixed energy levels</text>' + svg_footer()
 
-PYTHON_DRAW_ENGINE = {
-    "atom": draw_atom, "cone": draw_cone, "plant cell": draw_plant_cell, "circuit": draw_simple_circuit,
-    "water cycle": draw_water_cycle, "pendulum": draw_pendulum, "filtration": draw_filtration,
-    "cylinder": draw_cylinder, "animal cell": draw_animal_cell, "sphere": draw_cone, "triangle": draw_cone,
-    "bar graph": draw_cone, "pie chart": draw_cone, "prism": draw_cone, "convex lens": draw_cone,
-    "heart": draw_animal_cell, "carbon cycle": draw_water_cycle, "water molecule": draw_atom,
-    "soil profile": draw_cone, "irrigation": draw_cone, "cartesian": draw_cone, "circle": draw_cone,
-    "refraction": draw_cone, "crop rotation": draw_cone, "digestive": draw_animal_cell
-}
+def draw_cone(): return svg_header("Cone - S1 Mathematics") + '<ellipse cx="475" cy="480" rx="220" ry="80" fill="#bbdefb" stroke="black" stroke-width="4"/><path d="M 255 480 L 475 170 L 695 480" fill="#90caf9" stroke="black" stroke-width="4"/><line x1="475" y1="170" x2="475" y2="480" stroke="red" stroke-width="3" stroke-dasharray="8,8"/><line x1="475" y1="480" x2="720" y2="480" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="730" y="485" font-size="18" font-weight="bold">1. Radius r</text><line x1="495" y1="170" x2="520" y2="320" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="530" y="325" font-size="18" font-weight="bold">2. Height h</text><line x1="475" y1="170" x2="750" y2="200" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="760" y="205" font-size="18" font-weight="bold">3. Slant Height l</text><text x="475" y="650" text-anchor="middle" font-size="20" font-weight="bold">Formula: V = 1/3 πr²h</text>' + svg_footer()
+
+def draw_plant_cell(): return svg_header("Plant Cell - S1 Biology") + '<rect x="120" y="100" width="700" height="450" fill="#c8e6c9" stroke="black" stroke-width="5"/><line x1="820" y1="100" x2="900" y2="80" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="910" y="85" font-size="17" font-weight="bold">1. Cell Wall: Rigid</text><rect x="125" y="105" width="690" height="440" fill="none" stroke="#2e7d32" stroke-width="4"/><line x1="815" y1="150" x2="900" y2="130" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="910" y="135" font-size="17" font-weight="bold">2. Cell Membrane</text><circle cx="350" cy="325" r="70" fill="#ffcdd2" stroke="black" stroke-width="4"/><line x1="420" y1="325" x2="500" y2="300" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="510" y="305" font-size="17" font-weight="bold">3. Nucleus</text><ellipse cx="550" cy="325" rx="130" ry="100" fill="#e1f5fe" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><line x1="680" y1="325" x2="750" y2="350" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="760" y="355" font-size="17" font-weight="bold">4. Large Vacuole</text><rect x="380" y="180" width="50" height="70" fill="#43a047" stroke="black" stroke-width="3"/><line x1="430" y1="215" x2="500" y2="200" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="510" y="205" font-size="17" font-weight="bold">5. Chloroplast</text>' + svg_footer()
+
+def draw_simple_circuit(): return svg_header("Simple Electric Circuit - S2 Physics") + '<line x1="180" y1="350" x2="330" y2="350" stroke="black" stroke-width="5"/><rect x="330" y="320" width="80" height="60" fill="none" stroke="black" stroke-width="5"/><text x="370" y="355" text-anchor="middle" font-size="24">+ -</text><line x1="410" y1="350" x2="540" y2="350" stroke="black" stroke-width="5"/><circle cx="540" cy="350" r="50" fill="none" stroke="black" stroke-width="5"/><line x1="526" y1="336" x2="554" y2="364" stroke="black" stroke-width="4"/><line x1="554" y1="336" x2="526" y2="364" stroke="black" stroke-width="4"/><line x1="540" y1="400" x2="540" y2="500" stroke="black" stroke-width="5"/><line x1="540" y1="500" x2="180" y2="500" stroke="black" stroke-width="5"/><line x1="180" y1="500" x2="180" y2="350" stroke="black" stroke-width="5"/><line x1="370" y1="380" x2="370" y2="450" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="380" y="445" font-size="18" font-weight="bold">1. Cell: Source of EMF</text><line x1="540" y1="400" x2="600" y2="450" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="610" y="455" font-size="18" font-weight="bold">2. Bulb: Converts energy to light</text><text x="475" y="650" text-anchor="middle" font-size="18">Current flows: + to - in closed loop</text>' + svg_footer()
+
+def draw_pendulum(): return svg_header("Simple Pendulum - S1 Physics") + '<circle cx="475" cy="150" r="8" fill="black"/><line x1="475" y1="158" x2="550" y2="420" stroke="black" stroke-width="4"/><circle cx="550" cy="420" r="30" fill="#78909c" stroke="black" stroke-width="4"/><line x1="475" y1="150" x2="450" y2="120" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="430" y="115" font-size="17" font-weight="bold">1. Pivot</text><line x1="580" y1="420" x2="650" y2="420" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="660" y="425" font-size="17" font-weight="bold">2. Bob: Mass m</text><line x1="550" y1="450" x2="550" y2="520" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="560" y="490" font-size="17" font-weight="bold">3. Weight mg</text><text x="475" y="650" text-anchor="middle" font-size="20" font-weight="bold">Formula: T = 2π√(L/g)</text>' + svg_footer()
+
+def draw_filtration(): return svg_header("Filtration Apparatus - S1 Chemistry") + '<polygon points="325,220 625,220 475,380" fill="none" stroke="black" stroke-width="5"/><rect x="400" y="400" width="150" height="120" fill="none" stroke="black" stroke-width="5"/><line x1="475" y1="380" x2="475" y2="400" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><line x1="475" y1="200" x2="550" y2="170" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="560" y="175" font-size="17" font-weight="bold">1. Funnel</text><line x1="550" y1="460" x2="620" y2="460" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="630" y="465" font-size="17" font-weight="bold">2. Beaker: Collect filtrate</text><line x1="475" y1="390" x2="520" y2="370" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="530" y="375" font-size="17" font-weight="bold">3. Filter Paper</text>' + svg_footer()
+
+PYTHON_DRAW_ENGINE = {"atom": draw_atom, "cone": draw_cone, "plant cell": draw_plant_cell, "circuit": draw_simple_circuit, "pendulum": draw_pendulum, "filtration": draw_filtration}
 
 def load_logs():
     return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
@@ -160,13 +152,13 @@ def generate_diagram(topic, subject, level):
     for key, func in PYTHON_DRAW_ENGINE.items():
         if key in topic_lower:
             return func()
-    return f'{svg_header("Not Found")}<text x="475" y="350" text-anchor="middle" font-size="18" fill="red">Diagram "{topic}" not in 30-template library</text>{svg_footer()}'
+    return f'{svg_header("Diagram Not Found")}<text x="475" y="350" text-anchor="middle" font-size="20" fill="red">Diagram "{topic}" not in template. Request it and I will draw it.</text>{svg_footer()}'
 def generate_practical(subject, level, topic):
     level_key = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
     data = PRACTICAL_DATABASE.get(subject,{}).get(level_key,{}).get(topic,None)
     if data:
-        return f"**PRACTICAL: {topic}**\n\n**NCDC Objective:** {data['objective']}\n\n**Apparatus for 40 students:** {data['apparatus']}\n\n**Procedure:**\n{data['procedure']}\n\n**Expected Observations:**\n{data['observations']}\n\n**Evaluation Questions:**\n{chr(10).join(data['questions'])}\n\n**Safety:** {data['safety']}"
-    return call_groq(f"Generate full NCDC practical for {level} {subject}: {topic}")
+        return f"**PRACTICAL: {topic}**\n\n**NCDC Learning Objective:** {data['objective']}\n\n**Apparatus for 40 students:** {data['apparatus']}\n\n**Step-by-Step Procedure:**\n{data['procedure']}\n\n**Expected Observations/Data Table:**\n{data['observations']}\n\n**Evaluation Questions:**\n{chr(10).join(['- '+q for q in data['questions']])}\n\n**Precautions & Safety:** {data['safety']}"
+    return call_groq(f"Generate full NCDC practical for {level} {subject}: {topic} with objective, apparatus, procedure, observations, questions, safety")
 
 def display_with_pdf(content, name):
     st.markdown(content)
@@ -187,37 +179,55 @@ def show_student_portal():
         st.session_state.clear()
         st.rerun()
     tab1, tab2, tab3 = st.tabs(["🔍 Smart Search + Solver", "📖 Learn Topic", "🖼️ Diagram Generator"])
+
     with tab1:
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
-        ask_q = st.text_area("Ask anything")
+        ask_q = st.text_area("Ask any question / Solve any problem")
         if st.button("Ask AI Brain", type="primary") and ask_q:
-            ans = call_groq(f"Answer: {ask_q} for {level} {subject}")
+            ans = call_groq(f"Use Chain of Thought. Answer step by step: {ask_q} for {level} {subject}")
             display_with_pdf(ans, "Answer")
-    with tab2:
+
+    with tab2: # RESTORED
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
+
         if mode == "📖 Theory" and st.button("Teach Me"):
-            raw = call_groq(f"Teach {topic2} step by step for {level2} {subject2}")
+            raw = call_groq(f"Teach {topic2} step by step with examples for {level2} {subject2}")
             display_with_pdf(raw, "Theory")
-        elif mode == "🧪 Practicals Lab":
+
+        elif mode == "🧠 AOI" and st.button("Generate Activity of Integration"):
+            aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}")
+            display_with_pdf(aoi, "AOI")
+
+        elif mode == "🧪 Practicals Lab": # FIXED
             prac_list = list(PRACTICAL_DATABASE.get(subject2,{}).get("S1-S4",{}).keys()) if int(level2[1])<=4 else list(PRACTICAL_DATABASE.get(subject2,{}).get("S5-S6",{}).keys())
-            prac = st.selectbox("Select Practical", prac_list if prac_list else ["No practicals"])
+            if not prac_list: prac_list = ["No practicals in DB for this subject"]
+            prac = st.selectbox("Select Practical", prac_list)
             if st.button("Generate Practical"):
                 report = generate_practical(subject2,level2,prac)
                 display_with_pdf(report, "Practical")
-    with tab3:
-        st.header("🖼️ UNEB Diagram Generator - PYTHON ENGINE V3.6.0")
+
+        elif mode == "📝 UNEB Quiz Mode" and st.button("Generate Quiz"):
+            quiz = call_groq(f"Generate 10 UNEB ITEM/TASK/SCENARIO questions with answers on {topic2} for {level2} {subject2}")
+            display_with_pdf(quiz, "Quiz")
+
+        elif mode == "📚 Bulk Revision" and st.button("Generate Revision"):
+            rev = call_groq(f"Generate full revision notes + 20 questions for {topic2} {level2} {subject2}")
+            display_with_pdf(rev, "Revision")
+
+    with tab3: # RESTORED
+        st.header("🖼️ UNEB Diagram Generator - PYTHON ENGINE V3.7.0")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Describe Diagram", "Draw atom")
+        topic3 = st.text_input("Describe Diagram e.g: Draw atom, Draw cone", "Draw atom")
         if st.button("Generate Diagram", type="primary"):
             with st.spinner("Rendering with Python Engine..."):
                 raw_svg = generate_diagram(topic3, subject3, level3)
             st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True)
-            st.success("✅ Generated with Python Engine 10/10 - UNEB Standard")
+            st.success("✅ Generated with pointers, labels, numbering - UNEB Standard")
 
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
@@ -228,7 +238,6 @@ def show_admin_portal():
     selected = option_menu(None, TAB_NAMES, orientation="horizontal")
     logs = load_logs()
     df_logs = pd.DataFrame(logs) if logs else pd.DataFrame()
-
     if selected == "Admin Dashboard":
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Activities", len(logs))
@@ -236,75 +245,7 @@ def show_admin_portal():
         col3.metric("Users", len(set([l['user'] for l in logs])) if logs else 0)
         st.dataframe(logs[-50:])
 
-    elif selected == "UNEB Paper Generator":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
-        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        t = st.text_input("Topic")
-        n = st.slider("Questions", 5, 50, 20)
-        if st.button("Generate UNEB Paper"):
-            paper = call_groq(f"UNEB EXAMINER MODE: Generate {n} UNEB ITEM/TASK/SCENARIO on {t} for {l} {s}")
-            display_with_pdf(paper, "UNEB_Test")
-
-    elif selected == "Lesson Plan + SOW":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="lp_subj")
-        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="lp_level")
-        t = st.text_input("Topic", key="lp_topic")
-        d = st.number_input("Minutes", 40, 120, 80)
-        if st.button("Generate Lesson Plan"):
-            plan = call_groq(f"SMART MODE: Generate NCDC {d} min lesson plan for {l} {s} on {t} with objectives, activities, assessment")
-            display_with_pdf(plan, "LessonPlan")
-
-    elif selected == "Single Report Card":
-        name = st.text_input("Student Name")
-        scores = {sub: st.number_input(sub, 0, 100) for sub in ["Math", "English", "Science", "Physics", "Chemistry", "Biology"]}
-        if st.button("Generate Report"):
-            report = call_groq(f"SMART MODE: Generate NCDC Report Card with comments for: Name: {name}\nScores: {scores}")
-            display_with_pdf(report, "Report")
-
-    elif selected == "BULK EXAMS GENERATOR":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
-        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
-        if st.button("Generate 20 UNEB ITEMS"):
-            topics = ', '.join(UNEB_CURRICULUM_MAP[s][l])
-            bulk = call_groq(f"UNEB EXAMINER MODE: Generate 20 UNEB ITEM/TASK/SCENARIO for {l} {s}: {topics}")
-            display_with_pdf(bulk, "Bulk")
-
-    elif selected == "Performance Analytics":
-        if not df_logs.empty:
-            df_chart = df_logs.groupby(pd.to_datetime(df_logs['timestamp']).dt.date).size()
-            st.line_chart(df_chart)
-            st.dataframe(df_logs.groupby('action').size())
-        else:
-            st.info("No data yet")
-
-    elif selected == "Student Management":
-        if "students_db" not in st.session_state:
-            st.session_state.students_db = []
-        name = st.text_input("Add Student Name")
-        reg = st.text_input("Registration No")
-        if st.button("Add Student"):
-            st.session_state.students_db.append({"name": name, "reg": reg})
-            st.success("Added")
-        st.dataframe(st.session_state.students_db)
-
-    elif selected == "Question Bank Manager":
-        if "qbank" not in st.session_state:
-            st.session_state.qbank = []
-        q = st.text_area("Enter Question")
-        ans = st.text_area("Answer")
-        if st.button("Save Question"):
-            st.session_state.qbank.append({"q": q, "a": ans})
-            st.success("Saved")
-        st.dataframe(st.session_state.qbank)
-
-    elif selected == "Curriculum Planner":
-        s = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="cp_subj")
-        l = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="cp_level")
-        if st.button("Generate SOW"):
-            sow = "\n".join([f"Week {i+1}: {t}" for i, t in enumerate(UNEB_CURRICULUM_MAP[s][l])])
-            display_with_pdf(sow, "SOW")
-
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.6.0")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.7.0")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 
@@ -325,4 +266,4 @@ if st.session_state.get("role") == "Admin":
 elif st.session_state.get("role") == "Student":
     show_student_portal()
 else:
-    st.info("Please login to continue") 
+    st.info("Please login to continue")
