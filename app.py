@@ -7,6 +7,7 @@ from groq import Groq, RateLimitError
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Circle, Rectangle, Ellipse, Polygon, Arrow
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 
@@ -19,170 +20,159 @@ except:
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
-LOG_FILE = "usage_log.json"
 CONTACT = "256751040731"
-AI_MODEL_LONG = "llama-3.3-70b-versatile"
-AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
+AI_MODEL_SMART = "llama-3.3-70b-versatile"
+AI_MODEL_INSTANT = "llama-3.2-3b-preview"
+st.sidebar.success(f"V3.9.1 FULL RESTORE\n📞 {CONTACT}")
 
-### DESCRIPTION ENGINE SYSTEM PROMPT ###
-MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - NCDC SCIENTIFIC ILLUSTRATOR.
-TASK: Read user description and convert to PERFECT matplotlib code.
-RULES FOR COMPLEXITY AUTO-TUNE:
-1. SIMPLE: 2D line, bar, graph. DPI 200. 3 labels.
-2. MEDIUM: Cell, Atom, Circuit. DPI 300. 5-8 labels + arrows.
-3. COMPLEX: Heart, Brain, Geometric Construction, Organic Molecule. DPI 400. 3D if needed. 10+ labels.
-4. ALWAYS: Title, Scale, Numbered Labels 1.2.3, Arrows, Legend, Caption with Formula.
-5. SUBJECT CONTEXT: Biology=cell parts, Chemistry=bonding, Physics=vectors/forces, Math=accurate geometry.
-6. Ugandan Context when relevant.
-7. MUST SAVE: plt.savefig('FILENAME', dpi=X, bbox_inches='tight'); plt.close()"""
+### DATABASES RESTORED ###
+LOG_FILE = "usage_log.json"
+QBANK_FILE = "qbank.json"
+AI_QBANK_FILE = "ai_qbank.json"
+STUDENTS_FILE = "students.json"
 
-### 14 NCDC SUBJECTS ###
+def load_db(file): return json.load(open(file,"r")) if os.path.exists(file) else []
+def save_db(file,data): json.dump(data,open(file,"w"),indent=2)
+
+if "students_db" not in st.session_state: st.session_state.students_db = load_db(STUDENTS_FILE)
+if "log" not in st.session_state: st.session_state.log = load_db(LOG_FILE)
+if "qbank" not in st.session_state: st.session_state.qbank = load_db(QBANK_FILE)
+if "ai_qbank" not in st.session_state: st.session_state.ai_qbank = load_db(AI_QBANK_FILE)
+
+### FULL NCDC 2026 CURRICULUM DB - RESTORED ALL 14 SUBJECTS ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers"], "S2": ["Patterns", "Bearings", "Angles"], "S3": ["Quadratics", "Matrices", "Vectors"], "S4": ["Functions", "3D Geometry", "Circle Geometry"], "S5": ["Differentiation", "Integration"], "S6": ["Mechanics", "Statistics II"]},
-    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism"], "S4": ["Electromagnetism", "Electronics"], "S5": ["Gravitation", "Optics"], "S6": ["Electric Fields", "Nuclear Physics"]},
-    "Chemistry": {"S1": ["States of Matter", "Mixtures"], "S2": ["Acids Alkalis", "Salts"], "S3": ["Bonding", "Stoichiometry"], "S4": ["REDOX", "Organic II"], "S5": ["Energetics", "Kinetics"], "S6": ["Electrochemistry", "Organic III"]},
-    "Biology": {"S1": ["Cells", "Classification"], "S2": ["Soil", "Nutrition"], "S3": ["Respiration", "Genetics I"], "S4": ["Coordination", "Ecology", "Photosynthesis"], "S5": ["Cell Biology", "Enzymes"], "S6": ["Hormones", "Biotechnology"]},
-    "Geography": {"S1": ["Map Reading"], "S2": ["Rocks"], "S3": ["Industry"], "S4": ["Agriculture"], "S5": ["Geomorphology"], "S6": ["GIS"]},
-    "History": {"S1": ["Early Man"], "S2": ["Kingdoms of Uganda"], "S3": ["Scramble"], "S4": ["Decolonization"], "S5": ["Political"], "S6": ["Governance"]},
-    "Agriculture": {"S1": ["Soil"], "S2": ["Livestock"], "S3": ["Crop Production"], "S4": ["Farm Management"], "S5": ["Crop Science"], "S6": ["Agribusiness"]},
-    "CRE": {"S1": ["Creation"], "S2": ["Moses"], "S3": ["Jesus"], "S4": ["Church"], "S5": ["Ethics"], "S6": ["Philosophy"]},
-    "IRE": {"S1": ["Tawheed"], "S2": ["Quran"], "S3": ["Pillars"], "S4": ["History"], "S5": ["Fiqh"], "S6": ["Economics"]},
-    "Commerce": {"S1": ["Business"], "S2": ["Money"], "S3": ["Organizations"], "S4": ["Insurance"], "S5": ["Public Finance"], "S6": ["Trade"]},
-    "Economics": {"S1": ["Basic"], "S2": ["Demand"], "S3": ["Production"], "S4": ["National Income"], "S5": ["Public Finance"], "S6": ["International"]},
-    "Literature": {"S1": ["Poetry"], "S2": ["Drama"], "S3": ["Shakespeare"], "S4": ["Themes"], "S5": ["Analysis"], "S6": ["Comparative"]},
-    "ICT": {"S1": ["Computer"], "S2": ["Spreadsheet"], "S3": ["Programming"], "S4": ["Web"], "S5": ["Python"], "S6": ["AI"]},
-    "Fine Art": {"S1": ["Drawing"], "S2": ["Painting"], "S3": ["Craft"], "S4": ["Art History"], "S5": ["Advanced"], "S6": ["Exhibition"]}
+    "Mathematics": {"S1": ["Integers","Fractions","Decimals"],"S2": ["Angles","Statistics","Algebra"],"S3": ["Vectors","Matrices","Quadratic"],"S4": ["Circle Geometry","Trigonometry"],"S5": ["Differentiation","Integration"],"S6": ["Mechanics","Probability","Linear Programming"]},
+    "Biology": {"S1": ["Cells","Classification"],"S2": ["Nutrition","Respiration"],"S3": ["Circulation","Excretion"],"S4": ["Photosynthesis","Ecology"],"S5": ["Cell Biology","Genetics"],"S6": ["Hormones","Evolution","Ecology"]},
+    "Chemistry": {"S1": ["States of Matter"],"S2": ["Acids, Bases, Salts"],"S3": ["Bonding","Periodic Table"],"S4": ["REDOX","Mole Concept"],"S5": ["Energetics","Kinetics","Equilibrium"],"S6": ["Electrochemistry","Organic Chemistry"]},
+    "Physics": {"S1": ["Forces","Motion"],"S2": ["Waves I","Light"],"S3": ["Electricity","Magnetism"],"S4": ["Electromagnetism","Electronics"],"S5": ["Optics","Nuclear Physics"],"S6": ["Fields","Mechanics","Modern Physics"]},
+    "ICT": {"S1": ["Computer Basics","Hardware"],"S2": ["Word Processing"],"S3": ["Spreadsheets","Databases"],"S4": ["Internet","Networking"],"S5": ["Programming Python"],"S6": ["Web Design","Data Analysis"]},
+    "Geography": {"S1": ["Map Reading"],"S2": ["Climate","Vegetation"],"S3": ["Rivers","Lakes"],"S4": ["Population","Settlement"],"S5": ["Industries","Trade"],"S6": ["GIS","Environmental Issues"]},
+    "History": {"S1": ["Early Man"],"S2": ["Kingdoms of Uganda"],"S3": ["Colonialism"],"S4": ["Independence"],"S5": ["World Wars"],"S6": ["Cold War"]},
+    "CRE": {"S1": ["Creation"],"S2": ["Prophets"],"S3": ["Jesus Ministry"],"S4": ["Church"],"S5": ["Ethics"],"S6": ["Comparative Religion"]},
+    "IRE": {"S1": ["Tawheed"],"S2": ["Prophets"],"S3": ["Quran"],"S4": ["Hadith"],"S5": ["Fiqh"],"S6": ["Islamic History"]},
+    "Literature": {"S1": ["Poetry"],"S2": ["Drama"],"S3": ["Novel"],"S4": ["Prose"],"S5": ["Shakespeare"],"S6": ["African Literature"]},
+    "Commerce": {"S1": ["Business Basics"],"S2": ["Trade"],"S3": ["Banking"],"S4": ["Insurance"],"S5": ["Marketing"],"S6": ["Entrepreneurship"]},
+    "Economics": {"S1": ["Scarcity"],"S2": ["Demand Supply"],"S3": ["Money"],"S4": ["Trade"],"S5": ["National Income"],"S6": ["Development"]},
+    "Agriculture": {"S1": ["Soil"],"S2": ["Crops"],"S3": ["Livestock"],"S4": ["Farm Tools"],"S5": ["Farm Records"],"S6": ["Agribusiness"]},
+    "Art": {"S1": ["Drawing"],"S2": ["Painting"],"S3": ["Sculpture"],"S4": ["Design"],"S5": ["Craft"],"S6": ["Art History"]}
 }
 
-PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}, "Pendulum": {"objective": "Find g"}}, "S5-S6": {"RC": {"objective": "Find tau"}}},
-    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate"}, "Titration": {"objective": "Find conc"}}, "S5-S6": {"Rate": {"objective": "Temp"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe"}, "Food": {"objective": "Test"}}, "S5-S6": {"Enzyme": {"objective": "pH"}}}
-}
+### 1-SHOT EXAMPLE ###
+PERFECT_EXAMPLE = '''fig, ax = plt.subplots(figsize=(8,8)); ax.set_xlim(0,1); ax.set_ylim(0,1)
+ax.add_patch(Rectangle((0.05,0.05), 0.9, 0.9, fill=False, linewidth=3))
+ax.add_patch(Circle((0.5,0.5), 0.12, color='pink')); ax.add_patch(Ellipse((0.3,0.7), 0.1, 0.05, color='green'))
+ax.text(0.5,0.5,'1. Nucleus', bbox=dict(boxstyle='round', facecolor='yellow')); ax.set_title('Plant Cell S1'); ax.axis('off')
+plt.savefig('example.png', dpi=300, bbox_inches='tight'); plt.close()'''
 
-def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
-def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
-def log_activity(user_type, action, details): save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details})
-def create_pdf(content, title):
-    buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica-Bold", 14); p.drawString(50,800,title); y=770; p.setFont("Helvetica", 10)
-    for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
-    p.save(); buffer.seek(0); return buffer
-def call_groq(user_prompt, temp=0.2):
-    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=3000, temperature=temp); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=temp); return res.choices[0].message.content
+SYSTEM_SMART = f"COPY STYLE: {PERFECT_EXAMPLE}. Use ONLY Circle Rectangle Ellipse. 5 labels. DPI 300. NO coords. NO 3D."
+SYSTEM_INSTANT = "FAST DIAGRAM BOT. Simple 2D. Use Circle Rectangle. 3 labels. DPI 200."
 
-### DESCRIPTION ENGINE + COMPLEXITY CLASSIFIER ###
-def classify_complexity(description):
-    prompt = f"Classify diagram complexity as SIMPLE, MEDIUM, or COMPLEX. Description: {description}. Return only 1 word."
-    return call_groq(prompt, temp=0.1).strip().upper()
-
-def description_to_code(description, subject, level):
-    complexity = classify_complexity(description)
-    dpi = 200 if complexity=="SIMPLE" else 300 if complexity=="MEDIUM" else 400
-    use_3d = "YES" if any(word in description.lower() for word in ["3d", "cell", "heart", "atom", "molecule", "cone", "sphere"]) else "NO"
-
-    safe_name = re.sub(r'[^\w_]', '_', description[:30])
-    fname = f"desc_diagram_{safe_name}.png"
-
-    prompt = f"""User Description: "{description}"
-    Subject: {subject} | Class: {level}
-    Complexity: {complexity} | DPI: {dpi} | 3D: {use_3d}
-
-    Generate ONLY executable python matplotlib code.
-    RULES: Title, {dpi} DPI, Numbered labels 1.2.3 with bbox, arrows, legend, grid, caption with formula.
-    If 3D=YES use mpl_toolkits.mplot3d.
-    MUST SAVE: plt.savefig('{fname}', dpi={dpi}, bbox_inches='tight'); plt.close()
-    Return only code."""
-
-    code = call_groq(prompt, temp=0.1).replace("```python","").replace("```","")
-    code = re.sub(r"plt\.savefig\('.*?\.png'", f"plt.savefig('{fname}'", code)
-
+def call_groq_dual(prompt, mode="Smart"):
+    model = AI_MODEL_SMART if mode=="Smart" else AI_MODEL_INSTANT
+    system = SYSTEM_SMART if mode=="Smart" else SYSTEM_INSTANT
+    tokens = 3000 if mode=="Smart" else 800
     try:
-        exec_globals = {"plt": plt, "np": np}
-        exec(code, exec_globals)
-        return {"status": "OK", "path": fname, "complexity": complexity} if os.path.exists(fname) else {"status": "ERROR", "msg": "File not created"}
-    except Exception as e:
-        return {"status": "ERROR", "msg": str(e)}
+        res = client.chat.completions.create(model=model, messages=[{"role":"system","content":system},{"role":"user","content":prompt}], max_tokens=tokens, temperature=0.05)
+        return res.choices[0].message.content
+    except RateLimitError: return call_groq_dual(prompt, "Instant")
 
-def loop_all_subjects_diagrams(description):
-    results = []
-    st.info("🔍 DESCRIPTION ENGINE: Analyzing complexity and looping all relevant subjects...")
-    for subject in UNEB_CURRICULUM_MAP.keys():
-        for level in [f"S{i}" for i in range(1,7)]:
-            res = description_to_code(description, subject, level)
-            if res["status"]=="OK":
-                results.append({"subject": subject, "level": level, "path": res["path"], "complexity": res["complexity"]})
-            time.sleep(0.3)
-    return results
+def render_diagram(description, subject, level, mode="Smart"):
+    safe_name = re.sub(r'[^\w_]', '_', description[:15])
+    dpi = 300 if mode=="Smart" else 200
+    fname = f"diagram_{mode}_{safe_name}.png"
+    prompt = f"TASK: {description} SUBJECT: {subject} {level}. Save as '{fname}'"
+    code = call_groq_dual(prompt, mode).replace("```python","").replace("```","")
+    code = "from matplotlib.patches import Circle, Rectangle, Ellipse\nimport matplotlib.pyplot as plt\nimport numpy as np\n" + code
+    code = re.sub(r"plt\.savefig\('.*?\.png'", f"plt.savefig('{fname}'", code)
+    try:
+        exec(code, {"plt": plt, "np": np, "Circle": Circle, "Rectangle": Rectangle, "Ellipse": Ellipse})
+        return {"status": "OK", "path": fname} if os.path.exists(fname) else {"status": "ERROR"}
+    except Exception as e: return {"status": "ERROR", "msg": str(e)}
 
-def display_with_pdf(content, name):
-    st.markdown(content)
-    for f in re.findall(r'\$(.*?)\$', content): st.latex(f)
-    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
+### STUDENT PORTAL - FULL TABS RESTORED ###
+def show_student_portal(student):
+    st.header(f"👋 Welcome {student['name']} - {student['class']}")
+    tabs = st.tabs(["📖 Syllabus Explorer", "📝 Practice Engine", "🎨 Diagram Engine", "📄 Past Papers", "👤 Profile"])
 
-### PORTALS ###
-def show_student_portal():
-    st.header("📚 Student Portal - NCDC S1 to S6 - DESCRIPTION ENGINE")
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
-    tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🎨 Description Diagram Engine"])
+    with tabs[0]:
+        st.subheader("NCDC 2026 Syllabus Explorer")
+        subj = st.selectbox("Select Subject", list(UNEB_CURRICULUM_MAP.keys()), key="syll_subj")
+        st.write(f"### {subj} - {student['class']} Topics")
+        for topic in UNEB_CURRICULUM_MAP[subj][student['class']]: st.write(f"✅ {topic}")
 
-    with tab1:
-        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
-        level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        ask_q = st.text_area("Ask any NCDC question")
-        if st.button("Ask AI Brain") and ask_q:
-            ans = call_groq(f"Answer with Ugandan examples: {ask_q} for {level} {subject}")
-            display_with_pdf(ans, "Answer")
+    with tabs[1]:
+        st.subheader("AI Practice Engine")
+        subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="prac_subj")
+        topic = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subj][student['class']])
+        if st.button("Generate 5 UNEB Questions"):
+            prompt = f"Generate 5 UNEB MCQ for {student['class']} {subj} Topic: {topic}. JSON with question,options,answer"
+            res = call_groq_dual(prompt, "Smart"); st.code(res)
 
-    with tab2:
-        subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s2")
-        level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="l2")
-        topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2])
-        if st.button("Teach Me"):
-            raw = call_groq(f"Teach {topic2} with Ugandan examples for {level2} {subject2}")
-            display_with_pdf(raw, "Theory")
+    with tabs[2]:
+        st.subheader("Textbook Diagram Engine")
+        mode = st.radio("AI Engine", ["Smart 70B - Perfect", "Instant 3B - Fast"], horizontal=True, key="diag_mode")
+        desc = st.text_area("Describe Diagram", "Draw Plant Cell with nucleus chloroplast vacuole cell wall")
+        subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="diag_subj")
+        if st.button("Generate Diagram"):
+            m = "Smart" if "Smart" in mode else "Instant"
+            res = render_diagram(desc, subj, student['class'], m)
+            if res["status"]=="OK": st.image(res["path"])
+            else: st.error(res.get("msg",""))
 
-    with tab3:
-        st.header("🎨 DESCRIPTION ENGINE - DESCRIBE TO DRAW")
-        st.caption("Example: 'Draw plant cell showing cell wall, nucleus, chloroplast, vacuole with arrows and labels for S1 Biology'")
+    with tabs[3]:
+        st.subheader("Past Papers")
+        st.info("Past papers will appear here after Admin upload")
 
-        mode = st.radio("Engine Mode", ["Describe 1 Diagram", "Loop All Subjects With This Description"])
+    with tabs[4]:
+        st.json(student)
 
-        description = st.text_area("Describe the diagram in detail:",
-        "Draw a plant cell. Show cell wall, cell membrane, nucleus, chloroplast, large vacuole. Use green for chloroplast. Label 1-5 with arrows. Add title 'Plant Cell S1 Biology'")
-
-        subject_sel = st.selectbox("Target Subject", list(UNEB_CURRICULUM_MAP.keys()))
-        level_sel = st.selectbox("Target Class", [f"S{i}" for i in range(1,7)])
-
-        if st.button("Generate From Description", type="primary"):
-            log_activity("Student", "Describe Diagram", description)
-
-            if mode == "Describe 1 Diagram":
-                res = description_to_code(description, subject_sel, level_sel)
-                if res["status"]=="OK":
-                    st.success(f"Generated {res['complexity']} complexity diagram")
-                    st.image(res["path"], use_container_width=True)
-                    with open(res["path"], "rb") as file: st.download_button("📥 Download HD", file, res["path"])
-                else: st.error(res["msg"])
-
-            else: # Loop all
-                results = loop_all_subjects_diagrams(description)
-                st.success(f"Generated {len(results)} diagrams across all subjects")
-                for r in results:
-                    st.write(f"**{r['subject']} {r['level']}** - {r['complexity']}")
-                    st.image(r["path"], use_container_width=True)
-
+### ADMIN PORTAL - FULL TABS RESTORED ###
 def show_admin_portal():
-    st.header("🏫 Admin Portal")
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
+    st.header("🔒 Admin Dashboard")
+    tabs = st.tabs(["📤 Upload QBank", "📊 Monitor Usage", "🤖 AI QBank Generator", "📈 Analytics"])
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.8.0 DESCRIPTION ENGINE")
-user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
+    with tabs[0]:
+        st.subheader("Upload QBank CSV")
+        file = st.file_uploader("CSV columns: question,options,answer,subject,class,topic")
+        if file and st.button("Save to Database"):
+            df = pd.read_csv(file); save_db(QBANK_FILE, df.to_dict('records')); st.success(f"Saved {len(df)} questions")
+
+    with tabs[1]:
+        st.subheader("Usage Monitor")
+        st.dataframe(pd.DataFrame(st.session_state.log))
+
+    with tabs[2]:
+        st.subheader("AI QBank Generator")
+        subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
+        lvl = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        topic = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subj][lvl])
+        if st.button("Generate 20 Questions"):
+            prompt = f"Generate 20 UNEB MCQ for {lvl} {subj} Topic: {topic}. Return valid JSON list"
+            res = call_groq_dual(prompt, "Smart")
+            try: data = json.loads(res); save_db(AI_QBANK_FILE, data); st.success("Generated")
+            except: st.error("AI returned bad JSON")
+
+    with tabs[3]:
+        st.subheader("Analytics")
+        st.metric("Total Students", len(st.session_state.students_db))
+        st.metric("Total QBank Qns", len(st.session_state.qbank))
+
+### LOGIN ARCHITECTURE RESTORED ###
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.9.1")
+role = st.sidebar.radio("Login As", ["Student","Admin"])
 password = st.sidebar.text_input("Password", type="password")
-if st.sidebar.button("Login"):
-    if user_type == "Student" and password == STUDENT_PASSWORD: st.session_state["role"] = "Student"; st.rerun()
-    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: st.session_state["role"] = "Admin"; st.rerun()
 
-if st.session_state.get("role") == "Admin": show_admin_portal()
-elif st.session_state.get("role") == "Student": show_student_portal()
+if st.sidebar.button("Login"):
+    if role=="Admin" and password==ADMIN_PASSWORD: st.session_state["role"]="Admin"; st.rerun()
+    elif role=="Student" and password==STUDENT_PASSWORD:
+        name = st.sidebar.text_input("Student Name")
+        cls = st.sidebar.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        if name:
+            student = {"name":name, "class":cls, "login":str(datetime.now())}
+            st.session_state.students_db.append(student); save_db(STUDENTS_FILE, st.session_state.students_db)
+            st.session_state["role"]="Student"; st.session_state["student"]=student; st.rerun()
+    else: st.sidebar.error("Wrong Password")
+
+if st.session_state.get("role")=="Admin": show_admin_portal()
+elif st.session_state.get("role")=="Student": show_student_portal(st.session_state["student"])
+else: st.info("Login to continue")
