@@ -1,16 +1,12 @@
 import streamlit as st
-import os, io, json, re, time, base64
+import os, io, json, re, time
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from streamlit_mic_recorder import mic_recorder
-from gtts import gTTS
-from streamlit_option_menu import option_menu
 from groq import Groq, RateLimitError
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import container
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 
@@ -19,7 +15,7 @@ try:
     STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
     ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
 except:
-    st.error("Set GROQ_API_KEY, STUDENT_PASSWORD, ADMIN_PASSWORD in secrets")
+    st.error("Set GROQ_API_KEY, STUDENT_PASSWORD, ADMIN_PASSWORD in Streamlit secrets")
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
@@ -34,45 +30,52 @@ Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner for Uganda S1-S6.
 Chain of Thought Rule: For every problem solve in steps: 1. Understand 2. Formula 3. Substitute 4. Answer.
 Rules: Use NCDC 2026 + UNEB ITEM/TASK/SCENARIO format. Diagrams must have title, numbered labels, arrows, pointers."""
 
-### RESTORED FULL DATABASES - FIXED BRACKETS ###
+### RESTORED FULL SUBJECT DATABASE ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Percentages"], "S2": ["Patterns", "Bearings", "Angles", "Algebra I", "Sets"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Similarity"], "S4": ["Functions", "3D Geometry", "Statistics", "Circle Geometry"], "S5": ["Differentiation", "Integration", "Permutations"], "S6": ["Differential Equations", "Mechanics", "Statistics II"]},
-    "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Density"], "S2": ["Light", "Thermal Physics", "Electricity I", "Pressure"], "S3": ["Electricity II", "Magnetism", "Waves"], "S4": ["Electromagnetism", "Electronics", "Radioactivity"], "S5": ["Gravitation", "Optics", "Fluid Mechanics"], "S6": ["Electric Fields", "Magnetic Fields", "Nuclear Physics"]},
-    "Chemistry": {"S1": ["States of Matter", "Mixtures", "Atoms"], "S2": ["Acids Alkalis", "Salts", "Air"], "S3": ["Bonding", "Stoichiometry", "Electrolysis"], "S4": ["REDOX", "Organic II", "Rate of Reaction"], "S5": ["Energetics", "Kinetics", "Equilibrium"], "S6": ["Electrochemistry", "Organic III"]},
-    "Biology": {"S1": ["Cells", "Classification", "Nutrition in Plants"], "S2": ["Soil", "Nutrition in Animals", "Respiration"], "S3": ["Respiration", "Genetics I", "Reproduction"], "S4": ["Coordination", "Ecology", "Photosynthesis"], "S5": ["Cell Biology", "Enzymes", "Genetics II"], "S6": ["Hormones", "Biotechnology", "Evolution"]}
+    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Percentages", "Algebra I"], "S2": ["Patterns", "Bearings", "Angles", "Algebra II", "Sets", "Rates"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Similarity", "Trigonometry I"], "S4": ["Functions", "3D Geometry", "Statistics", "Circle Geometry", "Binomials"], "S5": ["Differentiation", "Integration", "Permutations", "Complex Numbers"], "S6": ["Differential Equations", "Mechanics", "Statistics II", "Linear Programming"]},
+    "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Density", "Pressure"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism", "Waves II", "Atomic Physics"], "S4": ["Electromagnetism", "Electronics", "Radioactivity", "Astrophysics"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Thermal Physics II"], "S6": ["Electric Fields", "Magnetic Fields", "Nuclear Physics", "Quantum Physics"]},
+    "Chemistry": {"S1": ["States of Matter", "Mixtures", "Atoms", "Compounds"], "S2": ["Acids Alkalis", "Salts", "Air", "Water"], "S3": ["Bonding", "Stoichiometry", "Electrolysis", "Energy Changes"], "S4": ["REDOX", "Organic II", "Rate of Reaction", "Equilibrium I"], "S5": ["Energetics", "Kinetics", "Equilibrium II", "Acids and Bases"], "S6": ["Electrochemistry", "Organic III", "Industrial Chemistry"]},
+    "Biology": {"S1": ["Cells", "Classification", "Nutrition in Plants", "Diversity"], "S2": ["Soil", "Nutrition in Animals", "Respiration", "Excretion"], "S3": ["Respiration", "Genetics I", "Reproduction", "Growth"], "S4": ["Coordination", "Ecology", "Photosynthesis", "Transport"], "S5": ["Cell Biology", "Enzymes", "Genetics II", "Microbiology"], "S6": ["Hormones", "Biotechnology", "Evolution", "Ecosystems"]}
 }
 
+### RESTORED FULL PRACTICAL DATABASE ###
 PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": {
-            "Ohm's Law": {"objective": "To verify V=IR", "apparatus": "Cell, Ammeter, Voltmeter, Rheostat", "procedure": "1. Connect circuit 2. Vary rheostat", "observations": "I | V", "questions": ["State Ohm's law", "Plot V vs I"], "safety": "No short circuit"},
-            "Simple Pendulum": {"objective": "Find g", "apparatus": "Bob, String, Stopwatch", "procedure": "1. Time 20 oscillations", "observations": "T = t/20", "questions": ["What affects period"], "safety": "Safe height"}
+            "Ohm's Law": {"objective": "To verify Ohm's Law V=IR", "apparatus": "Cell, Ammeter, Voltmeter, Rheostat, Connecting wires", "procedure": "1. Connect circuit in series. 2. Vary rheostat. 3. Record V and I.", "observations": "Table: Current I(A) | Voltage V(V)", "questions": ["State Ohm's law", "Plot V vs I graph", "Find slope"], "safety": "Do not short circuit the cell"},
+            "Simple Pendulum": {"objective": "To determine acceleration due to gravity g", "apparatus": "Bob, String, Meter rule, Stopwatch, Stand", "procedure": "1. Set up pendulum. 2. Time 20 oscillations. 3. Repeat for different lengths.", "observations": "Table: Length L(m) | Time t(s) | Period T(s)", "questions": ["What affects period?", "Plot T^2 vs L"], "safety": "Ensure bob does not hit anyone"},
+            "Refraction of Light": {"objective": "To find refractive index of glass", "apparatus": "Glass block, Pins, Paper, Ruler", "procedure": "1. Draw normal. 2. Trace rays. 3. Measure angles.", "observations": "Table: Angle i | Angle r", "questions": ["Define refractive index", "Snell's Law"], "safety": "Handle glass carefully"}
         },
         "S5-S6": {
-            "RC Circuit": {"objective": "Find time constant", "apparatus": "Capacitor, Resistor", "procedure": "1. Charge capacitor", "observations": "V vs t", "questions": ["Define tau"], "safety": "Discharge cap"}
+            "RC Circuit": {"objective": "To determine time constant of RC circuit", "apparatus": "Capacitor, Resistor, Voltmeter, Stopwatch", "procedure": "1. Charge capacitor. 2. Discharge through resistor. 3. Record V vs t.", "observations": "Graph: Voltage vs Time", "questions": ["Define time constant tau", "Calculate tau"], "safety": "Discharge capacitor before handling"},
+            "Young's Modulus": {"objective": "To determine Young's modulus of a wire", "apparatus": "Wire, Masses, Micrometer", "procedure": "1. Measure original length. 2. Add masses. 3. Measure extension.", "observations": "Table: Force(N) | Extension(m)", "questions": ["Plot F vs e", "Calculate Y"], "safety": "Wear goggles"}
         }
     },
     "Chemistry": {
         "S1-S4": {
-            "Separation of Mixtures": {"objective": "Separate sand and salt", "apparatus": "Beaker, Filter paper, Bunsen", "procedure": "1. Add water 2. Filter", "observations": "Residue: Sand", "questions": ["Name method"], "safety": "Wear goggles"},
-            "Titration": {"objective": "Find conc of NaOH", "apparatus": "Burette, Pipette", "procedure": "1. Titrate HCl", "observations": "V1, V2", "questions": ["Calculate molarity"], "safety": "Acid burns"}
+            "Separation of Mixtures": {"objective": "To separate sand and salt mixture", "apparatus": "Beaker, Filter paper, Funnel, Bunsen burner, Evaporating dish", "procedure": "1. Add water. 2. Filter. 3. Evaporate filtrate.", "observations": "Residue: Sand. Filtrate: Salt solution", "questions": ["Name methods used", "Why is filtration used"], "safety": "Wear goggles. Handle Bunsen carefully"},
+            "Titration": {"objective": "To determine concentration of NaOH", "apparatus": "Burette, Pipette, Conical flask, Indicator", "procedure": "1. Pipette acid. 2. Titrate with base. 3. Note titre.", "observations": "Table: Final burette reading | Initial | Titre", "questions": ["Calculate molarity", "Define titre"], "safety": "Acid can cause burns"},
+            "Preparation of Oxygen": {"objective": "To prepare oxygen gas in lab", "apparatus": "Test tube, Bunsen, Manganese IV oxide, Potassium chlorate", "procedure": "1. Heat mixture. 2. Collect gas over water.", "observations": "Gas relights glowing splint", "questions": ["Equation", "Test for O2"], "safety": "Do not overheat"}
         },
         "S5-S6": {
-            "Rate of Reaction": {"objective": "Effect of temp", "apparatus": "Conical flask", "procedure": "1. React Mg with HCl", "observations": "Gas volume", "questions": ["Plot graph"], "safety": "HCl fumes"}
+            "Rate of Reaction": {"objective": "To investigate effect of temperature on rate", "apparatus": "Conical flask, Mg ribbon, HCl, Stopwatch", "procedure": "1. React Mg with HCl at different temps. 2. Time gas produced.", "observations": "Table: Temp | Time", "questions": ["Plot graph", "Explain effect"], "safety": "HCl fumes are dangerous"},
+            "Electrolysis": {"objective": "To electrolyse copper II sulfate", "apparatus": "Carbon electrodes, Power supply, Beaker", "procedure": "1. Set up cell. 2. Pass current. 3. Observe electrodes.", "observations": "Anode: bubbles. Cathode: copper deposit", "questions": ["Write half equations"], "safety": "Low voltage only"}
         }
     },
     "Biology": {
         "S1-S4": {
-            "Use of Microscope": {"objective": "Observe cells", "apparatus": "Microscope, Slide, Onion", "procedure": "1. Place specimen", "observations": "Draw cell", "questions": ["Function of nucleus"], "safety": "Clean lens"},
-            "Food Tests": {"objective": "Test for starch", "apparatus": "Iodine, Test tube", "procedure": "1. Add iodine", "observations": "Blue black", "questions": ["Test for protein"], "safety": "No eating"}
+            "Use of Microscope": {"objective": "To observe plant and animal cells", "apparatus": "Microscope, Onion epidermis, Cheek cells, Slide, Cover slip", "procedure": "1. Place specimen. 2. Focus. 3. Draw.", "observations": "Draw and label cell parts", "questions": ["Function of nucleus", "Difference plant vs animal"], "safety": "Clean lens with tissue"},
+            "Food Tests": {"objective": "To test for food nutrients", "apparatus": "Iodine, Benedict's, Biuret, Test tubes", "procedure": "1. Add reagents. 2. Observe color change.", "observations": "Starch: Blue-black. Sugar: Brick red", "questions": ["Test for protein", "Test for lipids"], "safety": "Do not taste chemicals"},
+            "Osmosis": {"objective": "To demonstrate osmosis in potato", "apparatus": "Potato, Sucrose solutions, Ruler, Weighing scale", "procedure": "1. Cut potato. 2. Place in solutions. 3. Measure after 1hr.", "observations": "Table: Concentration | Change in length", "questions": ["Define osmosis", "What is plasmolysis"], "safety": "Use sharp knife carefully"}
         },
         "S5-S6": {
-            "Osmosis": {"objective": "Potato osmosis", "apparatus": "Potato, Sucrose", "procedure": "1. Weigh potato", "observations": "Mass change", "questions": ["Define osmosis"], "safety": "Sterile"}
+            "Enzyme Action": {"objective": "To investigate effect of pH on amylase", "apparatus": "Amylase, Starch, Buffer solutions, Iodine", "procedure": "1. Mix at different pH. 2. Test every 2 min.", "observations": "Table: pH | Time for starch to disappear", "questions": ["Optimum pH", "Denaturation"], "safety": "Sterile conditions"},
+            "Transpiration": {"objective": "To measure rate of transpiration", "apparatus": "Potometer, Plant shoot, Beaker", "procedure": "1. Set up potometer. 2. Record bubble movement.", "observations": "Distance moved in 5 min", "questions": ["Factors affecting rate"], "safety": "Keep plant hydrated"}
         }
-    } # <- THIS BRACKET WAS MISSING BEFORE
+    }
 }
 
-### SVG ENGINE ###
+### SVG ENGINE - RESTORED ###
 def svg_header(title): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 700"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="black"/></marker></defs><rect width="950" height="700" fill="white"/><text x="475" y="40" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="black">{title}</text>'
 def svg_footer(): return '</svg>'
 def render_universal_svg(raw_svg): return f'<div style="width:100%; max-width:1000px; margin:auto; background:white; padding:20px; border-radius:15px; border:4px solid #1a237e;">{raw_svg}</div>'
@@ -100,19 +103,19 @@ def call_groq(user_prompt):
 
 def auto_render_pixel_diagram(topic, subject, level):
     st.info("🤖 AI is writing Python code and rendering HD image...")
-    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. Use plt.savefig('/mnt/data/auto_diagram.png', dpi=300, bbox_inches='tight'). No plt.show()"
+    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. Save to /mnt/data/auto_diagram.png with dpi=300. No plt.show()"
     code = call_groq(prompt).replace("```python","").replace("```","")
     try:
-        exec_code = f"import matplotlib.pyplot as plt\nimport numpy as np\n{code}"
-        container.python_execution(code=exec_code)
+        exec_globals = {}
+        exec(code, exec_globals)
         return "/mnt/data/auto_diagram.png"
     except Exception as e: return f"ERROR: {e}"
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
     data = PRACTICAL_DATABASE.get(subject,{}).get(level_group,{}).get(prac_name,{})
-    if not data: return "Practical not found"
-    prompt = f"Expand this NCDC practical into full UNEB report format: {data} for {subject} {level}"
+    if not data: return "Practical not found in database"
+    prompt = f"Expand this NCDC practical into full UNEB report format with objective, apparatus, procedure, observations, questions, safety: {data} for {subject} {level}"
     return call_groq(prompt)
 
 def display_with_pdf(content, name):
@@ -150,7 +153,7 @@ def show_student_portal():
             display_with_pdf(aoi, "AOI")
         elif mode == "🧪 Practicals Lab":
             prac_list = list(PRACTICAL_DATABASE.get(subject2,{}).get("S1-S4",{}).keys()) if int(level2[1])<=4 else list(PRACTICAL_DATABASE.get(subject2,{}).get("S5-S6",{}).keys())
-            if not prac_list: prac_list = ["No practicals in DB"]
+            if not prac_list: prac_list = ["No practicals in DB for this subject"]
             prac = st.selectbox("Select Practical", prac_list)
             if st.button("Generate Practical"):
                 report = generate_practical(subject2,level2,prac)
@@ -163,7 +166,7 @@ def show_student_portal():
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 Diagram Generator - V3.7.4.1")
+        st.header("🎨 Diagram Generator - V3.7.5")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Describe Diagram:", "Draw atom")
@@ -182,13 +185,13 @@ def show_student_portal():
                 if not found: st.warning("Not in AutoDraw. Try: atom, cone, cell, circuit, pendulum, water cycle")
             else:
                 img_path = auto_render_pixel_diagram(topic3, subject3, level3)
-                if "ERROR" in str(img_path): st.error(f"Rendering failed")
+                if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
                 else:
                     st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
                     with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
 
 def show_admin_portal():
-    st.header("🏫 Admin Portal - V3.7.4.1")
+    st.header("🏫 Admin Portal - V3.7.5")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tab1, tab2 = st.tabs(["📊 Analytics", "📖 Curriculum Manager"])
     with tab1:
@@ -201,7 +204,7 @@ def show_admin_portal():
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
         st.write(UNEB_CURRICULUM_MAP[subj][level])
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.4.1 RESTORED")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.5 RESTORED")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
