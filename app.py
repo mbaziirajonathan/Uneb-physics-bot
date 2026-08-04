@@ -194,7 +194,7 @@ def get_plugin_links(plugin_type):
     if plugin_type == "TikZ": return "https://tikz.dev/editor"
     return "#" 
 
-  def auto_render_pixel_diagram(topic, subject, level):
+def auto_render_pixel_diagram(topic, subject, level):
     """AI writes code -> We run it -> Return PNG"""
     st.info("🤖 AI is writing Python code and rendering HD image...")
     
