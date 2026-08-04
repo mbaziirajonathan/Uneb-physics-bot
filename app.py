@@ -23,10 +23,10 @@ CONTACT = "256751040731"
 AI_MODEL_SMART = "llama-3.3-70b-versatile"
 AI_MODEL_INSTANT = "llama-3.2-3b-preview"
 
-# INIT SESSION STATE - THIS WAS THE BUG
+# INIT SESSION STATE - CRITICAL FIX
 if "role" not in st.session_state: st.session_state.role = None
 if "student" not in st.session_state: st.session_state.student = {}
-if "page" not in st.session_state: st.session_state.page = "login"
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
 
 # DATABASES
 LOG_FILE = "usage_log.json"
@@ -44,9 +44,9 @@ if "log" not in st.session_state: st.session_state.log = load_db(LOG_FILE)
 if "qbank" not in st.session_state: st.session_state.qbank = load_db(QBANK_FILE)
 if "ai_qbank" not in st.session_state: st.session_state.ai_qbank = load_db(AI_QBANK_FILE)
 
-st.sidebar.success(f"V3.9.2 QC PASSED\n📞 {CONTACT}")
+st.sidebar.success(f"V3.9.3 QC PASSED\n📞 {CONTACT}")
 
-# FULL NCDC 2026 CURRICULUM DB - 14 SUBJECTS
+# FULL NCDC 2026 CURRICULUM DB - 14 SUBJECTS RESTORED
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {"S1": ["Integers","Fractions","Decimals"],"S2": ["Angles","Statistics","Algebra"],"S3": ["Vectors","Matrices","Quadratic"],"S4": ["Circle Geometry","Trigonometry"],"S5": ["Differentiation","Integration"],"S6": ["Mechanics","Probability","Linear Programming"]},
     "Biology": {"S1": ["Cells","Classification"],"S2": ["Nutrition","Respiration"],"S3": ["Circulation","Excretion"],"S4": ["Photosynthesis","Ecology"],"S5": ["Cell Biology","Genetics"],"S6": ["Hormones","Evolution","Ecology"]},
@@ -64,7 +64,7 @@ UNEB_CURRICULUM_MAP = {
     "Art": {"S1": ["Drawing"],"S2": ["Painting"],"S3": ["Sculpture"],"S4": ["Design"],"S5": ["Craft"],"S6": ["Art History"]}
 }
 
-# 1-SHOT EXAMPLE
+# 1-SHOT EXAMPLE FOR 70B
 PERFECT_EXAMPLE = '''fig, ax = plt.subplots(figsize=(8,8)); ax.set_xlim(0,1); ax.set_ylim(0,1)
 ax.add_patch(Rectangle((0.05,0.05), 0.9, 0.9, fill=False, linewidth=3))
 ax.add_patch(Circle((0.5,0.5), 0.12, color='pink')); ax.add_patch(Ellipse((0.3,0.7), 0.1, 0.05, color='green'))
@@ -96,8 +96,12 @@ def render_diagram(description, subject, level, mode="Smart"):
         return {"status": "OK", "path": fname} if os.path.exists(fname) else {"status": "ERROR", "msg":"File not created"}
     except Exception as e: return {"status": "ERROR", "msg": str(e)}
 
-# STUDENT PORTAL
+# STUDENT PORTAL - FIXED: NOW GETS STUDENT FROM SESSION
 def show_student_portal():
+    if not st.session_state.student:
+        st.error("Student data missing. Please login again")
+        return
+
     student = st.session_state.student
     st.header(f"👋 Welcome {student['name']} - {student['class']}")
 
@@ -127,7 +131,9 @@ def show_student_portal():
             m = "Smart" if "Smart" in mode else "Instant"
             with st.spinner(f"Running {m} Engine..."):
                 res = render_diagram(desc, subj, student['class'], m)
-                if res["status"]=="OK": st.image(res["path"])
+                if res["status"]=="OK":
+                    st.image(res["path"])
+                    with open(res["path"], "rb") as file: st.download_button("📥 Download", file, res["path"])
                 else: st.error(res.get("msg",""))
 
     with tab4:
@@ -171,33 +177,40 @@ def show_admin_portal():
         st.metric("Total Students", len(st.session_state.students_db))
         st.metric("Total QBank Qns", len(st.session_state.qbank))
 
-# LOGIN SCREEN
+# LOGIN SCREEN - FIXED ROUTING
 def show_login():
-    st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.9.2")
-    role = st.sidebar.radio("Login As", ["Student","Admin"])
-    password = st.sidebar.text_input("Password", type="password")
+    st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.9.3")
+    st.markdown("### Uganda National Examinations Board | NCDC 2026")
 
-    if st.sidebar.button("Login"):
-        if role=="Admin" and password==ADMIN_PASSWORD:
-            st.session_state.role="Admin"; st.rerun()
-        elif role=="Student" and password==STUDENT_PASSWORD:
-            name = st.sidebar.text_input("Student Name")
-            cls = st.sidebar.selectbox("Class", [f"S{i}" for i in range(1,7)])
-            if name:
-                student = {"name":name, "class":cls, "login":str(datetime.now())}
-                st.session_state.students_db.append(student); save_db(STUDENTS_FILE, st.session_state.students_db)
-                st.session_state.role="Student"; st.session_state.student=student; st.rerun()
-            else: st.sidebar.warning("Enter Name")
-        else: st.sidebar.error("Wrong Password")
+    with st.sidebar:
+        st.header("Login")
+        role = st.radio("Login As", ["Student","Admin"])
+        password = st.text_input("Password", type="password")
 
-    st.info("Login from sidebar to continue")
+        if role == "Student":
+            name = st.text_input("Student Full Name")
+            cls = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
 
-# ROUTER - THIS FIXES TABS NOT OPENING
-if st.session_state.role == "Admin": show_admin_portal()
-elif st.session_state.role == "Student": show_student_portal()
+        if st.button("Login", type="primary"):
+            if role=="Admin" and password==ADMIN_PASSWORD:
+                st.session_state.role="Admin"; st.session_state.logged_in=True; st.rerun()
+            elif role=="Student" and password==STUDENT_PASSWORD:
+                if name:
+                    student = {"name":name, "class":cls, "login":str(datetime.now())}
+                    st.session_state.students_db.append(student); save_db(STUDENTS_FILE, st.session_state.students_db)
+                    st.session_state.role="Student"; st.session_state.student=student; st.session_state.logged_in=True; st.rerun()
+                else: st.warning("Enter Student Name")
+            else: st.error("Wrong Password")
+
+    st.info("👈 Login from sidebar to continue")
+
+# ROUTER
+if st.session_state.logged_in:
+    if st.session_state.role == "Admin": show_admin_portal()
+    elif st.session_state.role == "Student": show_student_portal()
 else: show_login()
 
 # LOGOUT
-if st.session_state.role:
+if st.session_state.logged_in:
     if st.sidebar.button("Logout"):
-        st.session_state.role = None; st.session_state.student = {}; st.rerun()
+        st.session_state.role = None; st.session_state.student = {}; st.session_state.logged_in = False; st.rerun()
