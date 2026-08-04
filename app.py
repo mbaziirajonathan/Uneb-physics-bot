@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, time, ast
+import os, io, json, re, time, ast, hashlib
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -13,62 +13,68 @@ from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow, Arrow
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 
+### LOAD 2 API KEYS ###
 try:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    GROQ_API_KEY_1 = st.secrets["GROQ_API_KEY_1"]
+    GROQ_API_KEY_2 = st.secrets["GROQ_API_KEY_2"]
     STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
     ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
 except:
-    st.error("Set GROQ_API_KEY, STUDENT_PASSWORD, ADMIN_PASSWORD in Streamlit secrets")
+    st.error("Set GROQ_API_KEY_1, GROQ_API_KEY_2, STUDENT_PASSWORD, ADMIN_PASSWORD in Streamlit secrets")
     st.stop()
 
-client = Groq(api_key=GROQ_API_KEY)
+# Key rotation state
+if "current_key" not in st.session_state: st.session_state.current_key = 1
+if "key1_tokens" not in st.session_state: st.session_state.key1_tokens = 0
+if "key2_tokens" not in st.session_state: st.session_state.key2_tokens = 0
+
+def get_client():
+    key = GROQ_API_KEY_1 if st.session_state.current_key == 1 else GROQ_API_KEY_2
+    return Groq(api_key=key)
+
+client = get_client()
 LOG_FILE = "usage_log.json"
 QBANK_FILE = "qbank.json"
 AI_QBANK_FILE = "ai_qbank.json"
 STUDENTS_FILE = "students.json"
 CONTACT = "256751040731"
 
-### DUAL ENGINE V4.0.0 - NO SVG ###
-AI_MODEL_SMART = "llama-3.3-70b-versatile" # High Quality Weights
-AI_MODEL_INSTANT = "llama-3.1-8b-instant" # Fast Weights
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V4.0.0\nAUTO-RENDER ENGINE ONLY | 70B + 8B\n📞 {CONTACT}")
+### DUAL ENGINE V4.0.2 ###
+AI_MODEL_SMART = "llama-3.3-70b-versatile"
+AI_MODEL_INSTANT = "llama-3.1-8b-instant"
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V4.0.2\nDUAL KEY ROTATION + CACHE\nKey Active: {st.session_state.current_key}\n📞 {CONTACT}")
 
-### STRICT WEIGHTS / PROMPT TEMPLATE ###
-WEIGHTS_SMART = {
-    "labels": 8, "arrows": 6, "title": 2, "dpi": 300, "style": "textbook"
-}
-WEIGHTS_INSTANT = {
-    "labels": 4, "arrows": 3, "title": 1, "dpi": 200, "style": "simple"
-}
+st.sidebar.metric("Key 1 Est Tokens", st.session_state.key1_tokens)
+st.sidebar.metric("Key 2 Est Tokens", st.session_state.key2_tokens)
+
+### STRICT WEIGHTS ###
+WEIGHTS_SMART = {"labels": 8, "arrows": 6, "title": 2, "dpi": 300, "style": "textbook"}
+WEIGHTS_INSTANT = {"labels": 4, "arrows": 3, "title": 1, "dpi": 200, "style": "simple"}
 
 SYSTEM_SMART = f"""You are DIGITAL UNEB TUTOR 2026 PRO. Senior NCDC Examiner.
-CRITICAL OUTPUT FORMAT: OUTPUT ONLY PYTHON CODE. START WITH IMPORTS. NO TEXT BEFORE OR AFTER.
-WEIGHTS: labels={WEIGHTS_SMART['labels']}, arrows={WEIGHTS_SMART['arrows']}, dpi={WEIGHTS_SMART['dpi']}, style={WEIGHTS_SMART['style']}
+CRITICAL OUTPUT FORMAT: OUTPUT ONLY PYTHON CODE. START WITH IMPORTS. NO TEXT.
+WEIGHTS: labels={WEIGHTS_SMART['labels']}, arrows={WEIGHTS_SMART['arrows']}, dpi={WEIGHTS_SMART['dpi']}
 RULES:
-1. First 3 lines MUST be: from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow
+1. First 3 lines: from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow
 import matplotlib.pyplot as plt
 import numpy as np
-2. Use fig, ax = plt.subplots(figsize=(9,9)); ax.set_xlim(0,1); ax.set_ylim(0,1)
-3. Draw shapes. Add Title. Add {WEIGHTS_SMART['labels']} numbered labels with yellow bbox.
-4. Add {WEIGHTS_SMART['arrows']} FancyArrow pointing to parts.
-5. End with: plt.savefig('diagram.png', dpi={WEIGHTS_SMART['dpi']}, bbox_inches='tight'); plt.close(); ax.axis('off')
+2. fig, ax = plt.subplots(figsize=(9,9)); ax.set_xlim(0,1); ax.set_ylim(0,1)
+3. {WEIGHTS_SMART['labels']} numbered labels with yellow bbox. {WEIGHTS_SMART['arrows']} FancyArrow.
+4. End: plt.savefig('diagram.png', dpi={WEIGHTS_SMART['dpi']}, bbox_inches='tight'); plt.close(); ax.axis('off')
 """
 
-SYSTEM_INSTANT = f"""You are FAST DIAGRAM BOT.
-CRITICAL: OUTPUT ONLY PYTHON CODE. NO TEXT.
-WEIGHTS: labels={WEIGHTS_INSTANT['labels']}, arrows={WEIGHTS_INSTANT['arrows']}, dpi={WEIGHTS_INSTANT['dpi']}, style={WEIGHTS_INSTANT['style']}
-RULES:
-1. First 3 lines MUST be imports.
-2. Use Circle Rectangle Ellipse. {WEIGHTS_INSTANT['labels']} labels. {WEIGHTS_INSTANT['arrows']} arrows.
-3. End with: plt.savefig('diagram.png', dpi={WEIGHTS_INSTANT['dpi']}); plt.close()"""
+SYSTEM_INSTANT = f"""OUTPUT ONLY PYTHON CODE. NO TEXT.
+WEIGHTS: labels={WEIGHTS_INSTANT['labels']}, arrows={WEIGHTS_INSTANT['arrows']}, dpi={WEIGHTS_INSTANT['dpi']}
+RULES: Imports first. Circle Rectangle. {WEIGHTS_INSTANT['labels']} labels. {WEIGHTS_INSTANT['arrows']} arrows.
+End: plt.savefig('diagram.png', dpi={WEIGHTS_INSTANT['dpi']}); plt.close()"""
 
-### DATABASES - ALL 14 SUBJECTS KEPT ###
+### DATABASES - ALL 14 SUBJECTS ###
 def load_db(file): return json.load(open(file,"r", encoding="utf-8")) if os.path.exists(file) else []
 def save_db(file,data): json.dump(data,open(file,"w", encoding="utf-8"),indent=2)
 if "students_db" not in st.session_state: st.session_state.students_db = load_db(STUDENTS_FILE)
 
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions"], "S2": ["Angles", "Algebra II"], "S3": ["Vectors", "Matrices"], "S4": ["Circle Geometry"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
+    "Mathematics": {"S1": ["Number Bases"], "S2": ["Angles"], "S3": ["Vectors"], "S4": ["Circle Geometry"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
     "Physics": {"S1": ["Forces"], "S2": ["Electricity I"], "S3": ["Magnetism"], "S4": ["Electronics"], "S5": ["Optics"], "S6": ["Electric Fields"]},
     "Chemistry": {"S1": ["Atoms"], "S2": ["Acids Alkalis"], "S3": ["Bonding"], "S4": ["REDOX"], "S5": ["Kinetics"], "S6": ["Electrochemistry"]},
     "Biology": {"S1": ["Cells"], "S2": ["Respiration"], "S3": ["Genetics I"], "S4": ["Photosynthesis"], "S5": ["Cell Biology"], "S6": ["Hormones"]},
@@ -85,9 +91,9 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law", "apparatus": "Cell", "procedure": "Connect", "questions": ["State law"], "safety": "No short"}}},
-    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine NaOH", "apparatus": "Burette", "procedure": "Titrate", "questions": ["Calculate"], "safety": "Acid"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope", "procedure": "Focus", "questions": ["Function"], "safety": "Clean"}}}
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law", "apparatus": "Cell", "procedure": "Connect", "questions": ["State law"], "safety": "No short"}}, "S5-S6": {}},
+    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine NaOH", "apparatus": "Burette", "procedure": "Titrate", "questions": ["Calculate"], "safety": "Acid"}}, "S5-S6": {}},
+    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope", "procedure": "Focus", "questions": ["Function"], "safety": "Clean"}}, "S5-S6": {}}
 }
 
 ### CORE FUNCTIONS ###
@@ -99,37 +105,60 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 
-def call_groq_dual(user_prompt, mode="Smart"):
+### FIX: DUAL KEY + CACHE ###
+@st.cache_data(ttl=3600, show_spinner=False) # CACHE FOR 1 HOUR
+def cached_groq_call(prompt_hash, user_prompt, mode, key_id):
+    return call_groq_dual_raw(user_prompt, mode, key_id)
+
+def switch_key():
+    st.session_state.current_key = 2 if st.session_state.current_key == 1 else 1
+    st.warning(f"🔄 Rate limit hit. Switched to API Key {st.session_state.current_key}")
+    return get_client()
+
+def estimate_tokens(text): return len(text) // 4 # Rough estimate
+
+def call_groq_dual_raw(user_prompt, mode="Smart", key_id=1):
+    global client
     system = SYSTEM_SMART if mode=="Smart" else SYSTEM_INSTANT
     model = AI_MODEL_SMART if mode=="Smart" else AI_MODEL_INSTANT
     tokens = 3500 if mode=="Smart" else 1200
 
     try:
-        res = client.chat.completions.create(model=model, messages=[{"role":"system","content":system},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=0.05) # Low temp = less hallucination
+        res = client.chat.completions.create(model=model, messages=[{"role":"system","content":system},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=0.05)
+
+        # Track usage
+        used = estimate_tokens(user_prompt + res.choices[0].message.content)
+        if key_id == 1: st.session_state.key1_tokens += used
+        else: st.session_state.key2_tokens += used
+
         return res.choices[0].message.content
     except Exception as e:
+        error_str = str(e)
+        if "rate_limit_exceeded" in error_str:
+            client = switch_key()
+            new_key_id = st.session_state.current_key
+            return call_groq_dual_raw(user_prompt, mode, new_key_id) # Retry with new key
         return f"GROQ_ERROR: {e}"
+
+def call_groq_dual(user_prompt, mode="Smart"):
+    prompt_hash = hashlib.md5((user_prompt + mode).encode()).hexdigest()
+    return cached_groq_call(prompt_hash, user_prompt, mode, st.session_state.current_key)
 
 def extract_and_validate_code(raw):
     if not raw or "GROQ_ERROR" in raw: return raw, False
     code = re.sub(r'```python|```', '', raw).strip()
-
-    # FORCE imports to top
     if not code.startswith("from matplotlib"):
         header = "from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow\nimport matplotlib.pyplot as plt\nimport numpy as np\n"
         code = header + code
-
-    # Remove any text after plt.close()
     code = code.split("plt.close()")[0] + "plt.close()"
-
     try: ast.parse(code); return code, True
     except SyntaxError as e: return f"SyntaxError line {e.lineno}: {e.msg}", False
 
 def auto_render_pixel_diagram(topic, subject, level, mode="Smart"):
     weights = WEIGHTS_SMART if mode=="Smart" else WEIGHTS_INSTANT
-    st.info(f"🤖 Running {mode} Engine | Labels:{weights['labels']} Arrows:{weights['arrows']} DPI:{weights['dpi']}")
+    st.info(f"🤖 Running {mode} Engine | Labels:{weights['labels']} Arrows:{weights['arrows']} DPI:{weights['dpi']} | Key:{st.session_state.current_key}")
 
-    prompt = f"Task: Draw '{topic}' for {level} {subject}. Follow all WEIGHTS and RULES exactly."
+    prompt = f"Task: Draw '{topic}' for {level} {subject}. Follow WEIGHTS exactly."
     raw_code = call_groq_dual(prompt, mode)
     if "GROQ_ERROR" in raw_code: return raw_code
 
@@ -158,7 +187,7 @@ def display_with_pdf(content, name):
     for f in re.findall(r'\$(.*?)\$', content): st.latex(f)
     pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 
-### PORTALS - SVG REMOVED ###
+### PORTALS ###
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
@@ -170,7 +199,7 @@ def show_student_portal():
         ask_q = st.text_area("Ask any question / Solve any problem")
         if st.button("Ask AI Brain", type="primary") and ask_q:
             log_activity("Student", "Ask Question", ask_q)
-            ans = call_groq_dual(f"Use Chain of Thought 1.Understand 2.Formula 3.Substitute 4.Answer: {ask_q} for {level} {subject}", "Smart")
+            ans = call_groq_dual(f"Use Chain of Thought: {ask_q} for {level} {subject}", "Smart")
             display_with_pdf(ans, "Answer")
 
     with tab2:
@@ -180,7 +209,7 @@ def show_student_portal():
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📝 UNEB Quiz Mode", "📚 Bulk Revision"])
 
         if mode == "📖 Theory" and st.button("Teach Me"):
-            raw = call_groq_dual(f"Teach {topic2} step by step with examples for {level2} {subject2}", "Smart")
+            raw = call_groq_dual(f"Teach {topic2} step by step for {level2} {subject2}", "Smart")
             display_with_pdf(raw, "Theory")
         elif mode == "🧠 AOI" and st.button("Generate AOI"):
             aoi = call_groq_dual(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}", "Smart")
@@ -192,14 +221,14 @@ def show_student_portal():
                 report = generate_practical(subject2,level2,prac)
                 display_with_pdf(report, "Practical")
         elif mode == "📝 UNEB Quiz Mode" and st.button("Generate Quiz"):
-            quiz = call_groq_dual(f"Generate 10 UNEB ITEM/TASK/SCENARIO questions with answers on {topic2} for {level2} {subject2}", "Smart")
+            quiz = call_groq_dual(f"Generate 10 UNEB questions on {topic2} for {level2} {subject2}", "Smart")
             display_with_pdf(quiz, "Quiz")
         elif mode == "📚 Bulk Revision" and st.button("Generate Revision"):
-            rev = call_groq_dual(f"Generate full revision notes + 20 questions for {topic2} {level2} {subject2}", "Smart")
+            rev = call_groq_dual(f"Generate full revision + 20 questions for {topic2} {level2} {subject2}", "Smart")
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 AI Diagram Generator - V4.0.0")
+        st.header("🎨 AI Diagram Generator - V4.0.2")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Describe Diagram:", "Draw and label Human Heart S4 Biology")
@@ -211,11 +240,12 @@ def show_student_portal():
             img_path = auto_render_pixel_diagram(topic3, subject3, level3, m)
             if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
             else:
+                st.success(f"✅ Rendered with: {AI_MODEL_SMART if m=='Smart' else AI_MODEL_INSTANT} on Key {st.session_state.current_key}")
                 st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
                 with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
 
 def show_admin_portal():
-    st.header("🏫 Admin Portal - V4.0.0")
+    st.header("🏫 Admin Portal - V4.0.2")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tab1, tab2, tab3 = st.tabs(["📊 Analytics", "📖 Curriculum Manager", "🤖 AI QBank Generator"])
     with tab1:
@@ -232,11 +262,11 @@ def show_admin_portal():
         subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="qgen_subj")
         lvl = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="qgen_lvl")
         if st.button("Generate 20 Questions"):
-            res = call_groq_dual(f"Generate 20 UNEB MCQ for {lvl} {subj}. Return JSON list", "Smart")
+            res = call_groq_dual(f"Generate 20 UNEB MCQ for {lvl} {subj}. Return JSON", "Smart")
             try: save_db(AI_QBANK_FILE, json.loads(res)); st.success("Saved")
             except: st.error("Bad JSON"); st.code(res)
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V4.0.0 AUTO-RENDER")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V4.0.2 DUAL KEY")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
