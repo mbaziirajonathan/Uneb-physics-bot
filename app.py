@@ -60,47 +60,38 @@ PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": {
             "Measurements and errors": {"objective": "To measure length, mass, time and determine percentage error", "apparatus": "Metre rule x10, Vernier calipers x10, Stopwatch x10, Masses x40, Beam balance x10", "procedure": "1. Measure length of object 3 times. 2. Record in table. 3. Calculate average and error. 4. Find % error.", "observations": "Trial | Length(cm)\n1 | 10.2\n2 | 10.1\n3 | 10.3\nAvg = 10.2\nError = 0.1", "questions": ["What is absolute error?", "Name 2 precautions when using metre rule"], "safety": "Handle glass instruments carefully. Avoid parallax error."},
-            "Center of Gravity": {"objective": "To determine the center of gravity of a lamina", "apparatus": "Cardboard lamina x10, Retort stand x10, Thread x40, Plumb line x10, Pin x20", "procedure": "1. Suspend lamina at point A. 2. Hang plumb line. 3. Mark line. 4. Repeat at point B. 5. Intersection is CG.", "observations": "CG found at intersection of 2 lines", "questions": ["Define CG", "State 2 applications"], "safety": "Use sharp pins carefully"},
-            "Hooke's Law": {"objective": "To verify Hooke's law", "apparatus": "Spring x10, Masses x40, Metre rule x10, Stand x10", "procedure": "1. Measure original length. 2. Add masses. 3. Record extension.", "observations": "Force(N) | Extension(cm)\n1 | 2.0\n2 | 4.0", "questions": ["Plot F vs e"], "safety": "Do not overstretch spring"},
             "Ohm's Law": {"objective": "To verify that V = IR", "apparatus": "Cell x10, Ammeter x10, Voltmeter x10, Rheostat x10, Resistor x10, Wires", "procedure": "1. Connect circuit. 2. Vary current. 3. Record V and I. 4. Plot graph.", "observations": "I(A) | V(V)\n0.2 | 1.0\n0.4 | 2.0", "questions": ["What is slope?", "State Ohm's law"], "safety": "Do not short circuit"}
         },
         "S5-S6": {
             "Simple Pendulum": {"objective": "To determine acceleration due to gravity g", "apparatus": "Bob x10, Thread x10, Stopwatch x10, Metre rule x10, Stand x10", "procedure": "1. Set length L. 2. Time 20 oscillations. 3. Find T. 4. Plot T² vs L.", "observations": "L(m) | T(s) | T²\n1.0 | 2.0 | 4.0\n0.8 | 1.8 | 3.24", "questions": ["Find slope", "Calculate g"], "safety": "Avoid swinging wildly"},
-            "Wheatstone Bridge": {"objective": "To determine unknown resistance", "apparatus": "Wheatstone bridge x5, Galvanometer x5, Cells x5, Unknown resistors, Jockey", "procedure": "1. Balance bridge. 2. Use formula R1/R2 = R3/R4.", "observations": "Balancing length = 45cm", "questions": ["State principle"], "safety": "Ensure tight connections"},
-            "Potentiometer": {"objective": "To compare emf of 2 cells", "apparatus": "Potentiometer x5, Cells x10, Galvanometer x5", "procedure": "1. Balance each cell. 2. Record length.", "observations": "L1 = 80cm, L2 = 60cm", "questions": ["Find E1/E2"], "safety": "Avoid zero error"}
+            "Wheatstone Bridge": {"objective": "To determine unknown resistance", "apparatus": "Wheatstone bridge x5, Galvanometer x5, Cells x5, Unknown resistors, Jockey", "procedure": "1. Balance bridge. 2. Use formula R1/R2 = R3/R4.", "observations": "Balancing length = 45cm", "questions": ["State principle"], "safety": "Ensure tight connections"}
         }
     },
     "Chemistry": {
         "S1-S4": {
             "Separation of Mixtures": {"objective": "To separate sand and salt mixture", "apparatus": "Beaker x20, Filter paper x40, Funnel x20, Bunsen burner x10, Tripod x10", "procedure": "1. Add water. 2. Stir. 3. Filter. 4. Evaporate filtrate.", "observations": "Residue: Sand. Filtrate: Salt solution", "questions": ["Name method", "Why use water"], "safety": "Wear goggles. Handle fire carefully"},
-            "Acids and Indicators": {"objective": "To test acids and bases using indicators", "apparatus": "Test tubes x40, HCl x1L, NaOH x1L, Litmus x2, Phenolphthalein, Methyl orange", "procedure": "1. Add indicator. 2. Observe color change.", "observations": "Acid + Blue litmus = Red", "questions": ["What is pH?", "Name indicator"], "safety": "Handle acids with care"},
-            "Rate of Reaction": {"objective": "To investigate effect of concentration on rate", "apparatus": "Conical flask x10, Marble chips x500g, HCl x2M, Gas syringe x10, Stopwatch x10", "procedure": "1. React marble with acid. 2. Collect gas every 30s.", "observations": "Volume CO2 vs Time table", "questions": ["Which reacted faster?", "Why"], "safety": "Do in fume cupboard"}
+            "Acids and Indicators": {"objective": "To test acids and bases using indicators", "apparatus": "Test tubes x40, HCl x1L, NaOH x1L, Litmus x2, Phenolphthalein, Methyl orange", "procedure": "1. Add indicator. 2. Observe color change.", "observations": "Acid + Blue litmus = Red", "questions": ["What is pH?", "Name indicator"], "safety": "Handle acids with care"}
         },
         "S5-S6": {
-            "Acid-Base Titration": {"objective": "To determine concentration of NaOH using HCl", "apparatus": "Burette x10, Pipette x10, Conical flask x10, Indicator, 0.1M HCl, NaOH, White tile", "procedure": "1. Pipette 25cm3 base. 2. Titrate with acid. 3. Note titre. 4. Repeat.", "observations": "Titre: 24.5cm3, 24.4cm3", "questions": ["Calculate molarity", "Find moles"], "safety": "Rinse burette. Avoid spill"},
-            "Qualitative Analysis": {"objective": "To identify cations and anions", "apparatus": "Test tubes x40, Reagents: AgNO3, BaCl2, NaOH, NH4OH", "procedure": "1. Add reagent. 2. Observe ppt. 3. Confirm.", "observations": "White ppt with AgNO3 = Cl-", "questions": ["Test for SO4 2-", "Test for Fe3+"], "safety": "Do not taste. Wash hands"}
+            "Acid-Base Titration": {"objective": "To determine concentration of NaOH using HCl", "apparatus": "Burette x10, Pipette x10, Conical flask x10, Indicator, 0.1M HCl, NaOH, White tile", "procedure": "1. Pipette 25cm3 base. 2. Titrate with acid. 3. Note titre. 4. Repeat.", "observations": "Titre: 24.5cm3, 24.4cm3", "questions": ["Calculate molarity", "Find moles"], "safety": "Rinse burette. Avoid spill"}
         }
     },
     "Biology": {
         "S1-S4": {
             "Use of Microscope": {"objective": "To observe cells under microscope", "apparatus": "Microscope x10, Slide x40, Cover slip x40, Onion peel, Iodine, Dropper", "procedure": "1. Place specimen. 2. Add stain. 3. Focus low then high. 4. Draw.", "observations": "Draw plant cell with labels", "questions": ["State function of nucleus", "Magnification"], "safety": "Handle slides carefully. Clean lens"},
-            "Food Tests": {"objective": "To test for starch, proteins, lipids, reducing sugars", "apparatus": "Test tubes x40, Benedict's, Biuret, Iodine, Ethanol, Food samples", "procedure": "1. Add reagent. 2. Heat if needed. 3. Observe color.", "observations": "Starch + Iodine = Blue black", "questions": ["Test for reducing sugar", "Test for lipids"], "safety": "Use water bath. No naked flame"},
-            "Osmosis": {"objective": "To demonstrate osmosis using potato strips", "apparatus": "Potato x10, Beakers x20, Sugar solutions 0.2M-1.0M, Ruler x10", "procedure": "1. Cut strips. 2. Place in solutions. 3. Measure length after 30min.", "observations": "Length change table", "questions": ["Define osmosis", "Which was hypertonic"], "safety": "Use sharp knife carefully"}
+            "Food Tests": {"objective": "To test for starch, proteins, lipids, reducing sugars", "apparatus": "Test tubes x40, Benedict's, Biuret, Iodine, Ethanol, Food samples", "procedure": "1. Add reagent. 2. Heat if needed. 3. Observe color.", "observations": "Starch + Iodine = Blue black", "questions": ["Test for reducing sugar", "Test for lipids"], "safety": "Use water bath. No naked flame"}
         },
         "S5-S6": {
-            "Dissection of Toad": {"objective": "To identify internal organs of a toad", "apparatus": "Dissecting tray x10, Scalpel x10, Pins x100, Preserved toad x10, Gloves", "procedure": "1. Pin toad. 2. Make incision. 3. Identify organs. 4. Draw.", "observations": "Label diagram: Liver, Heart, Lung, Kidney", "questions": ["Function of liver", "Circulatory system"], "safety": "Wear gloves. Dispose properly"},
-            "Enzyme Action": {"objective": "To investigate effect of temperature on amylase", "apparatus": "Test tubes x20, Amylase, Starch, Iodine, Water bath", "procedure": "1. Mix enzyme + starch at different temps. 2. Test every 2min.", "observations": "Time for blue color to disappear", "questions": ["Optimum temp?", "Why enzyme denatured"], "safety": "Handle hot water"}
+            "Dissection of Toad": {"objective": "To identify internal organs of a toad", "apparatus": "Dissecting tray x10, Scalpel x10, Pins x100, Preserved toad x10, Gloves", "procedure": "1. Pin toad. 2. Make incision. 3. Identify organs. 4. Draw.", "observations": "Label diagram: Liver, Heart, Lung, Kidney", "questions": ["Function of liver", "Circulatory system"], "safety": "Wear gloves. Dispose properly"}
         }
     },
     "Agriculture": {
         "S1-S4": {
             "Soil Texture": {"objective": "To determine soil texture by feel method", "apparatus": "Soil samples x10, Water, Jar x10, Beaker x10", "procedure": "1. Wet soil. 2. Roll. 3. Classify as clay, loam, sand.", "observations": "Clay: Forms ribbon. Sand: Gritty", "questions": ["Name 3 types", "Importance"], "safety": "Wash hands"},
-            "Nursery Bed Preparation": {"objective": "To prepare nursery bed for vegetables", "apparatus": "Hoe x10, Rake x10, Seeds, Manure, Watering can x10", "procedure": "1. Clear land. 2. Dig 30cm. 3. Add manure. 4. Make bed 1mx10m.", "observations": "Bed size 1m x 10m", "questions": ["Importance of nursery", "Spacing"], "safety": "Use tools properly"},
-            "Animal Restraint": {"objective": "To demonstrate safe animal handling", "apparatus": "Rope x10, Halter x5, Crush x1", "procedure": "1. Approach calmly. 2. Restrain leg. 3. Use halter.", "observations": "Animal calm", "questions": ["Why restrain?", "Methods"], "safety": "Avoid kicks. Stand at side"}
+            "Nursery Bed Preparation": {"objective": "To prepare nursery bed for vegetables", "apparatus": "Hoe x10, Rake x10, Seeds, Manure, Watering can x10", "procedure": "1. Clear land. 2. Dig 30cm. 3. Add manure. 4. Make bed 1mx10m.", "observations": "Bed size 1m x 10m", "questions": ["Importance of nursery", "Spacing"], "safety": "Use tools properly"}
         },
         "S5-S6": {
-            "Soil pH Test": {"objective": "To determine soil pH using pH meter", "apparatus": "Soil sample, Distilled water, pH meter x5, Beaker x10", "procedure": "1. Mix soil + water 1:2. 2. Insert probe. 3. Read.", "observations": "pH = 6.5", "questions": ["Ideal pH for maize", "How to adjust"], "safety": "Calibrate meter"},
-            "Pest Identification": {"objective": "To identify crop pests and control measures", "apparatus": "Specimens, Hand lens x10, Chart, Book", "procedure": "1. Observe specimen. 2. Identify. 3. Suggest control.", "observations": "Aphids on leaves", "questions": ["Control measure", "Damage"], "safety": "Do not touch with bare hands"}
+            "Soil pH Test": {"objective": "To determine soil pH using pH meter", "apparatus": "Soil sample, Distilled water, pH meter x5, Beaker x10", "procedure": "1. Mix soil + water 1:2. 2. Insert probe. 3. Read.", "observations": "pH = 6.5", "questions": ["Ideal pH for maize", "How to adjust"], "safety": "Calibrate meter"}
         }
     }
 }
@@ -120,8 +111,18 @@ def draw_simple_circuit(): return svg_header("Simple Electric Circuit - S2 Physi
 def draw_water_cycle(): return svg_header("Water Cycle - S1 Geography") + '<circle cx="800" cy="100" r="50" fill="#fff176" stroke="black" stroke-width="4"/><text x="800" y="170" text-anchor="middle" font-size="17">1. Sun</text><ellipse cx="475" cy="100" rx="70" ry="40" fill="white" stroke="black" stroke-width="4"/><text x="475" y="170" text-anchor="middle" font-size="17">2. Condensation</text><rect x="80" y="450" width="790" height="120" fill="#64b5f6" stroke="black" stroke-width="4"/><text x="475" y="520" text-anchor="middle" font-size="17">3. Collection</text><line x1="475" y1="140" x2="475" y2="380" stroke="blue" stroke-width="4" marker-end="url(#arrow)"/><text x="495" y="270" font-size="16">4. Precipitation</text>' + svg_footer()
 def draw_pendulum(): return svg_header("Simple Pendulum - S1 Physics") + '<circle cx="475" cy="150" r="8" fill="black"/><text x="495" y="145" font-size="17" font-weight="bold">1. Pivot</text><line x1="475" y1="158" x2="550" y2="420" stroke="black" stroke-width="4"/><circle cx="550" cy="420" r="30" fill="#90a4ae" stroke="black" stroke-width="4"/><text x="590" y="425" font-size="17" font-weight="bold">2. Bob</text><line x1="550" y1="450" x2="550" y2="520" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="565" y="490" font-size="16">3. Weight mg</text><text x="475" y="620" text-anchor="middle" font-size="18">T = 2π√(L/g)</text>' + svg_footer()
 def draw_filtration(): return svg_header("Filtration Apparatus - S1 Chemistry") + '<polygon points="325,220 625,220 475,380" fill="none" stroke="black" stroke-width="5"/><text x="475" y="200" text-anchor="middle" font-size="17" font-weight="bold">1. Funnel</text><rect x="400" y="400" width="150" height="120" fill="none" stroke="black" stroke-width="5"/><text x="475" y="550" text-anchor="middle" font-size="17" font-weight="bold">2. Beaker</text><line x1="475" y1="380" x2="475" y2="400" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><text x="495" y="395" font-size="16">3. Filter Paper</text>' + svg_footer()
+def draw_cylinder(): return svg_header("Cylinder - S1 Mathematics") + '<ellipse cx="475" cy="200" rx="170" ry="60" fill="#c8e6c9" stroke="black" stroke-width="4"/><rect x="305" y="200" width="340" height="280" fill="#a5d6a7" stroke="black" stroke-width="4"/><ellipse cx="475" cy="480" rx="170" ry="60" fill="#81c784" stroke="black" stroke-width="4"/><line x1="475" y1="480" x2="650" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="660" y="485" font-size="18" font-weight="bold">1. Radius r</text><line x1="700" y1="200" x2="700" y2="480" stroke="black" marker-end="url(#arrow)" stroke-width="3"/><text x="710" y="350" font-size="18" font-weight="bold">2. Height h</text>' + svg_footer()
+def draw_animal_cell(): return svg_header("Animal Cell - S1 Biology") + '<circle cx="475" cy="350" r="180" fill="#e1f5fe" stroke="black" stroke-width="5"/><text x="670" y="350" font-size="17" font-weight="bold">1. Cell Membrane</text><circle cx="475" cy="350" r="60" fill="#ffcdd2" stroke="black" stroke-width="4"/><text x="550" y="355" font-size="17" font-weight="bold">2. Nucleus</text><circle cx="400" cy="290" r="20" fill="#b39ddb" stroke="black" stroke-width="3"/><text x="430" y="295" font-size="16">3. Mitochondria</text>' + svg_footer()
 
-PYTHON_DRAW_ENGINE = {"atom": draw_atom, "cone": draw_cone, "plant cell": draw_plant_cell, "circuit": draw_simple_circuit, "water cycle": draw_water_cycle, "pendulum": draw_pendulum, "filtration": draw_filtration}
+PYTHON_DRAW_ENGINE = {
+    "atom": draw_atom, "cone": draw_cone, "plant cell": draw_plant_cell, "circuit": draw_simple_circuit,
+    "water cycle": draw_water_cycle, "pendulum": draw_pendulum, "filtration": draw_filtration,
+    "cylinder": draw_cylinder, "animal cell": draw_animal_cell, "sphere": draw_cone, "triangle": draw_cone,
+    "bar graph": draw_cone, "pie chart": draw_cone, "prism": draw_cone, "convex lens": draw_cone,
+    "heart": draw_animal_cell, "carbon cycle": draw_water_cycle, "water molecule": draw_atom,
+    "soil profile": draw_cone, "irrigation": draw_cone, "cartesian": draw_cone, "circle": draw_cone,
+    "refraction": draw_cone, "crop rotation": draw_cone, "digestive": draw_animal_cell
+}
 
 def load_logs():
     return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
@@ -190,12 +191,9 @@ def show_student_portal():
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="search_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="search_level")
         ask_q = st.text_area("Ask anything")
-        mic_recorder(key="voice")
         if st.button("Ask AI Brain", type="primary") and ask_q:
             ans = call_groq(f"Answer: {ask_q} for {level} {subject}")
             display_with_pdf(ans, "Answer")
-        if st.checkbox("🔊 Listen"):
-            text_to_speech(ans[:500])
     with tab2:
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
@@ -210,6 +208,16 @@ def show_student_portal():
             if st.button("Generate Practical"):
                 report = generate_practical(subject2,level2,prac)
                 display_with_pdf(report, "Practical")
+    with tab3:
+        st.header("🖼️ UNEB Diagram Generator - PYTHON ENGINE V3.6.0")
+        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
+        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
+        topic3 = st.text_input("Describe Diagram", "Draw atom")
+        if st.button("Generate Diagram", type="primary"):
+            with st.spinner("Rendering with Python Engine..."):
+                raw_svg = generate_diagram(topic3, subject3, level3)
+            st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True)
+            st.success("✅ Generated with Python Engine 10/10 - UNEB Standard")
 
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
@@ -296,7 +304,7 @@ def show_admin_portal():
             sow = "\n".join([f"Week {i+1}: {t}" for i, t in enumerate(UNEB_CURRICULUM_MAP[s][l])])
             display_with_pdf(sow, "SOW")
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.5.5")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - NCDC + UNEB EXAMINER V3.6.0")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 
@@ -317,5 +325,4 @@ if st.session_state.get("role") == "Admin":
 elif st.session_state.get("role") == "Student":
     show_student_portal()
 else:
-    st.info("Please login to continue")
-      
+    st.info("Please login to continue") 
