@@ -25,12 +25,26 @@ AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
 
-MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO.
-Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner for Uganda S1-S6.
-Chain of Thought Rule: For every problem solve in steps: 1. Understand 2. Formula 3. Substitute 4. Answer.
-Rules: Use NCDC 2026 + UNEB ITEM/TASK/SCENARIO format. Diagrams must have title, numbered labels, arrows, pointers."""
+### CRITICAL SYSTEM PROMPT - SPATIAL REASONING + NO HALLUCINATION ###
+MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - CRITICAL DIAGRAM ENGINE.
+Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner + Scientific Illustrator for Uganda S1-S6.
 
-### DATABASES - FULL RESTORED ###
+CRITICAL RULES FOR DIAGRAM GENERATION:
+1. ACCURACY FIRST: Use correct scientific proportions, angles, and physics. No hallucinations.
+2. LABELING: Every diagram MUST have Title, Numbered labels 1. 2. 3., Arrows/pointers to each part, and Formula/Key at bottom.
+3. QUALITY: Render in 3D style when applicable. Use high DPI 300, clean lines, professional colors, white background.
+4. SPATIAL REASONING EXAMPLES: 
+   Example 1: Atom - Nucleus at center, electrons in shells with correct radii ratio 1:2:3
+   Example 2: Cone - Apex, base, height h, radius r, slant height l all labeled with arrows
+   Example 3: Circuit - Cell, switch, bulb connected in series with current direction arrow
+   Example 4: Plant Cell - Cell wall outside, nucleus center, chloroplasts green, large vacuole
+5. CODE RULES: Use matplotlib 3D when needed. Always include plt.title(), plt.xlabel(), plt.ylabel(), plt.legend(). Save with plt.savefig('auto_diagram.png', dpi=300, bbox_inches='tight') then plt.close().
+6. NO MISSING DATA: If unsure, state assumption but still draw.
+
+For THEORY: Use Chain of Thought: 1.Understand 2.Formula 3.Substitute 4.Answer.
+Use NCDC 2026 + UNEB ITEM/TASK/SCENARIO format."""
+
+### FULL DATABASES RESTORED - GOLD ARCHITECTURE KEPT ###
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Percentages", "Algebra I"], "S2": ["Patterns", "Bearings", "Angles", "Algebra II", "Sets", "Rates"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Similarity", "Trigonometry I"], "S4": ["Functions", "3D Geometry", "Statistics", "Circle Geometry", "Binomials"], "S5": ["Differentiation", "Integration", "Permutations", "Complex Numbers"], "S6": ["Differential Equations", "Mechanics", "Statistics II", "Linear Programming"]},
     "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Density", "Pressure"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism", "Waves II", "Atomic Physics"], "S4": ["Electromagnetism", "Electronics", "Radioactivity", "Astrophysics"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Thermal Physics II"], "S6": ["Electric Fields", "Magnetic Fields", "Nuclear Physics", "Quantum Physics"]},
@@ -44,20 +58,6 @@ PRACTICAL_DATABASE = {
     "Biology": {"S1-S4": {"Use of Microscope": {"objective": "To observe plant and animal cells", "apparatus": "Microscope, Onion epidermis, Cheek cells, Slide, Cover slip", "procedure": "1. Place specimen. 2. Focus. 3. Draw.", "observations": "Draw and label cell parts", "questions": ["Function of nucleus", "Difference plant vs animal"], "safety": "Clean lens with tissue"}, "Food Tests": {"objective": "To test for food nutrients", "apparatus": "Iodine, Benedict's, Biuret, Test tubes", "procedure": "1. Add reagents. 2. Observe color change.", "observations": "Starch: Blue-black. Sugar: Brick red", "questions": ["Test for protein", "Test for lipids"], "safety": "Do not taste chemicals"}, "Osmosis": {"objective": "To demonstrate osmosis in potato", "apparatus": "Potato, Sucrose solutions, Ruler, Weighing scale", "procedure": "1. Cut potato. 2. Place in solutions. 3. Measure after 1hr.", "observations": "Table: Concentration | Change in length", "questions": ["Define osmosis", "What is plasmolysis"], "safety": "Use sharp knife carefully"}}, "S5-S6": {"Enzyme Action": {"objective": "To investigate effect of pH on amylase", "apparatus": "Amylase, Starch, Buffer solutions, Iodine", "procedure": "1. Mix at different pH. 2. Test every 2 min.", "observations": "Table: pH | Time for starch to disappear", "questions": ["Optimum pH", "Denaturation"], "safety": "Sterile conditions"}, "Transpiration": {"objective": "To measure rate of transpiration", "apparatus": "Potometer, Plant shoot, Beaker", "procedure": "1. Set up potometer. 2. Record bubble movement.", "observations": "Distance moved in 5 min", "questions": ["Factors affecting rate"], "safety": "Keep plant hydrated"}}}
 }
 
-### SVG ENGINE ###
-def svg_header(title): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 700"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="black"/></marker></defs><rect width="950" height="700" fill="white"/><text x="475" y="40" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="black">{title}</text>'
-def svg_footer(): return '</svg>'
-def render_universal_svg(raw_svg): return f'<div style="width:100%; max-width:1000px; margin:auto; background:white; padding:20px; border-radius:15px; border:4px solid #1a237e;">{raw_svg}</div>'
-
-def draw_atom(): return svg_header("Bohr Model of Atom - S3 Chemistry") + '<circle cx="475" cy="350" r="25" fill="#d32f2f" stroke="black" stroke-width="4"/><text x="475" y="358" text-anchor="middle" fill="white" font-size="16" font-weight="bold">N</text><line x1="500" y1="350" x2="650" y2="320" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/><text x="660" y="325" font-size="18" font-weight="bold">1. Nucleus</text><circle cx="475" cy="350" r="110" fill="none" stroke="#1976d2" stroke-width="3"/><circle cx="585" cy="350" r="10" fill="#42a5f5" stroke="black" stroke-width="3"/>' + svg_footer()
-def draw_cone(): return svg_header("Cone - S1 Mathematics") + '<ellipse cx="475" cy="480" rx="220" ry="80" fill="#bbdefb" stroke="black" stroke-width="4"/><path d="M 255 480 L 475 170 L 695 480" fill="#90caf9" stroke="black" stroke-width="4"/><line x1="475" y1="170" x2="475" y2="480" stroke="red" stroke-width="3" stroke-dasharray="8,8"/><text x="475" y="650" text-anchor="middle" font-size="20" font-weight="bold">Formula: V = 1/3 πr²h</text>' + svg_footer()
-def draw_plant_cell(): return svg_header("Plant Cell - S1 Biology") + '<rect x="120" y="100" width="700" height="450" fill="#c8e6c9" stroke="black" stroke-width="5"/><circle cx="350" cy="325" r="70" fill="#ffcdd2" stroke="black" stroke-width="4"/><ellipse cx="550" cy="325" rx="130" ry="100" fill="#e1f5fe" stroke="black" stroke-width="4" stroke-dasharray="6,6"/><rect x="380" y="180" width="50" height="70" fill="#43a047" stroke="black" stroke-width="3"/>' + svg_footer()
-def draw_circuit(): return svg_header("Simple Electric Circuit - S2 Physics") + '<line x1="180" y1="350" x2="330" y2="350" stroke="black" stroke-width="5"/><rect x="330" y="320" width="80" height="60" fill="none" stroke="black" stroke-width="5"/><circle cx="540" cy="350" r="50" fill="none" stroke="black" stroke-width="5"/><line x1="540" y1="400" x2="540" y2="500" stroke="black" stroke-width="5"/><line x1="540" y1="500" x2="180" y2="500" stroke="black" stroke-width="5"/><line x1="180" y1="500" x2="180" y2="350" stroke="black" stroke-width="5"/>' + svg_footer()
-def draw_pendulum(): return svg_header("Simple Pendulum - S1 Physics") + '<circle cx="475" cy="150" r="8" fill="black"/><line x1="475" y1="158" x2="550" y2="420" stroke="black" stroke-width="4"/><circle cx="550" cy="420" r="30" fill="#78909c" stroke="black" stroke-width="4"/><line x1="400" y1="420" x2="700" y2="420" stroke="gray" stroke-width="2"/>' + svg_footer()
-def draw_water_cycle(): return svg_header("Water Cycle - S1 Geography") + '<circle cx="750" cy="100" r="50" fill="yellow"/><path d="M100 500 Q475 350 850 500" fill="#90caf9" stroke="blue" stroke-width="4"/><text x="475" y="650" text-anchor="middle" font-size="20" font-weight="bold">1.Evaporation 2.Condensation 3.Precipitation</text>' + svg_footer()
-
-AUTO_DRAW_ENGINE = {"atom": draw_atom, "atomic": draw_atom, "cone": draw_cone, "cylinder": draw_cone, "plant cell": draw_plant_cell, "cell": draw_plant_cell, "circuit": draw_circuit, "electric": draw_circuit, "pendulum": draw_pendulum, "water cycle": draw_water_cycle}
-
 ### CORE FUNCTIONS ###
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
@@ -67,24 +67,30 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 def call_groq(user_prompt):
-    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.7); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000); return res.choices[0].message.content
+    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.3); return res.choices[0].message.content
+    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.3); return res.choices[0].message.content
 
-### FIXED RENDER FUNCTION ###
+### CRITICAL AUTO-RENDER ENGINE - NO SVG ###
 def auto_render_pixel_diagram(topic, subject, level):
-    st.info("🤖 AI is writing Python code and rendering HD image...")
-    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. MUST include: plt.savefig('auto_diagram.png', dpi=300, bbox_inches='tight') and plt.close(). No plt.show()"
+    st.info("🤖 CRITICAL MODE: AI is writing advanced 3D Python code with labels...")
+    prompt = f"""You are a scientific illustrator. Generate ONLY executable python matplotlib code to draw '{topic}' for {level} {subject}.
+
+CRITICAL REQUIREMENTS:
+1. Use 3D projection if topic is 3D: fig = plt.figure(); ax = fig.add_subplot(111, projection='3d')
+2. MUST HAVE: plt.title('Title with Topic and Class'), numbered annotations ax.text(x,y,z,'1. Label',fontsize=12,weight='bold'), arrows with ax.annotate()
+3. MUST HAVE: Legend, axis labels, clean style plt.style.use('seaborn-v0_8-whitegrid')
+4. MUST SAVE: plt.savefig('auto_diagram.png', dpi=300, bbox_inches='tight'); plt.close()
+5. NO plt.show(). NO HALLUCINATION. Use correct science.
+
+Generate code now:"""
     code = call_groq(prompt).replace("```python","").replace("```","")
     try:
-        # Force save to current folder, not /mnt/data
-        code = code.replace("/mnt/data/auto_diagram.png", "auto_diagram.png")
         exec_globals = {"plt": plt, "np": np}
         exec(code, exec_globals)
-
         if os.path.exists("auto_diagram.png"):
             return "auto_diagram.png"
         else:
-            return "ERROR: AI did not generate savefig command"
+            return "ERROR: AI did not generate savefig command. Code: " + code[:200]
     except Exception as e: return f"ERROR: {e}"
 
 def generate_practical(subject, level, prac_name):
@@ -101,7 +107,7 @@ def display_with_pdf(content, name):
 
 ### PORTALS ###
 def show_student_portal():
-    st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
+    st.header("📚 Student Portal - S1 to S6 - CRITICAL AUTO-RENDER MODE")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tab1, tab2, tab3 = st.tabs(["🔍 Smart Search + Solver", "📖 Learn Topic", "🎨 Diagram Generator"])
 
@@ -142,32 +148,22 @@ def show_student_portal():
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 Diagram Generator - V3.7.5.1")
+        st.header("🎨 Diagram Generator - V3.7.7 CRITICAL AI RENDER")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
-        topic3 = st.text_input("Describe Diagram:", "Draw atom")
-        diagram_mode = st.radio("Choose Output Mode", ["1. Instant SVG [Auto Draw]", "2. HD Pixel Image [AI Render]"])
+        topic3 = st.text_input("Describe Diagram:", "Draw Bohr model of Lithium atom with 3 shells")
+        st.caption("AI will generate 3D, labeled, examiner standard diagram automatically")
 
         if st.button("Generate Diagram", type="primary"):
             log_activity("Student", "Generate Diagram", topic3)
-            if diagram_mode == "1. Instant SVG [Auto Draw]":
-                topic_lower = topic3.lower()
-                found = False
-                for key, func in AUTO_DRAW_ENGINE.items():
-                    if key in topic_lower:
-                        st.markdown(render_universal_svg(func()), unsafe_allow_html=True)
-                        st.success("✅ Instant SVG with labels")
-                        found = True; break
-                if not found: st.warning("Not in AutoDraw. Try: atom, cone, cell, circuit, pendulum, water cycle")
+            img_path = auto_render_pixel_diagram(topic3, subject3, level3)
+            if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
             else:
-                img_path = auto_render_pixel_diagram(topic3, subject3, level3)
-                if "ERROR" in str(img_path): st.error(f"Rendering failed: {img_path}")
-                else:
-                    st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
-                    with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
+                st.image(img_path, caption=f"HD: {topic3}", use_container_width=True)
+                with open(img_path, "rb") as file: st.download_button("📥 Download HD PNG", file, f"{topic3}.png")
 
 def show_admin_portal():
-    st.header("🏫 Admin Portal - V3.7.5.1")
+    st.header("🏫 Admin Portal - V3.7.7")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tab1, tab2 = st.tabs(["📊 Analytics", "📖 Curriculum Manager"])
     with tab1:
@@ -180,7 +176,7 @@ def show_admin_portal():
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
         st.write(UNEB_CURRICULUM_MAP[subj][level])
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.5.1 RESTORED")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.7 CRITICAL AUTO-RENDER")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
