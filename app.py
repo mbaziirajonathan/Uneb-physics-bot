@@ -117,40 +117,70 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 
-def call_groq_dual(user_prompt, mode="Smart"):
-    if mode == "Smart":
-        system = SYSTEM_SMART
-        model = AI_MODEL_SMART
-        tokens = 4000
-    else:
-        system = SYSTEM_INSTANT # TOKEN FIX: 50 tokens only
-        model = AI_MODEL_INSTANT
-        tokens = 800
 
-    try:
-        res = client.chat.completions.create(model=model, messages=[{"role":"system","content":system},{"role":"user","content":user_prompt}], max_tokens=tokens, temperature=0.2)
-        return res.choices[0].message.content
-    except Exception as e:
-        if mode == "Instant":
-            st.warning("Instant 3B failed. Auto-falling back to Smart 70B")
-            return call_groq_dual(user_prompt, "Smart")
-        return f"ERROR: {e}"
+def sanitize_ai_code(raw_code):
+    """Clean AI garbage out of code before exec"""
+    code = raw_code.replace("```python","").replace("```","").strip()
+    
+    # Remove explanations before/after code
+    lines = code.split('\n')
+    code_lines = []
+    started = False
+    for line in lines:
+        if 'import' in line or 'fig' in line or 'plt' in line:
+            started = True
+        if started:
+            code_lines.append(line)
+    
+    code = '\n'.join(code_lines)
+    
+    # Force correct imports and savefig
+    header = "from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow\nimport matplotlib.pyplot as plt\nimport numpy as np\n"
+    code = header + code
+    code = code.replace("/mnt/data/diagram.png", "diagram.png")
+    
+    # Force savefig at end if missing
+    if "plt.savefig" not in code:
+        code += "\nplt.savefig('diagram.png', dpi=300, bbox_inches='tight')\nplt.close()"
+    
+    return code
 
 def auto_render_pixel_diagram(topic, subject, level, mode="Smart"):
     st.info(f"🤖 Running {mode} Engine...")
-    prompt = f"Generate ONLY python code to draw '{topic}' for {level} {subject}. Must have title and 5 numbered labels with arrows. Save as 'diagram.png'."
+    
+    if mode == "Smart":
+        prompt = f"""Generate ONLY valid python matplotlib code. No explanations.
+Task: Draw '{topic}' for {level} {subject}.
+Rules: Use Circle Rectangle Ellipse FancyArrow. Title required. 5 numbered labels with yellow bbox and arrows.
+End with: plt.savefig('diagram.png', dpi=300, bbox_inches='tight') plt.close()"""
+    else:
+        prompt = f"""Write simple python code. No text.
+Draw '{topic}' {level} {subject}. Use Circle Rectangle. 3 labels. Save 'diagram.png' dpi 200."""
 
-    code = call_groq_dual(prompt, mode).replace("```python","").replace("```","")
-    code = "from matplotlib.patches import Circle, Rectangle, Ellipse, FancyArrow\nimport matplotlib.pyplot as plt\nimport numpy as np\n" + code
-    code = code.replace("/mnt/data/diagram.png", "diagram.png")
+    raw_code = call_groq_dual(prompt, mode)
+    code = sanitize_ai_code(raw_code)
 
-    with st.expander(f"View {mode} AI Generated Code"):
+    with st.expander(f"View {mode} AI Generated Code - Debug"):
         st.code(code, language="python")
 
     try:
-        exec(code, {"plt": plt, "np": np, "Circle": Circle, "Rectangle": Rectangle, "Ellipse": Ellipse, "FancyArrow": FancyArrow})
-        return "diagram.png" if os.path.exists("diagram.png") else "ERROR: No file"
-    except Exception as e: return f"ERROR: {e}"
+        # SAFE EXEC with restricted globals
+        safe_globals = {
+            "plt": plt, "np": np, 
+            "Circle": Circle, "Rectangle": Rectangle, 
+            "Ellipse": Ellipse, "FancyArrow": FancyArrow
+        }
+        exec(code, safe_globals)
+        
+        if os.path.exists("diagram.png"):
+            return "diagram.png"
+        else:
+            return "ERROR: AI forgot plt.savefig command"
+            
+    except SyntaxError as e:
+        return f"ERROR: Syntax Error Line {e.lineno}: {e.msg}. AI generated bad code."
+    except Exception as e: 
+        return f"ERROR: {type(e).__name__}: {e}"
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
