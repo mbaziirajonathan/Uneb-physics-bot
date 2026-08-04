@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, time
+import os, io, json, re, time, traceback
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -25,36 +25,32 @@ AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
 
-### CRITICAL SYSTEM PROMPT - NCDC LOCKED ###
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - NCDC UGANDA EXAMINER.
-Role: Senior NCDC Curriculum Specialist + UNEB Chief Examiner for Uganda S1-S6.
-CRITICAL RULES: 1. Use ONLY NCDC 2026 + Ugandan examples. 2. UNEB ITEM/TASK/SCENARIO format. 3. Diagrams: Title, Numbered labels 1.2.3., Arrows, DPI 300. Save to 'auto_diagram.png'. 4. NO HALLUCINATION."""
+CRITICAL RULES: 1. Use ONLY NCDC 2026 + Ugandan examples. 2. UNEB ITEM/TASK/SCENARIO format. 3. Diagrams: Title, Numbered labels 1.2.3., Arrows, DPI 300. 4. CODE MUST SAVE TO EXACT FILENAME PROVIDED. 5. NO HALLUCINATION."""
 
-### 14 NCDC SUBJECTS RESTORED ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions", "Cartesian Coordinates", "Percentages", "Algebra I"], "S2": ["Patterns", "Bearings", "Angles", "Algebra II", "Sets", "Rates"], "S3": ["Quadratics", "Matrices", "Probability", "Vectors", "Similarity", "Trigonometry I"], "S4": ["Functions", "3D Geometry", "Statistics", "Circle Geometry", "Binomials"], "S5": ["Differentiation", "Integration", "Permutations", "Complex Numbers"], "S6": ["Differential Equations", "Mechanics", "Statistics II", "Linear Programming"]},
-    "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power", "Density", "Pressure"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism", "Waves II", "Atomic Physics"], "S4": ["Electromagnetism", "Electronics", "Radioactivity", "Astrophysics"], "S5": ["Gravitation", "Optics", "Fluid Mechanics", "Thermal Physics II"], "S6": ["Electric Fields", "Magnetic Fields", "Nuclear Physics", "Quantum Physics"]},
-    "Chemistry": {"S1": ["States of Matter", "Mixtures", "Atoms", "Compounds"], "S2": ["Acids Alkalis", "Salts", "Air", "Water"], "S3": ["Bonding", "Stoichiometry", "Electrolysis", "Energy Changes"], "S4": ["REDOX", "Organic II", "Rate of Reaction", "Equilibrium I"], "S5": ["Energetics", "Kinetics", "Equilibrium II", "Acids and Bases"], "S6": ["Electrochemistry", "Organic III", "Industrial Chemistry"]},
-    "Biology": {"S1": ["Cells", "Classification", "Nutrition in Plants", "Diversity"], "S2": ["Soil", "Nutrition in Animals", "Respiration", "Excretion"], "S3": ["Respiration", "Genetics I", "Reproduction", "Growth"], "S4": ["Coordination", "Ecology", "Photosynthesis", "Transport"], "S5": ["Cell Biology", "Enzymes", "Genetics II", "Microbiology"], "S6": ["Hormones", "Biotechnology", "Evolution", "Ecosystems"]},
-    "Geography": {"S1": ["Map Reading", "Weather", "Vegetation", "Population"], "S2": ["Rocks", "Drainage", "Climate of Uganda", "Soils"], "S3": ["Industry", "Trade", "Transport", "Tourism"], "S4": ["Agriculture", "Mining", "Energy", "Settlement"], "S5": ["Geomorphology", "Climatology", "Biogeography"], "S6": ["Regional Geography", "GIS", "Field Work"]},
-    "History": {"S1": ["Early Man", "Ancient Civilizations", "Iron Age in Africa"], "S2": ["Kingdoms of Uganda", "Long Distance Trade"], "S3": ["Scramble for Africa", "Colonialism in Uganda"], "S4": ["Decolonization", "WWI, WWII"], "S5": ["Political Developments 1962-1986"], "S6": ["Governance", "Regional Integration"]},
-    "Agriculture": {"S1": ["Introduction to Agriculture", "Soil", "Crops"], "S2": ["Livestock", "Farm Tools"], "S3": ["Crop Production", "Animal Production"], "S4": ["Farm Management", "Agricultural Economics"], "S5": ["Crop Science", "Animal Science"], "S6": ["Agricultural Research", "Agribusiness"]},
-    "CRE": {"S1": ["God's Creation", "Abraham"], "S2": ["Moses", "Prophets"], "S3": ["Jesus Ministry", "Parables"], "S4": ["Church", "Christian Living"], "S5": ["Ethics", "Comparative Religion"], "S6": ["Philosophy of Religion"]},
-    "IRE": {"S1": ["Tawheed", "Prophets"], "S2": ["Quran", "Hadith"], "S3": ["Pillars of Islam", "Shariah"], "S4": ["Islamic History", "Jihad"], "S5": ["Fiqh", "Comparative Religion"], "S6": ["Islamic Economics"]},
-    "Commerce": {"S1": ["Introduction to Business", "Goods and Services"], "S2": ["Money and Banking", "Trade"], "S3": ["Business Organizations", "Communication"], "S4": ["Insurance", "Marketing"], "S5": ["Public Finance", "Consumer Protection"], "S6": ["International Trade", "Entrepreneurship"]},
-    "Economics": {"S1": ["Basic Concepts", "Wants and Needs"], "S2": ["Demand and Supply", "Money"], "S3": ["Production", "Market Structures"], "S4": ["National Income", "Inflation"], "S5": ["Public Finance", "Economic Growth"], "S6": ["International Economics", "Development"]},
-    "Literature": {"S1": ["Poetry", "Prose"], "S2": ["Drama", "Novel"], "S3": ["Shakespeare", "African Literature"], "S4": ["Themes", "Literary Devices"], "S5": ["Critical Analysis", "Ugandan Authors"], "S6": ["Comparative Literature"]},
-    "ICT": {"S1": ["Computer Basics", "Word Processing"], "S2": ["Spreadsheet", "Internet"], "S3": ["Programming Basics", "Database"], "S4": ["Web Design", "Graphics"], "S5": ["Python", "Networks"], "S6": ["AI", "Cybersecurity"]},
-    "Fine Art": {"S1": ["Drawing", "Color"], "S2": ["Painting", "Sculpture"], "S3": ["Craft", "Design"], "S4": ["Art History", "Printmaking"], "S5": ["Advanced Painting", "Textiles"], "S6": ["Exhibition", "Career in Art"]}
+    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions"], "S2": ["Patterns", "Bearings", "Angles"], "S3": ["Quadratics", "Matrices", "Probability"], "S4": ["Functions", "3D Geometry", "Statistics"], "S5": ["Differentiation", "Integration"], "S6": ["Differential Equations", "Mechanics"]},
+    "Physics": {"S1": ["Measurement", "Forces", "Work Energy Power"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism"], "S4": ["Electromagnetism", "Electronics"], "S5": ["Gravitation", "Optics"], "S6": ["Electric Fields", "Magnetic Fields"]},
+    "Chemistry": {"S1": ["States of Matter", "Mixtures"], "S2": ["Acids Alkalis", "Salts"], "S3": ["Bonding", "Stoichiometry"], "S4": ["REDOX", "Organic II"], "S5": ["Energetics", "Kinetics"], "S6": ["Electrochemistry", "Organic III"]},
+    "Biology": {"S1": ["Cells", "Classification"], "S2": ["Soil", "Nutrition"], "S3": ["Respiration", "Genetics I"], "S4": ["Coordination", "Ecology"], "S5": ["Cell Biology", "Enzymes"], "S6": ["Hormones", "Biotechnology"]},
+    "Geography": {"S1": ["Map Reading", "Weather"], "S2": ["Rocks", "Drainage"], "S3": ["Industry", "Trade"], "S4": ["Agriculture", "Mining"], "S5": ["Geomorphology"], "S6": ["Regional Geography"]},
+    "History": {"S1": ["Early Man"], "S2": ["Kingdoms of Uganda"], "S3": ["Scramble for Africa"], "S4": ["Decolonization"], "S5": ["Political Developments"], "S6": ["Governance"]},
+    "Agriculture": {"S1": ["Soil", "Crops"], "S2": ["Livestock"], "S3": ["Crop Production"], "S4": ["Farm Management"], "S5": ["Crop Science"], "S6": ["Agribusiness"]},
+    "CRE": {"S1": ["God's Creation"], "S2": ["Moses"], "S3": ["Jesus Ministry"], "S4": ["Church"], "S5": ["Ethics"], "S6": ["Philosophy"]},
+    "IRE": {"S1": ["Tawheed"], "S2": ["Quran"], "S3": ["Pillars"], "S4": ["Islamic History"], "S5": ["Fiqh"], "S6": ["Islamic Economics"]},
+    "Commerce": {"S1": ["Business"], "S2": ["Money"], "S3": ["Organizations"], "S4": ["Insurance"], "S5": ["Public Finance"], "S6": ["International Trade"]},
+    "Economics": {"S1": ["Basic Concepts"], "S2": ["Demand"], "S3": ["Production"], "S4": ["National Income"], "S5": ["Public Finance"], "S6": ["International Economics"]},
+    "Literature": {"S1": ["Poetry"], "S2": ["Drama"], "S3": ["Shakespeare"], "S4": ["Themes"], "S5": ["Critical Analysis"], "S6": ["Comparative"]},
+    "ICT": {"S1": ["Computer Basics"], "S2": ["Spreadsheet"], "S3": ["Programming"], "S4": ["Web Design"], "S5": ["Python"], "S6": ["AI"]},
+    "Fine Art": {"S1": ["Drawing"], "S2": ["Painting"], "S3": ["Craft"], "S4": ["Art History"], "S5": ["Advanced Painting"], "S6": ["Exhibition"]}
 }
 
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "To verify Ohm's Law V=IR", "apparatus": "Cell, Ammeter, Voltmeter", "procedure": "Connect circuit", "observations": "I vs V", "questions": ["State Ohm's law"], "safety": "No short circuit"}, "Simple Pendulum": {"objective": "Find g", "apparatus": "Bob, String", "procedure": "Time 20 oscillations", "observations": "T vs L", "questions": ["Plot T^2"], "safety": "Safe"}, "Refraction": {"objective": "Find n", "apparatus": "Glass block", "procedure": "Trace rays", "observations": "i vs r", "questions": ["Snell"], "safety": "Care"}}, "S5-S6": {"RC Circuit": {"objective": "Find tau", "apparatus": "C,R", "procedure": "Charge", "observations": "V vs t", "questions": ["tau"], "safety": "Discharge"}, "Young's Modulus": {"objective": "Find Y", "apparatus": "Wire", "procedure": "Extend", "observations": "F vs e", "questions": ["Y"], "safety": "Goggles"}}},
-    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate sand/salt", "apparatus": "Beaker", "procedure": "Dissolve", "observations": "Residue", "questions": ["Methods"], "safety": "Goggles"}, "Titration": {"objective": "Find conc", "apparatus": "Burette", "procedure": "Titrate", "observations": "Titre", "questions": ["Molarity"], "safety": "Acid"}, "Oxygen": {"objective": "Prep O2", "apparatus": "KClO3", "procedure": "Heat", "observations": "Splint", "questions": ["Eqn"], "safety": "Heat"}}, "S5-S6": {"Rate": {"objective": "Effect temp", "apparatus": "Mg", "procedure": "React", "observations": "Time", "questions": ["Rate"], "safety": "Fumes"}, "Electrolysis": {"objective": "CuSO4", "apparatus": "Electrodes", "procedure": "Current", "observations": "Deposit", "questions": ["Half"], "safety": "Low V"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells", "apparatus": "Microscope", "procedure": "Slide", "observations": "Draw", "questions": ["Nucleus"], "safety": "Clean"}, "Food Tests": {"objective": "Test food", "apparatus": "Iodine", "procedure": "Reagent", "observations": "Color", "questions": ["Protein"], "safety": "No taste"}, "Osmosis": {"objective": "Potato", "apparatus": "Potato", "procedure": "Soak", "observations": "Mass", "questions": ["Osmosis"], "safety": "Knife"}}, "S5-S6": {"Enzyme": {"objective": "pH effect", "apparatus": "Amylase", "procedure": "Test", "observations": "Time", "questions": ["pH"], "safety": "Sterile"}, "Transpiration": {"objective": "Rate", "apparatus": "Potometer", "procedure": "Bubble", "observations": "Distance", "questions": ["Factors"], "safety": "Water"}}}
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}, "Simple Pendulum": {"objective": "Find g"}, "Refraction": {"objective": "Find n"}}, "S5-S6": {"RC Circuit": {"objective": "Find tau"}, "Young's Modulus": {"objective": "Find Y"}}},
+    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate"}, "Titration": {"objective": "Find conc"}, "Oxygen": {"objective": "Prep O2"}}, "S5-S6": {"Rate": {"objective": "Effect temp"}, "Electrolysis": {"objective": "CuSO4"}}},
+    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe"}, "Food Tests": {"objective": "Test"}, "Osmosis": {"objective": "Potato"}}, "S5-S6": {"Enzyme": {"objective": "pH"}, "Transpiration": {"objective": "Rate"}}}
 }
 
-### CORE FUNCTIONS ###
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
 def log_activity(user_type, action, details): save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details})
@@ -63,31 +59,60 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 def call_groq(user_prompt):
-    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=4000, temperature=0.3); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.3); return res.choices[0].message.content
+    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=0.2); return res.choices[0].message.content
+    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=1500, temperature=0.2); return res.choices[0].message.content
 
-### ADVANCED LOOP ENGINE - BATCH DIAGRAM GENERATOR ###
+### DEBUG AUTO-RENDER ENGINE ###
 def auto_render_pixel_diagram(topic, subject, level):
-    prompt = f"Generate ONLY python matplotlib code to draw '{topic}' for {level} {subject}. CRITICAL: Title, numbered labels 1.2.3., arrows, legend. Ugandan context if possible. Save: plt.savefig('auto_diagram_{topic}.png', dpi=300, bbox_inches='tight'); plt.close()"
+    safe_topic = re.sub(r'[^\w_]', '_', topic) # Remove spaces/special chars
+    fname = f"auto_diagram_{safe_topic}.png"
+
+    prompt = f"""Generate ONLY executable python matplotlib code to draw '{topic}' for {level} {subject}.
+    RULES:
+    1. Use plt.figure(figsize=(8,6))
+    2. Add plt.title('Title'), plt.xlabel(), plt.ylabel(), legend if needed
+    3. Add 3 numbered text labels with plt.text(x,y,'1. Label',weight='bold')
+    4. MUST END WITH: plt.savefig('{fname}', dpi=200, bbox_inches='tight'); plt.close()
+    5. NO plt.show()
+    Return only code."""
+
     code = call_groq(prompt).replace("```python","").replace("```","")
+
+    # Force correct filename in case AI hallucinates
+    code = re.sub(r"plt\.savefig\('.*?\.png'", f"plt.savefig('{fname}'", code)
+
     try:
         exec_globals = {"plt": plt, "np": np}
         exec(code, exec_globals)
-        fname = f"auto_diagram_{topic}.png".replace(" ", "_")
-        return fname if os.path.exists(fname) else "ERROR"
-    except Exception as e: return f"ERROR: {e}"
+
+        if os.path.exists(fname):
+            return {"status": "OK", "path": fname, "code": code[:100]}
+        else:
+            return {"status": "ERROR", "msg": f"File {fname} not created", "code": code[:200]}
+    except Exception as e:
+        return {"status": "ERROR", "msg": str(e), "trace": traceback.format_exc()[:300]}
 
 def batch_generate_diagrams(subject, level, topic_list):
     results = []
+    errors = []
     progress = st.progress(0)
+
     for i, topic in enumerate(topic_list):
         st.write(f"Rendering {i+1}/{len(topic_list)}: {topic}")
-        img_path = auto_render_pixel_diagram(topic, subject, level)
-        if "ERROR" not in img_path:
-            results.append({"topic": topic, "path": img_path})
+        res = auto_render_pixel_diagram(topic, subject, level)
+
+        if res["status"] == "OK":
+            results.append({"topic": topic, "path": res["path"]})
+        else:
+            errors.append(f"{topic}: {res['msg']}")
+            with st.expander(f"Debug: {topic} failed"):
+                st.code(res.get("code",""), language="python")
+                st.text(res.get("trace",""))
+
         progress.progress((i+1)/len(topic_list))
-        time.sleep(0.5) # Rate limit
-    return results
+        time.sleep(1.5) # Prevent rate limit
+
+    return results, errors
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
@@ -97,7 +122,7 @@ def generate_practical(subject, level, prac_name):
     return call_groq(prompt)
 
 def generate_uneb_item_task(subject, level, topic):
-    prompt = f"Generate 1 UNEB ITEM/TASK/SCENARIO for {level} {subject} topic: {topic}. Use Ugandan context: Kampala market, boda, Lake Victoria. Provide scenario, task, marking guide."
+    prompt = f"Generate 1 UNEB ITEM/TASK/SCENARIO for {level} {subject} topic: {topic}. Use Ugandan context. Provide scenario, task, marking guide."
     return call_groq(prompt)
 
 def display_with_pdf(content, name):
@@ -125,13 +150,12 @@ def show_student_portal():
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
         mode = st.radio("Mode", ["📖 Theory", "🧠 AOI", "🧪 Practicals Lab", "📚 Bulk Revision"])
-        log_activity("Student", "Learn Mode", mode)
 
         if mode == "📖 Theory" and st.button("Teach Me"):
             raw = call_groq(f"Teach {topic2} with Ugandan examples for {level2} {subject2}")
             display_with_pdf(raw, "Theory")
         elif mode == "🧠 AOI" and st.button("Generate AOI"):
-            aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}. Ugandan scenario.")
+            aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}")
             display_with_pdf(aoi, "AOI")
         elif mode == "🧪 Practicals Lab":
             if subject2 in PRACTICAL_DATABASE:
@@ -146,7 +170,7 @@ def show_student_portal():
             display_with_pdf(rev, "Revision")
 
     with tab3:
-        st.header("🎨 Batch Diagram Generator - LOOP ALL TOPICS")
+        st.header("🎨 Batch Diagram Generator - DEBUG MODE")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="batch_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="batch_level")
 
@@ -155,8 +179,7 @@ def show_student_portal():
             mode = st.radio("Batch Mode", ["1 Topic", "All Topics in Class", "Selected Topics"])
         with col2:
             if mode == "1 Topic":
-                topic_single = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject3][level3])
-                topic_list = [topic_single]
+                topic_list = [st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject3][level3])]
             elif mode == "All Topics in Class":
                 topic_list = UNEB_CURRICULUM_MAP[subject3][level3]
                 st.info(f"Will generate {len(topic_list)} diagrams")
@@ -165,8 +188,13 @@ def show_student_portal():
 
         if st.button("Generate Batch Diagrams", type="primary"):
             log_activity("Student", "Batch Generate", f"{subject3} {level3}")
-            results = batch_generate_diagrams(subject3, level3, topic_list)
+            results, errors = batch_generate_diagrams(subject3, level3, topic_list)
+
             st.success(f"Generated {len(results)} diagrams")
+            if errors:
+                st.error(f"Failed {len(errors)} diagrams")
+                for e in errors: st.write(e)
+
             for r in results:
                 st.image(r["path"], caption=f"{r['topic']}", use_container_width=True)
                 with open(r["path"], "rb") as file: st.download_button("📥 Download", file, r["path"], key=r["path"])
@@ -194,7 +222,7 @@ def show_admin_portal():
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
         st.write(UNEB_CURRICULUM_MAP[subj][level])
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.9 BATCH LOOP ENGINE")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.9.1 DEBUG MODE")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
