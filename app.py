@@ -153,6 +153,7 @@ def generate_diagram(topic, subject, level):
         if key in topic_lower:
             return func()
     return f'{svg_header("Diagram Not Found")}<text x="475" y="350" text-anchor="middle" font-size="20" fill="red">Diagram "{topic}" not in template. Request it and I will draw it.</text>{svg_footer()}'
+
 def generate_practical(subject, level, topic):
     level_key = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
     data = PRACTICAL_DATABASE.get(subject,{}).get(level_key,{}).get(topic,None)
@@ -192,6 +193,34 @@ def get_plugin_links(plugin_type):
     if plugin_type == "Mermaid": return "https://mermaid.live"
     if plugin_type == "TikZ": return "https://tikz.dev/editor"
     return "#" 
+
+  def auto_render_pixel_diagram(topic, subject, level):
+    """AI writes code -> We run it -> Return PNG"""
+    st.info("🤖 AI is writing Python code and rendering HD image...")
+    
+    prompt = f"""Generate ONLY python matplotlib code to draw a labeled diagram of '{topic}' for {level} {subject}.
+    Requirements: 
+    1. Use plt.figure(figsize=(10,8))
+    2. Add title, labels, arrows with plt.annotate and arrowprops
+    3. Use plt.savefig('/mnt/data/auto_diagram.png', dpi=300, bbox_inches='tight')
+    4. No plt.show()
+    5. Code must be complete and runnable"""
+    
+    code = call_groq(prompt)
+    # Clean code block
+    code = code.replace("```python","").replace("```","")
+    
+    try:
+        # Run the code and generate image
+        exec_code = f"""
+import matplotlib.pyplot as plt
+import numpy as np
+{code}
+"""
+        container.python_execution(code=exec_code)
+        return "/mnt/data/auto_diagram.png"
+    except Exception as e:
+        return f"ERROR: {e}"
 
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
