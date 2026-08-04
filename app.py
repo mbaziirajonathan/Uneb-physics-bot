@@ -173,6 +173,26 @@ def text_to_speech(text):
     b64 = base64.b64encode(fp.getvalue()).decode()
     st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
 
+def generate_plugin_code(topic, subject, level, plugin_type):
+    """Generate code for external tools without breaking current SVG"""
+    if plugin_type == "Python Matplotlib":
+        prompt = f"Generate complete Python matplotlib code to draw a clear, labeled diagram of '{topic}' for {level} {subject}. Add title, axis labels, and comments. Code must run in Google Colab."
+    elif plugin_type == "Mermaid":
+        prompt = f"Generate Mermaid.js code to create a flowchart/diagram of '{topic}' for {level} {subject}. Use proper mermaid syntax."
+    elif plugin_type == "TikZ":
+        prompt = f"Generate LaTeX TikZ code to draw a technical diagram of '{topic}' for {level} {subject}. Include labels and arrows."
+    else:
+        return "Select a plugin"
+
+    code = call_groq(prompt)
+    return f"```\n{code}\n```"
+
+def get_plugin_links(plugin_type):
+    if plugin_type == "Python Matplotlib": return "https://colab.research.google.com"
+    if plugin_type == "Mermaid": return "https://mermaid.live"
+    if plugin_type == "TikZ": return "https://tikz.dev/editor"
+    return "#" 
+
 def show_student_portal():
     st.header("📚 Student Portal - S1 to S6 - NCDC PRO MODE")
     if st.button("Logout"):
@@ -188,7 +208,7 @@ def show_student_portal():
             ans = call_groq(f"Use Chain of Thought. Answer step by step: {ask_q} for {level} {subject}")
             display_with_pdf(ans, "Answer")
 
-    with tab2: # RESTORED
+    with tab2:
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="learn_subj")
         level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="learn_level")
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="learn_topic")
@@ -202,7 +222,7 @@ def show_student_portal():
             aoi = call_groq(f"Generate NCDC Activity of Integration for {level2} {subject2} topic: {topic2}")
             display_with_pdf(aoi, "AOI")
 
-        elif mode == "🧪 Practicals Lab": # FIXED
+        elif mode == "🧪 Practicals Lab":
             prac_list = list(PRACTICAL_DATABASE.get(subject2,{}).get("S1-S4",{}).keys()) if int(level2[1])<=4 else list(PRACTICAL_DATABASE.get(subject2,{}).get("S5-S6",{}).keys())
             if not prac_list: prac_list = ["No practicals in DB for this subject"]
             prac = st.selectbox("Select Practical", prac_list)
@@ -218,16 +238,32 @@ def show_student_portal():
             rev = call_groq(f"Generate full revision notes + 20 questions for {topic2} {level2} {subject2}")
             display_with_pdf(rev, "Revision")
 
-    with tab3: # RESTORED
-        st.header("🖼️ UNEB Diagram Generator - PYTHON ENGINE V3.7.0")
+    with tab3: # UPDATED WITH PLUGIN
+        st.header("🖼️ UNEB Diagram Generator - V3.7.1")
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="svg_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="svg_level")
         topic3 = st.text_input("Describe Diagram e.g: Draw atom, Draw cone", "Draw atom")
+
+        diagram_mode = st.radio("Choose Output Mode",
+            ["1. Instant SVG [Built-in]", "2. Pixel/HD Image [Plugin Code]"],
+            help="Mode 1: Fast. Mode 2: For printing exams")
+
         if st.button("Generate Diagram", type="primary"):
-            with st.spinner("Rendering with Python Engine..."):
-                raw_svg = generate_diagram(topic3, subject3, level3)
-            st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True)
-            st.success("✅ Generated with pointers, labels, numbering - UNEB Standard")
+            if diagram_mode == "1. Instant SVG [Built-in]":
+                with st.spinner("Rendering with Python Engine..."):
+                    raw_svg = generate_diagram(topic3, subject3, level3)
+                st.markdown(render_universal_svg(raw_svg), unsafe_allow_html=True)
+                st.success("✅ Generated with pointers, labels, numbering - UNEB Standard")
+
+            else: # PLUGIN MODE
+                plugin = st.selectbox("Select Plugin", ["Python Matplotlib", "Mermaid", "TikZ"])
+                with st.spinner("Generating plugin code..."):
+                    code = generate_plugin_code(topic3, subject3, level3, plugin)
+
+                st.success(f"✅ Copy this code and paste in {plugin}")
+                st.code(code, language="python" if plugin=="Python Matplotlib" else "markdown")
+                st.link_button(f"🚀 Open {plugin} Editor", get_plugin_links(plugin))
+                st.info("After pasting, click 'Run' in Colab or 'Render' in Mermaid/TikZ to get HD PNG for printing")
 
 def show_admin_portal():
     st.header("🏫 Admin/Teacher Portal PRO")
