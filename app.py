@@ -25,20 +25,25 @@ AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
 st.sidebar.warning(f"⚠️ LEGAL NOTICE: DIGITAL UNEB TUTOR 2026 PRO\nNCDC + UNEB EXAMINER MODE\n📞 {CONTACT}")
 
-MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - NCDC UGANDA EXAMINER + SCIENTIFIC ILLUSTRATOR.
-CRITICAL DIAGRAM RULES:
-1. EXAMINER STANDARD: Title, Scale, Numbered Labels 1.2.3 with arrows, Formula, Caption, Grid, Legend.
-2. 3D WHEN POSSIBLE: Use mpl_toolkits.mplot3d for atoms, cells, cones, heart.
-3. Ugandan Context: Use examples: Kampala, Lake Victoria, Matoke, Boda.
-4. CODE: Must save to EXACT filename given. DPI 300. bbox_inches='tight'. plt.close()
-5. NO HALLUCINATION. If unsure of science, state assumption."""
+### DESCRIPTION ENGINE SYSTEM PROMPT ###
+MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO - NCDC SCIENTIFIC ILLUSTRATOR.
+TASK: Read user description and convert to PERFECT matplotlib code.
+RULES FOR COMPLEXITY AUTO-TUNE:
+1. SIMPLE: 2D line, bar, graph. DPI 200. 3 labels.
+2. MEDIUM: Cell, Atom, Circuit. DPI 300. 5-8 labels + arrows.
+3. COMPLEX: Heart, Brain, Geometric Construction, Organic Molecule. DPI 400. 3D if needed. 10+ labels.
+4. ALWAYS: Title, Scale, Numbered Labels 1.2.3, Arrows, Legend, Caption with Formula.
+5. SUBJECT CONTEXT: Biology=cell parts, Chemistry=bonding, Physics=vectors/forces, Math=accurate geometry.
+6. Ugandan Context when relevant.
+7. MUST SAVE: plt.savefig('FILENAME', dpi=X, bbox_inches='tight'); plt.close()"""
 
+### 14 NCDC SUBJECTS ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers"], "S2": ["Patterns", "Bearings"], "S3": ["Quadratics", "Matrices"], "S4": ["Functions", "3D Geometry", "Statistics"], "S5": ["Differentiation"], "S6": ["Differential Equations"]},
-    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II"], "S4": ["Electromagnetism"], "S5": ["Gravitation"], "S6": ["Electric Fields"]},
-    "Chemistry": {"S1": ["States of Matter"], "S2": ["Acids Alkalis"], "S3": ["Bonding"], "S4": ["REDOX"], "S5": ["Energetics"], "S6": ["Electrochemistry"]},
-    "Biology": {"S1": ["Cells"], "S2": ["Soil"], "S3": ["Respiration"], "S4": ["Coordination"], "S5": ["Cell Biology"], "S6": ["Hormones"]},
-    "Geography": {"S1": ["Map Reading"], "S2": ["Rocks"], "S3": ["Industry"], "S4": ["Agriculture"], "S5": ["Geomorphology"], "S6": ["Regional Geography"]},
+    "Mathematics": {"S1": ["Number Bases", "Integers"], "S2": ["Patterns", "Bearings", "Angles"], "S3": ["Quadratics", "Matrices", "Vectors"], "S4": ["Functions", "3D Geometry", "Circle Geometry"], "S5": ["Differentiation", "Integration"], "S6": ["Mechanics", "Statistics II"]},
+    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Thermal Physics", "Electricity I", "Waves I", "Sound"], "S3": ["Electricity II", "Magnetism"], "S4": ["Electromagnetism", "Electronics"], "S5": ["Gravitation", "Optics"], "S6": ["Electric Fields", "Nuclear Physics"]},
+    "Chemistry": {"S1": ["States of Matter", "Mixtures"], "S2": ["Acids Alkalis", "Salts"], "S3": ["Bonding", "Stoichiometry"], "S4": ["REDOX", "Organic II"], "S5": ["Energetics", "Kinetics"], "S6": ["Electrochemistry", "Organic III"]},
+    "Biology": {"S1": ["Cells", "Classification"], "S2": ["Soil", "Nutrition"], "S3": ["Respiration", "Genetics I"], "S4": ["Coordination", "Ecology", "Photosynthesis"], "S5": ["Cell Biology", "Enzymes"], "S6": ["Hormones", "Biotechnology"]},
+    "Geography": {"S1": ["Map Reading"], "S2": ["Rocks"], "S3": ["Industry"], "S4": ["Agriculture"], "S5": ["Geomorphology"], "S6": ["GIS"]},
     "History": {"S1": ["Early Man"], "S2": ["Kingdoms of Uganda"], "S3": ["Scramble"], "S4": ["Decolonization"], "S5": ["Political"], "S6": ["Governance"]},
     "Agriculture": {"S1": ["Soil"], "S2": ["Livestock"], "S3": ["Crop Production"], "S4": ["Farm Management"], "S5": ["Crop Science"], "S6": ["Agribusiness"]},
     "CRE": {"S1": ["Creation"], "S2": ["Moses"], "S3": ["Jesus"], "S4": ["Church"], "S5": ["Ethics"], "S6": ["Philosophy"]},
@@ -51,9 +56,9 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}, "Pendulum": {"objective": "Find g"}, "Refraction": {"objective": "Find n"}}, "S5-S6": {"RC": {"objective": "Find tau"}, "Youngs": {"objective": "Find Y"}}},
-    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate"}, "Titration": {"objective": "Find conc"}}, "S5-S6": {"Rate": {"objective": "Temp"}, "Electrolysis": {"objective": "CuSO4"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe"}, "Food": {"objective": "Test"}, "Osmosis": {"objective": "Potato"}}, "S5-S6": {"Enzyme": {"objective": "pH"}, "Transpiration": {"objective": "Rate"}}}
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}, "Pendulum": {"objective": "Find g"}}, "S5-S6": {"RC": {"objective": "Find tau"}}},
+    "Chemistry": {"S1-S4": {"Separation": {"objective": "Separate"}, "Titration": {"objective": "Find conc"}}, "S5-S6": {"Rate": {"objective": "Temp"}}},
+    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe"}, "Food": {"objective": "Test"}}, "S5-S6": {"Enzyme": {"objective": "pH"}}}
 }
 
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
@@ -64,87 +69,71 @@ def create_pdf(content, title):
     for i,line in enumerate(content.split('\n')[:80]): p.drawString(50,y-(i*14),line[:95])
     p.save(); buffer.seek(0); return buffer
 def call_groq(user_prompt, temp=0.2):
-    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2500, temperature=temp); return res.choices[0].message.content
-    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=1500, temperature=temp); return res.choices[0].message.content
+    try: res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=3000, temperature=temp); return res.choices[0].message.content
+    except RateLimitError: res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":user_prompt}], max_tokens=2000, temperature=temp); return res.choices[0].message.content
 
-### RATE + RETRY ENGINE ###
-def auto_render_pixel_diagram(topic, subject, level, attempt=1, feedback=""):
-    safe_topic = re.sub(r'[^\w_]', '_', topic)
-    fname = f"auto_diagram_{safe_topic}_v{attempt}.png"
+### DESCRIPTION ENGINE + COMPLEXITY CLASSIFIER ###
+def classify_complexity(description):
+    prompt = f"Classify diagram complexity as SIMPLE, MEDIUM, or COMPLEX. Description: {description}. Return only 1 word."
+    return call_groq(prompt, temp=0.1).strip().upper()
 
-    detail_weight = "CRITICAL EXAMINER DETAIL" if attempt > 1 else "STANDARD"
-    prompt = f"""Generate ONLY executable python matplotlib code to draw '{topic}' for {level} {subject}.
-    MODE: {detail_weight}
-    REQUIREMENTS:
-    1. plt.style.use('seaborn-v0_8-whitegrid')
-    2. fig = plt.figure(figsize=(10,7), dpi=300)
-    3. Use 3D projection if topic is 3D: from mpl_toolkits.mplot3d import Axes3D
-    4. Add Title, Axis labels, Grid, Legend
-    5. Add 3 numbered annotations: ax.text(x,y,'1. Crest', fontsize=12, weight='bold', bbox=dict(boxstyle='round', facecolor='yellow'))
-    6. Add arrows with ax.annotate()
-    7. Add caption at bottom: plt.figtext(0.5, 0.01, 'Formula:...', ha='center')
-    8. MUST END: plt.savefig('{fname}', dpi=300, bbox_inches='tight'); plt.close()
-    FEEDBACK TO FIX: {feedback}
+def description_to_code(description, subject, level):
+    complexity = classify_complexity(description)
+    dpi = 200 if complexity=="SIMPLE" else 300 if complexity=="MEDIUM" else 400
+    use_3d = "YES" if any(word in description.lower() for word in ["3d", "cell", "heart", "atom", "molecule", "cone", "sphere"]) else "NO"
+
+    safe_name = re.sub(r'[^\w_]', '_', description[:30])
+    fname = f"desc_diagram_{safe_name}.png"
+
+    prompt = f"""User Description: "{description}"
+    Subject: {subject} | Class: {level}
+    Complexity: {complexity} | DPI: {dpi} | 3D: {use_3d}
+
+    Generate ONLY executable python matplotlib code.
+    RULES: Title, {dpi} DPI, Numbered labels 1.2.3 with bbox, arrows, legend, grid, caption with formula.
+    If 3D=YES use mpl_toolkits.mplot3d.
+    MUST SAVE: plt.savefig('{fname}', dpi={dpi}, bbox_inches='tight'); plt.close()
     Return only code."""
 
-    code = call_groq(prompt, temp=0.1 if attempt>1 else 0.2).replace("```python","").replace("```","")
+    code = call_groq(prompt, temp=0.1).replace("```python","").replace("```","")
     code = re.sub(r"plt\.savefig\('.*?\.png'", f"plt.savefig('{fname}'", code)
 
     try:
         exec_globals = {"plt": plt, "np": np}
         exec(code, exec_globals)
-        if os.path.exists(fname):
-            return {"status": "OK", "path": fname}
-        else:
-            return {"status": "ERROR", "msg": f"File not created", "code": code[:300]}
+        return {"status": "OK", "path": fname, "complexity": complexity} if os.path.exists(fname) else {"status": "ERROR", "msg": "File not created"}
     except Exception as e:
-        return {"status": "ERROR", "msg": str(e), "trace": traceback.format_exc()[:300]}
+        return {"status": "ERROR", "msg": str(e)}
 
-def batch_generate_diagrams(subject, level, topic_list):
+def loop_all_subjects_diagrams(description):
     results = []
-    progress = st.progress(0)
-    for i, topic in enumerate(topic_list):
-        st.write(f"Rendering {i+1}/{len(topic_list)}: {topic}")
-        res = auto_render_pixel_diagram(topic, subject, level, attempt=1)
-        results.append({"topic": topic, "res": res})
-        progress.progress((i+1)/len(topic_list))
-        time.sleep(1)
+    st.info("🔍 DESCRIPTION ENGINE: Analyzing complexity and looping all relevant subjects...")
+    for subject in UNEB_CURRICULUM_MAP.keys():
+        for level in [f"S{i}" for i in range(1,7)]:
+            res = description_to_code(description, subject, level)
+            if res["status"]=="OK":
+                results.append({"subject": subject, "level": level, "path": res["path"], "complexity": res["complexity"]})
+            time.sleep(0.3)
     return results
 
-def display_diagram_with_rating(topic_data):
-    topic = topic_data["topic"]
-    res = topic_data["res"]
+def display_with_pdf(content, name):
+    st.markdown(content)
+    for f in re.findall(r'\$(.*?)\$', content): st.latex(f)
+    pdf = create_pdf(content, name); st.download_button("📥 Download PDF", pdf, f"{name}.pdf", key=f"dl_{name}_{time.time()}")
 
-    if res["status"] == "OK":
-        st.image(res["path"], caption=f"{topic}", use_container_width=True)
-        with open(res["path"], "rb") as file: st.download_button("📥 Download", file, res["path"], key=res["path"])
-
-        rating = st.slider(f"Rate quality of '{topic}'", 1, 5, 3, key=f"rate_{topic}")
-        if st.button(f"Regenerate '{topic}' if rating < 3", key=f"regen_{topic}"):
-            if rating < 3:
-                st.info("CRITICAL MODE: Regenerating with higher detail...")
-                feedback = "Previous diagram lacked detail, labels, 3D. Make it examiner standard with more annotations."
-                new_res = auto_render_pixel_diagram(topic, "Physics", "S2", attempt=2, feedback=feedback)
-                if new_res["status"] == "OK":
-                    st.image(new_res["path"], caption=f"{topic} V2 - Improved")
-                    with open(new_res["path"], "rb") as file: st.download_button("📥 Download V2", file, new_res["path"], key=new_res["path"])
-    else:
-        st.error(f"{topic} failed: {res['msg']}")
-        with st.expander("Debug Code"):
-            st.code(res.get("code",""))
-
+### PORTALS ###
 def show_student_portal():
-    st.header("📚 Student Portal - NCDC S1 to S6")
+    st.header("📚 Student Portal - NCDC S1 to S6 - DESCRIPTION ENGINE")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
-    tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "📖 Learn", "🎨 Batch Diagram Generator"])
+    tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🎨 Description Diagram Engine"])
 
     with tab1:
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        ask_q = st.text_area("Ask NCDC question")
+        ask_q = st.text_area("Ask any NCDC question")
         if st.button("Ask AI Brain") and ask_q:
             ans = call_groq(f"Answer with Ugandan examples: {ask_q} for {level} {subject}")
-            st.markdown(ans)
+            display_with_pdf(ans, "Answer")
 
     with tab2:
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s2")
@@ -152,25 +141,43 @@ def show_student_portal():
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2])
         if st.button("Teach Me"):
             raw = call_groq(f"Teach {topic2} with Ugandan examples for {level2} {subject2}")
-            st.markdown(raw)
+            display_with_pdf(raw, "Theory")
 
     with tab3:
-        st.header("🎨 Batch Diagram Generator - RATE + RETRY")
-        subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="b3")
-        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bL3")
-        topic_list = st.multiselect("Select Topics", UNEB_CURRICULUM_MAP[subject3][level3], default=UNEB_CURRICULUM_MAP[subject3][level3][:1])
+        st.header("🎨 DESCRIPTION ENGINE - DESCRIBE TO DRAW")
+        st.caption("Example: 'Draw plant cell showing cell wall, nucleus, chloroplast, vacuole with arrows and labels for S1 Biology'")
 
-        if st.button("Generate Batch Diagrams", type="primary"):
-            results = batch_generate_diagrams(subject3, level3, topic_list)
-            st.success(f"Generated {len([r for r in results if r['res']['status']=='OK'])} diagrams")
-            for r in results:
-                display_diagram_with_rating(r)
+        mode = st.radio("Engine Mode", ["Describe 1 Diagram", "Loop All Subjects With This Description"])
+
+        description = st.text_area("Describe the diagram in detail:",
+        "Draw a plant cell. Show cell wall, cell membrane, nucleus, chloroplast, large vacuole. Use green for chloroplast. Label 1-5 with arrows. Add title 'Plant Cell S1 Biology'")
+
+        subject_sel = st.selectbox("Target Subject", list(UNEB_CURRICULUM_MAP.keys()))
+        level_sel = st.selectbox("Target Class", [f"S{i}" for i in range(1,7)])
+
+        if st.button("Generate From Description", type="primary"):
+            log_activity("Student", "Describe Diagram", description)
+
+            if mode == "Describe 1 Diagram":
+                res = description_to_code(description, subject_sel, level_sel)
+                if res["status"]=="OK":
+                    st.success(f"Generated {res['complexity']} complexity diagram")
+                    st.image(res["path"], use_container_width=True)
+                    with open(res["path"], "rb") as file: st.download_button("📥 Download HD", file, res["path"])
+                else: st.error(res["msg"])
+
+            else: # Loop all
+                results = loop_all_subjects_diagrams(description)
+                st.success(f"Generated {len(results)} diagrams across all subjects")
+                for r in results:
+                    st.write(f"**{r['subject']} {r['level']}** - {r['complexity']}")
+                    st.image(r["path"], use_container_width=True)
 
 def show_admin_portal():
     st.header("🏫 Admin Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.7.9.2 RATE + RETRY")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V3.8.0 DESCRIPTION ENGINE")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
