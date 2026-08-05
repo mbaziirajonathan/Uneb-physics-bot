@@ -1,13 +1,7 @@
 streamlit==1.37.1
 groq
-reportlab
-python-docx
-gtts
-matplotlib
-sympy
-pillow
-numpy
 pandas
-streamlit-option-menu
-openpyxl
+numpy
+pillow
 requests
+python-docx
