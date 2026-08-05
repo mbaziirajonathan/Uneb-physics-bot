@@ -129,30 +129,80 @@ def get_mixed_topics(level, subject):
         topics.extend(random.sample(all_topics, min(num_topics, len(all_topics))))
     return topics
 
+ ### OPTIMIZATION 1: FASTER AI + STREAMING + BETTER CACHE ###
 def call_groq(user_prompt, level="S1", sample="", instructions=""):
     cache = load_cache()
     key = get_cache_key(user_prompt + sample + instructions, level)
+
     if key in cache:
         st.info("⚡ Loaded from Local Cache. 0 Tokens used.")
         return cache[key]
+
     if OFFLINE_MODE:
         return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
+
     level_instruction = "LOWER SECONDARY S1-S4. Simple, Ugandan examples." if int(level[1]) <=4 else "ADVANCED S5-S6. Deep, detailed."
     anti_hallucination = "IMPORTANT: Only answer based on UNEB syllabus and facts. If you don't know, say 'I don't have that information'. Do not make up formulas or data."
     full_prompt = f"{level_instruction}\n{anti_hallucination}\nTEACHER SAMPLE:\n{sample}\nTEACHER INSTRUCTIONS: {instructions}\n\nGENERATE:\n{user_prompt}"
+
+    placeholder = st.empty()
+    full_response = ""
     try:
-        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=4000)
-        answer = res.choices[0].message.content
-    except RateLimitError:
-        st.warning("Rate limited. Switching to fast model.")
-        res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2000)
-        answer = res.choices[0].message.content
+        # Use FAST model first for speed. 8b is 5x faster than 70b
+        stream = client.chat.completions.create(
+            model=AI_MODEL_FAST, # CHANGED: was LONG
+            messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}],
+            max_tokens=2000, # CHANGED: was 4000
+            stream=True
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content
+                placeholder.markdown(full_response + "▌") # typing effect
+        placeholder.markdown(full_response) # final
+
     except Exception as e:
-        return f"Error calling Groq: {e}"
-    cache[key] = answer
+        # Fallback to 70b only if 8b fails
+        st.warning(f"Fast model failed. Trying 70B: {e}")
+        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
+        full_response = res.choices[0].message.content
+        st.markdown(full_response)
+
+    cache[key] = full_response
     save_cache(cache)
     st.success("✅ Saved to Local Cache for next time")
-    return answer
+    return full_response
+
+### OPTIMIZATION 2: LAZY DOWNLOAD - ONLY GENERATE WHEN CLICKED ###
+@st.cache_data
+def generate_file_bytes(content, fmt):
+    if fmt == "pdf":
+        buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica", 10)
+        for i,line in enumerate(content.split('\n')[:90]): p.drawString(50,800-(i*14),line[:100])
+        p.save(); buffer.seek(0); return buffer.getvalue()
+    elif fmt == "excel":
+        df = pd.DataFrame({"Content": content.split('\n')}); buffer = io.BytesIO(); df.to_excel(buffer, index=False, engine='openpyxl'); buffer.seek(0); return buffer.getvalue()
+    elif fmt == "html":
+        html = f"<html><body><pre>{content}</pre></body></html>"; return html.encode()
+    elif fmt == "docx":
+        from docx import Document
+        doc = Document(); doc.add_paragraph(content); buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0); return buffer.getvalue()
+
+def display_with_preview(content, name):
+    edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
+    cols = st.columns(4)
+    formats = ["pdf","excel","html","docx"]
+    for i, fmt in enumerate(formats):
+        # Only generate bytes when button is clicked. No more 4x generation
+        if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
+            data = generate_file_bytes(edited, fmt)
+            st.download_button(
+                label=f"Click to download {fmt.upper()}",
+                data=data,
+                file_name=f"{name}.{fmt}",
+                mime="application/octet-stream",
+                key=f"dl_{name}_{fmt}_{hash(data)}"
+            ) 
 
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 @st.cache_data(ttl=60)
