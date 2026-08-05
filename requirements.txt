@@ -13,4 +13,4 @@ pandas
 streamlit-option-menu
 openpyxl
 requests
-pyMupdf
+PyMuPDF
