@@ -320,24 +320,27 @@ def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 @st.cache_data(ttl=60)
 def get_all_assets(): return glob.glob(f"{ASSETS_FOLDER}/*.*")
 
-# FIXED: Now searches by topic name only since your files are like animal_cell.png
 def find_asset_strict(level, subject, topic):
     assets = get_all_assets()
     topic_clean = sanitize(topic)
 
-    # First try: match topic keyword in filename
-    candidates = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
+    st.write(f"🔍 Searching for: {topic}") # DEBUG LINE
 
-    if not candidates:
-        # Fallback: show all images in assets
-        candidates = [p for p in assets if p.lower().endswith(('.png','.jpg','.jpeg'))]
+    # 1. Try exact topic match in filename
+    matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
 
-    best_match = None; best_score = 0
-    for path in candidates:
-        score = difflib.SequenceMatcher(None, topic_clean, sanitize(os.path.basename(path))).ratio()
-        if score > best_score: best_score = score; best_match = path
+    # 2. If no match, try subject match
+    if not matches:
+        subj_clean = sanitize(subject)
+        matches = [p for p in assets if subj_clean in sanitize(os.path.basename(p))]
 
-    return (best_match, candidates) if best_score > 0.3 else (None, candidates)
+    # 3. If still no match, show all images
+    if not matches:
+        matches = [p for p in assets if p.lower().endswith(('.png','.jpg','.jpeg'))]
+
+    if matches:
+        return matches[0], matches # return first best + all options
+    return None, []
 
 def display_image_with_zoom(img_path):
     Image = get_pil(); img = Image.open(img_path)
@@ -422,17 +425,22 @@ def show_student_portal():
         subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s4_subj")
         level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s4_level")
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
+
         if st.button("Load Diagram", key="s4_btn"):
             img_path, all_found = find_asset_strict(level4, subject4, topic4)
-            if img_path:
-                st.success(f"Found: {os.path.basename(img_path)}")
-                display_image_with_zoom(img_path)
-            else:
-                st.error("No diagram uploaded for this topic")
-                if all_found:
-                    st.write("Available diagrams:")
-                    for f in all_found[:6]: st.write(f"- {os.path.basename(f)}")
 
+            if all_found:
+                st.success(f"Found {len(all_found)} diagram(s) in assets/")
+
+                # Show all found diagrams in a grid
+                cols = st.columns(3)
+                for i, path in enumerate(all_found):
+                    with cols[i % 3]:
+                        display_image_with_zoom(path)
+                        st.caption(os.path.basename(path))
+            else:
+                st.error("No diagrams found in assets folder. Upload one in Admin Portal") 
+    
 ### 8. ADMIN PORTAL - FULLY INTERACTIVE ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
@@ -510,26 +518,30 @@ def show_admin_portal():
     # TAB 3: UPLOAD DIAGRAM
     with tabs[2]:
         st.subheader("✏️ Upload Diagram/PNG to Assets")
-        up_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_up_subj")
-        up_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_up_level")
-        up_topic = st.text_input("Topic Name - must match curriculum", key="admin_up_topic")
+        up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
         up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
 
         if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
             try:
                 ext = up_file.name.split('.')[-1]
                 safe_topic = up_topic.replace(' ', '_').replace('/', '-')
-                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
+                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}" # Saves as animal_cell.png
                 with open(filepath, "wb") as f: f.write(up_file.getbuffer())
                 st.success(f"✅ Saved to {filepath}")
+                st.rerun()
             except Exception as e:
                 st.error(f"Failed to save: {e}")
 
         st.markdown("---")
-        st.write("**Existing Diagrams:**")
-        for f in get_all_assets()[:10]:
-            st.write(f"- {os.path.basename(f)}")
-
+        st.write("**Existing Diagrams in assets/:**")
+        all_assets = get_all_assets()
+        if all_assets:
+            for f in all_assets:
+                st.write(f"- {os.path.basename(f)}")
+                st.image(f, width=150)
+        else:
+            st.warning("assets folder is empty")
+   
     # TAB 4: EXAM GENERATOR
     with tabs[3]:
         st.subheader("📤 Bulk Exam Generator")
