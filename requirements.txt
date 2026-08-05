@@ -1,16 +1,14 @@
-streamlit==1.37.1
-groq
-reportlab
-python-docx
-streamlit-mic-recorder
-gtts
-matplotlib
-plotly
-sympy
-pillow
-numpy
-pandas
-streamlit-option-menu
-openpyxl
-requests
-PyMuPDF
+    streamlit==1.37.1
+    groq
+    reportlab
+    python-docx
+    gtts
+    matplotlib
+    plotly
+    sympy
+    pillow
+    numpy
+    pandas
+    streamlit-option-menu
+    openpyxl
+    requests
