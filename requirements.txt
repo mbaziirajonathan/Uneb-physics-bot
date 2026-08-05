@@ -1,14 +1,13 @@
-    streamlit==1.37.1
-    groq
-    reportlab
-    python-docx
-    gtts
-    matplotlib
-    plotly
-    sympy
-    pillow
-    numpy
-    pandas
-    streamlit-option-menu
-    openpyxl
-    requests
+streamlit==1.37.1
+groq
+reportlab
+python-docx
+gtts
+matplotlib
+sympy
+pillow
+numpy
+pandas
+streamlit-option-menu
+openpyxl
+requests
