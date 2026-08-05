@@ -206,70 +206,77 @@ def teacher_input_section(tab_name):
     sample_text = read_uploaded_file(sample_file) if sample_file else ""
     return sample_text, instructions
 
-### 7. STUDENT PORTAL ###
+ ### 7. STUDENT PORTAL - ALL KEYS ADDED ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
-    if st.button("Logout"):
+    if st.button("Logout", key="btn_logout_student"):
         for k in list(st.session_state.keys()): del st.session_state[k]
         st.rerun()
+
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🧪 Practicals", "🖼️ Diagram Library"])
 
-    with tab1:
-        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
-        level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"])
-        ask_q = st.text_area("Ask anything")
-        if st.button("Ask AI") and ask_q:
+    with tab1: # SMART SEARCH
+        st.subheader("Ask the AI Anything")
+        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="tab1_subject")
+        level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="tab1_level")
+        difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="tab1_difficulty")
+        ask_q = st.text_area("Ask anything", key="tab1_ask")
+        if st.button("Ask AI", key="tab1_btn") and ask_q:
             ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level)
-            display_with_preview(ans, "Answer")
+            display_with_preview(ans, "Answer_tab1")
 
-    with tab2:
-        subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s2")
-        level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="l2")
-        topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2])
-        mode = st.radio("Mode", ["Theory","AOI","Practicals","Quiz","Bulk Quiz"])
-        difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="d2")
+    with tab2: # LEARN TOPIC
+        st.subheader("Generate Content for a Topic")
+        subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="tab2_subject")
+        level2 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="tab2_level")
+        topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="tab2_topic")
+        mode = st.radio("Mode", ["Theory","AOI","Practicals","Quiz","Bulk Quiz"], key="tab2_mode")
+        difficulty2 = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="tab2_difficulty")
 
-        if mode == "Theory" and st.button("Generate Notes"):
-            notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty}", level2)
-            display_with_preview(notes, "Notes")
-        elif mode == "AOI" and st.button("Generate AOI Questions"):
+        if mode == "Theory" and st.button("Generate Notes", key="tab2_btn_notes"):
+            notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty2}", level2)
+            display_with_preview(notes, "Notes_tab2")
+        elif mode == "AOI" and st.button("Generate AOI Questions", key="tab2_btn_aoi"):
             aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
-            display_with_preview(aoi, "AOI")
-        elif mode == "Practicals" and st.button("Generate Practical"):
+            display_with_preview(aoi, "AOI_tab2")
+        elif mode == "Practicals" and st.button("Generate Practical", key="tab2_btn_prac"):
             group = get_level_group(level2)
             prac_db = PRACTICAL_DATABASE.get(subject2, {}).get(group, {})
             prac_name = list(prac_db.keys())[0] if prac_db else topic2
             objective = prac_db.get(prac_name, {}).get("objective", "")
             prac = call_groq(f"Generate UNEB practical experiment: {prac_name}. Objective: {objective}. Include: Aim, Apparatus, Procedure, Observations, Conclusion for {level2} {subject2}", level2)
-            display_with_preview(prac, f"Practical_{prac_name}")
-        elif mode == "Quiz" and st.button("Generate Quiz"):
+            display_with_preview(prac, f"Practical_{prac_name}_tab2")
+        elif mode == "Quiz" and st.button("Generate Quiz", key="tab2_btn_quiz"):
             topics = get_mixed_topics(level2, subject2)
-            quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty}", level2)
-            display_with_preview(quiz, "Quiz")
-        elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam"):
+            quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2)
+            display_with_preview(quiz, "Quiz_tab2")
+        elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="tab2_btn_bulk"):
             topics = get_mixed_topics(level2, subject2)
-            exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty}. Use SCENARIO, ITEM, TASK format.", level2)
-            display_with_preview(exam, "BulkQuiz")
+            exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}. Use SCENARIO, ITEM, TASK format.", level2)
+            display_with_preview(exam, "BulkQuiz_tab2")
 
-    with tab3:
+    with tab3: # PRACTICALS
         st.subheader("🧪 Practical Experiments from DATABASE")
-        subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="prac_subj")
-        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="prac_level")
+        subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="tab3_subject")
+        level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="tab3_level")
         group = get_level_group(level3)
         prac_list = list(PRACTICAL_DATABASE.get(subject3, {}).get(group, {}).keys())
-        if not prac_list: st.warning("No practicals in database for this level")
-        topic3 = st.selectbox("Select Practical", prac_list)
-        if st.button("Generate Full Practical") and topic3:
+        if not prac_list:
+            st.warning("No practicals in database for this level")
+            topic3 = None
+        else:
+            topic3 = st.selectbox("Select Practical", prac_list, key="tab3_topic")
+        if st.button("Generate Full Practical", key="tab3_btn") and topic3:
             objective = PRACTICAL_DATABASE[subject3][group][topic3]["objective"]
             practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include: Title, Aim, Materials, Procedure, Data Table, Questions, Conclusion. Ugandan context.", level3)
-            display_with_preview(practical, f"Practical_{topic3}")
+            display_with_preview(practical, f"Practical_{topic3}_tab3")
 
-    with tab4:
-        subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s3")
-        level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="l3")
-        topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4])
-        if st.button("Load Diagram"):
+    with tab4: # DIAGRAM LIBRARY
+        st.subheader("View Diagrams")
+        subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="tab4_subject")
+        level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="tab4_level")
+        topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="tab4_topic")
+        if st.button("Load Diagram", key="tab4_btn"):
             img_path,_ = find_asset_strict(level4, subject4, topic4)
             if img_path: display_image_with_zoom(img_path)
             else: st.error("No diagram uploaded for this topic")
