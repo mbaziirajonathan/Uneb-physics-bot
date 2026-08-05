@@ -437,7 +437,7 @@ def show_admin_portal():
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.9")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
- if st.sidebar.button("Login", key="btn_login"):
+    if st.sidebar.button("Login", key="btn_login"):
     if user_type == "Student" and password == STUDENT_PASSWORD: 
         st.session_state["role"] = "Student"
         save_log({"time": str(datetime.now()), "user": "Student", "action": "Login"})
