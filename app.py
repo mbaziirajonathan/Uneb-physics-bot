@@ -433,59 +433,171 @@ def show_student_portal():
                     st.write("Available diagrams:")
                     for f in all_found[:6]: st.write(f"- {os.path.basename(f)}")
 
-### 8. ADMIN PORTAL + UPLOAD PNG ###
+### 8. ADMIN PORTAL - FULLY INTERACTIVE ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"):
         for k in list(st.session_state.keys()): del st.session_state[k]
         st.rerun()
 
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum","✏️ Upload Diagram","📤 Exam Generator","📈 Performance","📱 WhatsApp","📑 MOES","📝 Marking","📅 SOW","🏆 Report Cards"])
+    tabs = st.tabs([
+        "📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram",
+        "📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs",
+        "📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"
+    ])
 
-    with tabs[2]:
-        st.subheader("Upload Diagram/PNG to Assets")
-        up_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_up_subj")
-        up_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_up_level")
-        up_topic = st.text_input("Topic Name - must match topic in student portal", key="admin_up_topic")
-        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
-
-        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-            try:
-                ext = up_file.name.split('.')[-1]
-                # Save as TopicName.png so find_asset_strict can find it
-                safe_topic = up_topic.replace(' ', '_').replace('/', '-')
-                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
-                with open(filepath, "wb") as f: f.write(up_file.getbuffer())
-                st.success(f"✅ Saved to {filepath}")
-                st.info("Reload the student Diagram Library to see it")
-            except Exception as e:
-                st.error(f"Failed to save: {e}")
-
+    # TAB 1: ANALYTICS
     with tabs[0]:
         st.subheader("📊 Usage Analytics")
         try:
-            pd = get_pandas() # LAZY IMPORT FIX
+            pd = get_pandas()
             logs = load_logs()
             if not logs:
                 st.info("No logs yet")
             else:
                 df = pd.DataFrame(logs)
+                df['time'] = pd.to_datetime(df['time'])
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total Actions", len(df))
+                col2.metric("Students", len(df[df['user']=="Student"]))
+                col3.metric("Admins", len(df[df['user']=="Admin"]))
                 st.dataframe(df, use_container_width=True)
-                st.metric("Total Logins", len(df))
         except Exception as e:
-            st.error(f"Could not load analytics: {e}")
+            st.error(f"Analytics Error: {e}")
 
+    # TAB 2: CURRICULUM/SYLLABUS EDITOR - FULL CRUD
     with tabs[1]:
-        st.subheader("📖 Full NCDC Curriculum")
-        subj = st.selectbox("Pick Subject to view", list(UNEB_CURRICULUM_MAP.keys()), key="admin_curr_subj")
-        for level in [f"S{i}" for i in range(1,7)]:
-            with st.expander(f"{level}"):
-                st.write(UNEB_CURRICULUM_MAP[subj][level])
+        st.subheader("📖 NCDC Curriculum Editor")
+        st.warning("Changes here affect what students see. Be careful.")
 
-    # Placeholder tabs so app doesn't crash
-    for i in range(3, 10):
-        with tabs[i]:
-            st.info("Coming Soon")
+        edit_subj = st.selectbox("1. Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_edit_subj")
+        edit_level = st.selectbox("2. Pick Class", [f"S{i}" for i in range(1,7)], key="admin_edit_level")
+
+        current_topics = UNEB_CURRICULUM_MAP[edit_subj][edit_level]
+
+        tab_a, tab_b, tab_c = st.tabs(["Add Topic", "Edit Topic", "Delete Topic"])
+
+        with tab_a:
+            new_topic = st.text_input("New Topic Name", key="admin_new_topic")
+            if st.button("➕ Add Topic", key="btn_add_topic"):
+                if new_topic and new_topic not in current_topics:
+                    UNEB_CURRICULUM_MAP[edit_subj][edit_level].append(new_topic)
+                    st.success(f"Added '{new_topic}' to {edit_subj} {edit_level}")
+                    st.rerun()
+                else:
+                    st.error("Topic already exists or empty")
+
+        with tab_b:
+            old_topic = st.selectbox("Select Topic to Edit", current_topics, key="admin_old_topic")
+            new_name = st.text_input("New Name", value=old_topic, key="admin_new_name")
+            if st.button("✏️ Update Topic", key="btn_update_topic"):
+                idx = current_topics.index(old_topic)
+                UNEB_CURRICULUM_MAP[edit_subj][edit_level][idx] = new_name
+                st.success(f"Updated to '{new_name}'")
+                st.rerun()
+
+        with tab_c:
+            del_topic = st.selectbox("Select Topic to Delete", current_topics, key="admin_del_topic")
+            if st.button("🗑️ Delete Topic", key="btn_del_topic"):
+                UNEB_CURRICULUM_MAP[edit_subj][edit_level].remove(del_topic)
+                st.success(f"Deleted '{del_topic}'")
+                st.rerun()
+
+        st.markdown("---")
+        st.write("**Current Topics:**")
+        st.write(current_topics)
+
+    # TAB 3: UPLOAD DIAGRAM
+    with tabs[2]:
+        st.subheader("✏️ Upload Diagram/PNG to Assets")
+        up_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_up_subj")
+        up_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_up_level")
+        up_topic = st.text_input("Topic Name - must match curriculum", key="admin_up_topic")
+        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+
+        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
+            try:
+                ext = up_file.name.split('.')[-1]
+                safe_topic = up_topic.replace(' ', '_').replace('/', '-')
+                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
+                with open(filepath, "wb") as f: f.write(up_file.getbuffer())
+                st.success(f"✅ Saved to {filepath}")
+            except Exception as e:
+                st.error(f"Failed to save: {e}")
+
+        st.markdown("---")
+        st.write("**Existing Diagrams:**")
+        for f in get_all_assets()[:10]:
+            st.write(f"- {os.path.basename(f)}")
+
+    # TAB 4: EXAM GENERATOR
+    with tabs[3]:
+        st.subheader("📤 Bulk Exam Generator")
+        ex_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_ex_subj")
+        ex_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_ex_level")
+        ex_topics = st.multiselect("Pick Topics", UNEB_CURRICULUM_MAP[ex_subj][ex_level], key="admin_ex_topics")
+        ex_num = st.slider("Number of Questions", 10, 100, 50)
+
+        if st.button("Generate Exam", key="btn_gen_exam") and ex_topics:
+            prompt = f"Generate {ex_num} UNEB questions from: {ex_topics}. Use SCENARIO, ITEM, TASK format. For {ex_level} {ex_subj}"
+            exam = call_groq(prompt, ex_level)
+            display_with_preview(exam, f"Exam_{ex_subj}_{ex_level}")
+
+    # TAB 5: PERFORMANCE TRACKER
+    with tabs[4]:
+        st.subheader("📈 Student Performance Tracker")
+        st.info("Upload CSV of student scores to analyze")
+        perf_file = st.file_uploader("Upload scores.csv", type=["csv"], key="admin_perf_file")
+        if perf_file:
+            pd = get_pandas()
+            df = pd.read_csv(perf_file)
+            st.dataframe(df)
+            st.bar_chart(df.set_index(df.columns[0]))
+
+    # TAB 6: WHATSAPP LOGS
+    with tabs[5]:
+        st.subheader("📱 WhatsApp Integration Logs")
+        st.text_area("Paste WhatsApp API logs here", height=300, key="wa_logs")
+        st.download_button("Download Logs", data="log data", file_name="whatsapp_logs.txt")
+
+    # TAB 7: MOES DOCS
+    with tabs[6]:
+        st.subheader("📑 MOES Document Vault")
+        moes_file = st.file_uploader("Upload MOES Circular/PDF", type=["pdf","docx"], key="admin_moes")
+        if moes_file:
+            content = read_uploaded_file(moes_file)
+            st.text_area("Preview", content, height=300)
+            st.download_button("Download", data=moes_file.getvalue(), file_name=moes_file.name)
+
+    # TAB 8: MARKING GUIDE
+    with tabs[7]:
+        st.subheader("📝 AI Marking Guide Generator")
+        qn = st.text_area("Paste UNEB Question", key="admin_qn")
+        memo = st.text_area("Paste Student Answer", key="admin_memo")
+        if st.button("Generate Marking Guide", key="btn_mark"):
+            guide = call_groq(f"Create UNEB marking guide for: {qn}. Student answer: {memo}. Give points and marks", "S4")
+            st.write(guide)
+
+    # TAB 9: SCHEME OF WORK
+    with tabs[8]:
+        st.subheader("📅 Scheme of Work Generator")
+        sow_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_sow_subj")
+        sow_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_sow_level")
+        term = st.selectbox("Term", ["Term 1", "Term 2", "Term 3"])
+        if st.button("Generate SOW", key="btn_sow"):
+            topics = UNEB_CURRICULUM_MAP[sow_subj][sow_level]
+            sow = call_groq(f"Generate {term} Scheme of Work for {sow_level} {sow_subj}. Topics: {topics}. Include week, topic, objectives, activities", sow_level)
+            display_with_preview(sow, f"SOW_{sow_subj}_{sow_level}")
+
+    # TAB 10: REPORT CARDS
+    with tabs[9]:
+        st.subheader("🏆 Report Card Generator")
+        student_name = st.text_input("Student Name")
+        student_class = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
+        scores_text = st.text_area("Paste Subject:Score pairs. Eg: Math:85\nPhysics:70")
+        if st.button("Generate Report Card", key="btn_report"):
+            report = call_groq(f"Generate UNEB report card for {student_name} {student_class}. Scores: {scores_text}. Include remarks and position", student_class)
+            display_with_preview(report, f"Report_{student_name}")
 
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.9")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
