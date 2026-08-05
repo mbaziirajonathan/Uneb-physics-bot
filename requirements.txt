@@ -1,7 +1,3 @@
 streamlit
 groq
-pandas
-numpy
-pillow
 requests
-python-docx
