@@ -2,7 +2,7 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# Install system deps for PyMuPDF, pillow, matplotlib
+# System deps for PyMuPDF, pillow, matplotlib, reportlab
 RUN apt-get update && apt-get install -y \
     build-essential \
     libglib2.0-0 \
@@ -11,17 +11,17 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Install python deps first for caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
+# Copy app code
 COPY . .
 
-# Create folders for data persistence
+# Create folder for persistent data on Render Disk
 RUN mkdir -p /data/assets/labels
 
-# Tell streamlit to use /data for files
+# Tell app to save files to /data
 ENV STREAMLIT_DATA_PATH=/data
 
 EXPOSE 8501
