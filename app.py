@@ -26,19 +26,21 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
 os.makedirs(ASSETS_FOLDER, exist_ok=True)
 os.makedirs(LABELS_FOLDER, exist_ok=True)
 
-### 2. SECRETS + SINGLE KEY ONLY ###
-try:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"] # Changed from _1 and _2
-    STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
-    ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
-    WHATSAPP_TOKEN = st.secrets.get("WHATSAPP_TOKEN", "")
-    WHATSAPP_PHONE_ID = st.secrets.get("WHATSAPP_PHONE_ID", "")
-except KeyError as e:
-    st.error(f"Missing secret: {e}. Go to Render > Environment > Environment Variables")
+### 2. SECRETS + SINGLE KEY ONLY ### [FIXED FOR RENDER]
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY", "")
+STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD") or st.secrets.get("STUDENT_PASSWORD", "1234")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD") or st.secrets.get("ADMIN_PASSWORD", "admin123")
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN") or st.secrets.get("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID") or st.secrets.get("WHATSAPP_PHONE_ID", "")
+
+if not GROQ_API_KEY:
+    st.error("Missing GROQ_API_KEY. Go to Render > Environment > Add Environment Variable")
     st.stop()
 
 @st.cache_resource
 def get_client():
+    if not GROQ_API_KEY:
+        st.stop()
     return Groq(api_key=GROQ_API_KEY)
 client = get_client()
 
