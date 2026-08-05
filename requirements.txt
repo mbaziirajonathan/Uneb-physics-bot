@@ -1,7 +1,7 @@
-streamlit==1.37.1
-groq==0.11.0
-pandas==2.1.4
-numpy==1.26.4
-pillow==10.2.0
-requests==2.31.0
-python-docx==1.1.0
+streamlit
+groq
+pandas
+numpy
+pillow
+requests
+python-docx
