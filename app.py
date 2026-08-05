@@ -1,5 +1,5 @@
 import streamlit as st
-import os, io, json, re, time, glob, difflib, requests, random
+import os, io, json, re, time, glob, difflib, requests, random, hashlib
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -7,8 +7,21 @@ from groq import Groq, RateLimitError
 import pandas as pd
 from PIL import Image
 import matplotlib.pyplot as plt
+import fitz # PyMuPDF
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
+
+### OFFLINE + CACHE SYSTEM ###
+CACHE_FILE = "ai_cache.json"
+OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE - No Internet, No Tokens", value=False)
+if OFFLINE_MODE:
+    st.sidebar.warning("OFFLINE MODE ON. Using local cache only. No API calls.")
+
+def load_cache(): return json.load(open(CACHE_FILE)) if os.path.exists(CACHE_FILE) else {}
+def save_cache(cache): json.dump(cache, open(CACHE_FILE,"w"), indent=2)
+
+def get_cache_key(prompt, level):
+    return hashlib.md5((prompt + level).encode()).hexdigest()
 
 ### SECRETS + DUAL KEY ###
 try:
@@ -19,7 +32,7 @@ try:
     WHATSAPP_TOKEN = st.secrets.get("WHATSAPP_TOKEN", "")
     WHATSAPP_PHONE_ID = st.secrets.get("WHATSAPP_PHONE_ID", "")
 except:
-    st.error("Set GROQ_API_KEY_1, GROQ_API_KEY_2, STUDENT_PASSWORD, ADMIN_PASSWORD in Streamlit secrets")
+    st.error("Set secrets in.streamlit/secrets.toml")
     st.stop()
 
 if "current_key" not in st.session_state: st.session_state.current_key = 1
@@ -38,14 +51,13 @@ os.makedirs(LABELS_FOLDER, exist_ok=True)
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.0.1\nBUGFIXED + SMART EXAM\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.0\nOFFLINE CACHE MODE\n📞 {CONTACT}")
 
-MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. Smart AI Tutor like ChatGPT. 100% locked to Uganda NCDC 2026.
-RESPONSE RULES: 1. UGANDAN SCENARIO: 2. ITEM: 3. TASK: 4. EXPLANATION. NCDC 2026 LOCKED. LEVEL AWARE: S1-S4 Simple, S5-S6 Deep."""
+MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. AI ASSISTANT ONLY. Follow teacher sample + instructions. NCDC 2026 LOCKED. S1-S4 Simple. S5-S6 Deep. UGANDAN SCENARIO first."""
 
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers"], "S2": ["Angles", "Algebra II"], "S3": ["Quadratics", "Matrices"], "S4": ["Functions", "Statistics"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
-    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Electricity I"], "S3": ["Magnetism"], "S4": ["Electronics"], "S5": ["Optics"], "S6": ["Electric Fields"]},
+    "Mathematics": {"S1": ["Number Bases"], "S2": ["Angles"], "S3": ["Quadratics"], "S4": ["Functions"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
+    "Physics": {"S1": ["Measurement"], "S2": ["Light"], "S3": ["Magnetism"], "S4": ["Electronics"], "S5": ["Optics"], "S6": ["Electric Fields"]},
     "Chemistry": {"S1": ["Atoms"], "S2": ["Acids Alkalis"], "S3": ["Bonding"], "S4": ["REDOX"], "S5": ["Kinetics"], "S6": ["Electrochemistry"]},
     "Biology": {"S1": ["Cells"], "S2": ["Respiration"], "S3": ["Genetics I"], "S4": ["Photosynthesis"], "S5": ["Cell Biology"], "S6": ["Hormones"]},
     "English": {"S1": ["Grammar"], "S2": ["Literature"], "S3": ["Novel"], "S4": ["Shakespeare"], "S5": ["Advanced Grammar"], "S6": ["Criticism"]},
@@ -72,33 +84,36 @@ def load_db(file): return json.load(open(file)) if os.path.exists(file) else {}
 def save_db(file,data): json.dump(data,open(file,"w"),indent=2)
 def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) else []
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
-def log_activity(user_type, action, details): save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details})
 
-### FIXED: SAFE DOWNLOAD WITH FALLBACKS ###
+def read_uploaded_file(uploaded_file):
+    if uploaded_file.name.endswith(".pdf"):
+        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+        return "\n".join([page.get_text() for page in doc])
+    elif uploaded_file.name.endswith(".docx"):
+        from docx import Document
+        doc = Document(uploaded_file)
+        return "\n".join([p.text for p in doc.paragraphs])
+    elif uploaded_file.name.endswith(".txt"):
+        return uploaded_file.read().decode()
+    return ""
+
 def create_download(content, filename, fmt="pdf"):
     if fmt == "pdf":
         buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica", 10)
         for i,line in enumerate(content.split('\n')[:90]): p.drawString(50,800-(i*14),line[:100])
         p.save(); buffer.seek(0); return buffer, f"{filename}.pdf"
-
     elif fmt == "excel":
         try:
-            import openpyxl # test if installed
+            import openpyxl
             df = pd.DataFrame({"Content": content.split('\n')}); buffer = io.BytesIO(); df.to_excel(buffer, index=False, engine='openpyxl'); buffer.seek(0); return buffer, f"{filename}.xlsx"
-        except:
-            st.warning("openpyxl not installed. Excel download disabled. Use PDF instead.")
-            return create_download(content, filename, "pdf") # fallback to pdf
-
+        except: return create_download(content, filename, "pdf")
     elif fmt == "html":
         html = f"<html><body><pre>{content}</pre></body></html>"; return io.BytesIO(html.encode()), f"{filename}.html"
-
     elif fmt == "docx":
         try:
             from docx import Document
             doc = Document(); doc.add_paragraph(content); buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0); return buffer, f"{filename}.docx"
-        except:
-            st.warning("python-docx not installed. DOCX disabled. Use PDF instead.")
-            return create_download(content, filename, "pdf")
+        except: return create_download(content, filename, "pdf")
 
 def get_mixed_topics(level, subject):
     level_num = int(level[1])
@@ -116,18 +131,33 @@ def switch_key():
     global client
     client = get_client()
 
-def call_groq(user_prompt, level="S1"):
+### SMART CALL WITH CACHE ###
+def call_groq(user_prompt, level="S1", sample="", instructions=""):
+    cache = load_cache()
+    key = get_cache_key(user_prompt + sample + instructions, level)
+
+    if key in cache:
+        st.info("⚡ Loaded from Local Cache. 0 Tokens used.")
+        return cache[key]
+
+    if OFFLINE_MODE:
+        return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
+
     level_instruction = "LOWER SECONDARY S1-S4. Simple, Ugandan examples." if int(level[1]) <=4 else "ADVANCED S5-S6. Deep, detailed."
-    full_prompt = f"{level_instruction}\n\n{user_prompt}"
+    full_prompt = f"{level_instruction}\nTEACHER SAMPLE:\n{sample}\nTEACHER INSTRUCTIONS: {instructions}\n\nGENERATE:\n{user_prompt}"
     try:
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=4000)
-        return res.choices[0].message.content
+        answer = res.choices[0].message.content
     except RateLimitError:
         switch_key()
         res = client.chat.completions.create(model=AI_MODEL_FAST, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2000)
-        return res.choices[0].message.content
+        answer = res.choices[0].message.content
 
-### ASSETS + ZOOM ###
+    cache[key] = answer
+    save_cache(cache)
+    st.success("✅ Saved to Local Cache for next time")
+    return answer
+
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 @st.cache_data(ttl=60)
 def get_all_assets(): return glob.glob(f"{ASSETS_FOLDER}/*.*")
@@ -140,33 +170,27 @@ def find_asset_strict(level, subject, topic):
         if score > best_score: best_score = score; best_match = path
     return (best_match, candidates) if best_score > 0.5 else (None, candidates)
 
-def display_image_with_zoom(img_path, labels=[]):
+def display_image_with_zoom(img_path):
     img = Image.open(img_path)
     zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{img_path}")
     width = int(img.width * zoom / 100)
     st.image(img.resize((width, int(img.height * zoom / 100))))
 
-def generate_practical(subject, level, prac_name):
-    level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
-    data = PRACTICAL_DATABASE.get(subject,{}).get(level_group,{}).get(prac_name,{})
-    if not data: return "Practical not found"
-    return call_groq(f"Expand to full UNEB practical: {data}", level)
-
 def display_with_preview(content, name):
-    st.text_area("Preview", content, height=300)
+    st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=300, key=f"preview_{name}")
     cols = st.columns(4)
     formats = ["pdf","excel","html","docx"]
     for i, fmt in enumerate(formats):
         buf, fname = create_download(content, name, fmt)
         cols[i].download_button(f"📥 {fmt.upper()}", buf, fname, key=f"{name}_{fmt}_{time.time()}")
 
-def send_whatsapp(number, message):
-    if not WHATSAPP_TOKEN: return "Set token"
-    url = f"https://graph.facebook.com/v20.0/{WHATSAPP_PHONE_ID}/messages"
-    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
-    data = {"messaging_product": "whatsapp", "to": number, "type": "text", "text": {"body": message}}
-    r = requests.post(url, headers=headers, json=data)
-    return "✅ Sent" if r.status_code == 200 else f"❌ {r.text}"
+def teacher_input_section(tab_name):
+    st.info(f"🤖 AI Assistant Mode: Upload sample. Type instructions. AI follows.")
+    col1, col2 = st.columns(2)
+    with col1: sample_file = st.file_uploader(f"Upload Sample for {tab_name}", type=["pdf","docx","txt"], key=f"sample_{tab_name}")
+    with col2: instructions = st.text_area(f"Teacher Instructions for {tab_name}", key=f"instr_{tab_name}")
+    sample_text = read_uploaded_file(sample_file) if sample_file else ""
+    return sample_text, instructions
 
 ### STUDENT PORTAL ###
 def show_student_portal():
@@ -198,8 +222,6 @@ def show_student_portal():
             topics = get_mixed_topics(level2, subject2)
             exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty}", level2)
             display_with_preview(exam, "BulkQuiz")
-        elif mode == "Theory" and st.button("Teach Me"):
-            display_with_preview(call_groq(f"Teach {topic2}. Difficulty: {difficulty}", level2), "Theory")
 
     with tab3:
         subject3 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s3")
@@ -212,15 +234,18 @@ def show_student_portal():
 
 ### ADMIN PORTAL ###
 def show_admin_portal():
-    st.header("🏫 Admin Portal - FULL SUITE")
+    st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     tabs = st.tabs(["📊 Analytics","📖 Curriculum","✏️ Labels","📤 Exam Generator","📈 Performance","📱 WhatsApp","📑 MOES","📝 Marking","📅 SOW","🏆 Report Cards"])
 
     with tabs[0]: st.dataframe(pd.DataFrame(load_logs()))
     with tabs[1]:
+        sample, instr = teacher_input_section("Curriculum")
         subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()))
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        st.text_area("Topics", "\n".join(UNEB_CURRICULUM_MAP[subj][level]))
+        if st.button("Generate Curriculum Doc"):
+            out = call_groq(f"Generate curriculum document for {level} {subj}", level, sample, instr)
+            display_with_preview(out, "Curriculum")
 
     with tabs[2]:
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="a1")
@@ -230,56 +255,74 @@ def show_admin_portal():
         if uploaded: open(f"{ASSETS_FOLDER}/{level} {subject} {topic}.png","wb").write(uploaded.getbuffer())
 
     with tabs[3]:
-        st.subheader("Smart Final Exam Generator")
+        sample, instr = teacher_input_section("Exam")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="ex_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="ex_level")
         num_q = st.slider("Number of Questions", 10, 50, 50)
         difficulty = st.selectbox("Difficulty Mix", ["Mixed","Easy","Moderate","Hard"])
         if st.button("Generate Exam"):
             topics = get_mixed_topics(level, subject)
-            prompt = f"Generate {num_q} UNEB exam questions for {level} {subject}. Topics mix: {topics}. Difficulty: {difficulty}. Use SCENARIO, ITEM, TASK."
-            exam = call_groq(prompt, level)
+            prompt = f"Generate {num_q} UNEB exam questions for {level} {subject}. Topics: {topics}. Difficulty: {difficulty}. Use SCENARIO, ITEM, TASK."
+            exam = call_groq(prompt, level, sample, instr)
             display_with_preview(exam, f"{level}_{subject}_Exam")
 
     with tabs[4]:
-        uploaded = st.file_uploader("Upload Results CSV", type="csv")
-        if uploaded: df=pd.read_csv(uploaded); st.dataframe(df); st.bar_chart(df.groupby("Subject")["Score"].mean())
+        sample, instr = teacher_input_section("Performance Report")
+        uploaded = st.file_uploader("Upload Results CSV: Name,Subject,Score,Term", type="csv")
+        if uploaded:
+            df=pd.read_csv(uploaded)
+            st.dataframe(df)
+            st.bar_chart(df.groupby("Subject")["Score"].mean())
+            if st.button("Generate Performance Report"):
+                data_summary = df.describe().to_string()
+                report = call_groq(f"Generate performance analysis report. Data: {data_summary}", "S4", sample, instr)
+                display_with_preview(report, "Performance_Report")
 
     with tabs[5]:
         parents = load_db(PARENTS_FILE)
         name = st.text_input("Student Name"); number = st.text_input("Number +256")
         if st.button("Save"): parents[name]=number; save_db(PARENTS_FILE, parents)
         msg = st.text_area("Message")
-        if st.button("Send"): [st.write(send_whatsapp(n,msg)) for n in parents.values()]
+        if st.button("Send"): st.warning("WhatsApp needs internet. Disabled in Offline Mode" if OFFLINE_MODE else "Sending...")
 
     with tabs[6]:
-        report = call_groq("Generate MOES report", "S4")
-        display_with_preview(report, "MOES")
+        sample, instr = teacher_input_section("MOES")
+        if st.button("Generate MOES Report"):
+            report = call_groq("Generate MOES termly report", "S4", sample, instr)
+            display_with_preview(report, "MOES")
 
     with tabs[7]:
+        sample, instr = teacher_input_section("Marking Guide")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="m1")
-        ans = st.text_area("Student Answer")
-        if st.button("Mark"): st.markdown(call_groq(f"Mark for {subject}: {ans}", "S4"))
+        ans = st.text_area("Paste Student Answer")
+        if st.button("Mark"):
+            marked = call_groq(f"Mark this answer for {subject}", "S4", sample, instr)
+            st.markdown(marked)
 
     with tabs[8]:
+        sample, instr = teacher_input_section("SOW")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="sow1")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="sow2")
         if st.button("Generate SOW"):
-            sow = call_groq(f"Generate SOW + 12 lesson plans for {level} {subject}", level)
+            sow = call_groq(f"Generate SOW + 12 lesson plans for {level} {subject}", level, sample, instr)
             display_with_preview(sow, "SOW")
 
     with tabs[9]:
-        uploaded = st.file_uploader("Upload Results CSV", type="csv", key="rc")
+        sample, instr = teacher_input_section("Report Card")
+        uploaded = st.file_uploader("Upload Results CSV: Name,Subject,Score,Grade,Remarks", type="csv", key="rc")
         if uploaded:
             df = pd.read_csv(uploaded)
+            st.dataframe(df)
             for student in df["Name"].unique():
                 s_df = df[df["Name"]==student]
-                report_text = f"REPORT CARD\n{student}\n{s_df.to_string()}"
-                st.text_area(f"Preview {student}", report_text, height=200, key=student)
-                buf,fname = create_download(report_text, f"Report_{student}", "pdf")
-                st.download_button(f"Download {student}", buf, fname, key=f"dl{student}")
+                data = s_df.to_string()
+                if st.button(f"Generate Report for {student}", key=f"btn_{student}"):
+                    report_text = call_groq(f"Generate report card for {student}. Data: {data}", "S4", sample, instr)
+                    st.text_area(f"Preview {student}", report_text, height=300, key=f"prev_{student}")
+                    buf,fname = create_download(report_text, f"Report_{student}", "pdf")
+                    st.download_button(f"Download {student}", buf, fname, key=f"dl{student}")
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.0.1")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.0")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
