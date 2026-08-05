@@ -38,27 +38,17 @@ os.makedirs(LABELS_FOLDER, exist_ok=True)
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.0.0\nSMART EXAM + ZOOM + PREVIEW\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.0.1\nBUGFIXED + SMART EXAM\n📞 {CONTACT}")
 
-### SMART SYSTEM PROMPT ###
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. Smart AI Tutor like ChatGPT. 100% locked to Uganda NCDC 2026.
+RESPONSE RULES: 1. UGANDAN SCENARIO: 2. ITEM: 3. TASK: 4. EXPLANATION. NCDC 2026 LOCKED. LEVEL AWARE: S1-S4 Simple, S5-S6 Deep."""
 
-RESPONSE RULES:
-1. Always start with UGANDAN SCENARIO: Real Uganda example.
-2. Then ITEM: UNEB style question
-3. Then TASK: What student must do
-4. Then EXPLANATION or DETAILED SOLUTION with Chain of Thought
-5. NCDC 2026 LOCKED. If outside syllabus, redirect.
-6. LEVEL AWARE: S1-S4 = Simple + examples. S5-S6 = Deep + formulas + analysis.
-7. Use difficulty: Easy, Moderate, Hard as requested."""
-
-### FULL DATABASE - 15 SUBJECTS ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Integers", "Fractions"], "S2": ["Angles", "Algebra II", "Sets"], "S3": ["Quadratics", "Matrices", "Probability"], "S4": ["Functions", "Statistics", "Circle Geometry"], "S5": ["Differentiation", "Integration"], "S6": ["Mechanics", "Linear Programming"]},
-    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Electricity I"], "S3": ["Magnetism", "Waves II"], "S4": ["Electronics", "Radioactivity"], "S5": ["Optics", "Fluid Mechanics"], "S6": ["Electric Fields", "Nuclear Physics"]},
-    "Chemistry": {"S1": ["Atoms"], "S2": ["Acids Alkalis"], "S3": ["Bonding", "Stoichiometry"], "S4": ["REDOX", "Rate of Reaction"], "S5": ["Kinetics", "Equilibrium"], "S6": ["Electrochemistry"]},
-    "Biology": {"S1": ["Cells"], "S2": ["Respiration"], "S3": ["Genetics I"], "S4": ["Photosynthesis", "Ecology"], "S5": ["Cell Biology", "Genetics II"], "S6": ["Hormones", "Biotechnology"]},
-    "English": {"S1": ["Grammar", "Comprehension"], "S2": ["Literature", "Summary"], "S3": ["Novel", "Poetry"], "S4": ["Shakespeare"], "S5": ["Advanced Grammar"], "S6": ["Criticism"]},
+    "Mathematics": {"S1": ["Number Bases", "Integers"], "S2": ["Angles", "Algebra II"], "S3": ["Quadratics", "Matrices"], "S4": ["Functions", "Statistics"], "S5": ["Differentiation"], "S6": ["Mechanics"]},
+    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light", "Electricity I"], "S3": ["Magnetism"], "S4": ["Electronics"], "S5": ["Optics"], "S6": ["Electric Fields"]},
+    "Chemistry": {"S1": ["Atoms"], "S2": ["Acids Alkalis"], "S3": ["Bonding"], "S4": ["REDOX"], "S5": ["Kinetics"], "S6": ["Electrochemistry"]},
+    "Biology": {"S1": ["Cells"], "S2": ["Respiration"], "S3": ["Genetics I"], "S4": ["Photosynthesis"], "S5": ["Cell Biology"], "S6": ["Hormones"]},
+    "English": {"S1": ["Grammar"], "S2": ["Literature"], "S3": ["Novel"], "S4": ["Shakespeare"], "S5": ["Advanced Grammar"], "S6": ["Criticism"]},
     "ICT": {"S1": ["Computer Basics"],"S2": ["Word Processing"],"S3": ["Databases"],"S4": ["Internet"],"S5": ["Programming Python"],"S6": ["Web Design"]},
     "Geography": {"S1": ["Map Reading"],"S2": ["Climate"],"S3": ["Rivers"],"S4": ["Population"],"S5": ["Industries"],"S6": ["GIS"]},
     "History": {"S1": ["Early Man"],"S2": ["Kingdoms"],"S3": ["Colonialism"],"S4": ["Independence"],"S5": ["World Wars"],"S6": ["Cold War"]},
@@ -72,7 +62,7 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}, "Pendulum": {"objective": "Find g"}}, "S5-S6": {"RC Circuit": {"objective": "Find tau"}}},
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify V=IR"}}, "S5-S6": {"RC Circuit": {"objective": "Find tau"}}},
     "Chemistry": {"S1-S4": {"Titration": {"objective": "Find concentration"}}, "S5-S6": {"Rate": {"objective": "Effect of temp"}}},
     "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells"}}, "S5-S6": {"Enzyme": {"objective": "Effect of pH"}}}
 }
@@ -84,29 +74,37 @@ def load_logs(): return json.load(open(LOG_FILE)) if os.path.exists(LOG_FILE) el
 def save_log(entry): logs = load_logs(); logs.append(entry); json.dump(logs, open(LOG_FILE,"w"))
 def log_activity(user_type, action, details): save_log({"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user_type, "action": action, "details": details})
 
+### FIXED: SAFE DOWNLOAD WITH FALLBACKS ###
 def create_download(content, filename, fmt="pdf"):
     if fmt == "pdf":
         buffer = io.BytesIO(); p = canvas.Canvas(buffer, pagesize=A4); p.setFont("Helvetica", 10)
         for i,line in enumerate(content.split('\n')[:90]): p.drawString(50,800-(i*14),line[:100])
         p.save(); buffer.seek(0); return buffer, f"{filename}.pdf"
+
     elif fmt == "excel":
-        df = pd.DataFrame({"Content": content.split('\n')}); buffer = io.BytesIO(); df.to_excel(buffer, index=False); buffer.seek(0); return buffer, f"{filename}.xlsx"
+        try:
+            import openpyxl # test if installed
+            df = pd.DataFrame({"Content": content.split('\n')}); buffer = io.BytesIO(); df.to_excel(buffer, index=False, engine='openpyxl'); buffer.seek(0); return buffer, f"{filename}.xlsx"
+        except:
+            st.warning("openpyxl not installed. Excel download disabled. Use PDF instead.")
+            return create_download(content, filename, "pdf") # fallback to pdf
+
     elif fmt == "html":
         html = f"<html><body><pre>{content}</pre></body></html>"; return io.BytesIO(html.encode()), f"{filename}.html"
+
     elif fmt == "docx":
         try:
             from docx import Document
             doc = Document(); doc.add_paragraph(content); buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0); return buffer, f"{filename}.docx"
-        except: return create_download(content, filename, "pdf")
+        except:
+            st.warning("python-docx not installed. DOCX disabled. Use PDF instead.")
+            return create_download(content, filename, "pdf")
 
-### EXAM MIXING LOGIC ###
 def get_mixed_topics(level, subject):
     level_num = int(level[1])
-    topics = []
-    weights = {level_num: 0.7}
+    topics = []; weights = {level_num: 0.7}
     if level_num-1 >= 1: weights[level_num-1] = 0.2
     if level_num-2 >= 1: weights[level_num-2] = 0.1
-
     for l, w in weights.items():
         l_str = f"S{l}"
         num_topics = max(1, int(len(UNEB_CURRICULUM_MAP[subject][l_str]) * w))
@@ -119,7 +117,7 @@ def switch_key():
     client = get_client()
 
 def call_groq(user_prompt, level="S1"):
-    level_instruction = "LOWER SECONDARY S1-S4. Simple, Ugandan examples." if int(level[1]) <=4 else "ADVANCED S5-S6. Deep, detailed, formulas."
+    level_instruction = "LOWER SECONDARY S1-S4. Simple, Ugandan examples." if int(level[1]) <=4 else "ADVANCED S5-S6. Deep, detailed."
     full_prompt = f"{level_instruction}\n\n{user_prompt}"
     try:
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=4000)
@@ -146,9 +144,7 @@ def display_image_with_zoom(img_path, labels=[]):
     img = Image.open(img_path)
     zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{img_path}")
     width = int(img.width * zoom / 100)
-    st.image(img.resize((width, int(img.height * zoom / 100))), use_container_width=False)
-    if labels:
-        st.info("Labels active. Use Label Editor to add more.")
+    st.image(img.resize((width, int(img.height * zoom / 100))))
 
 def generate_practical(subject, level, prac_name):
     level_group = "S1-S4" if int(level[1]) <= 4 else "S5-S6"
@@ -158,10 +154,11 @@ def generate_practical(subject, level, prac_name):
 
 def display_with_preview(content, name):
     st.text_area("Preview", content, height=300)
-    col1,col2,col3,col4 = st.columns(4)
-    for buf,fname in [create_download(content, name, fmt) for fmt in ["pdf","excel","html","docx"]]:
-        with [col1,col2,col3,col4][["pdf","excel","html","docx"].index(fmt)]:
-            st.download_button(f"📥 {fmt.upper()}", buf, fname)
+    cols = st.columns(4)
+    formats = ["pdf","excel","html","docx"]
+    for i, fmt in enumerate(formats):
+        buf, fname = create_download(content, name, fmt)
+        cols[i].download_button(f"📥 {fmt.upper()}", buf, fname, key=f"{name}_{fmt}_{time.time()}")
 
 def send_whatsapp(number, message):
     if not WHATSAPP_TOKEN: return "Set token"
@@ -195,11 +192,11 @@ def show_student_portal():
 
         if mode == "Quiz" and st.button("Generate Quiz"):
             topics = get_mixed_topics(level2, subject2)
-            quiz = call_groq(f"Generate 10 UNEB questions from topics: {topics}. Difficulty: {difficulty}", level2)
+            quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty}", level2)
             display_with_preview(quiz, "Quiz")
         elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam"):
             topics = get_mixed_topics(level2, subject2)
-            exam = call_groq(f"Generate 50 UNEB exam questions from topics: {topics}. Difficulty: {difficulty}", level2)
+            exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty}", level2)
             display_with_preview(exam, "BulkQuiz")
         elif mode == "Theory" and st.button("Teach Me"):
             display_with_preview(call_groq(f"Teach {topic2}. Difficulty: {difficulty}", level2), "Theory")
@@ -232,7 +229,7 @@ def show_admin_portal():
         uploaded = st.file_uploader("Upload PNG")
         if uploaded: open(f"{ASSETS_FOLDER}/{level} {subject} {topic}.png","wb").write(uploaded.getbuffer())
 
-    with tabs[3]: # SMART EXAM GENERATOR
+    with tabs[3]:
         st.subheader("Smart Final Exam Generator")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="ex_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="ex_level")
@@ -240,9 +237,8 @@ def show_admin_portal():
         difficulty = st.selectbox("Difficulty Mix", ["Mixed","Easy","Moderate","Hard"])
         if st.button("Generate Exam"):
             topics = get_mixed_topics(level, subject)
-            prompt = f"Generate {num_q} UNEB exam questions for {level} {subject}. Topics mix: {topics}. Difficulty: {difficulty}. Use SCENARIO, ITEM, TASK format."
+            prompt = f"Generate {num_q} UNEB exam questions for {level} {subject}. Topics mix: {topics}. Difficulty: {difficulty}. Use SCENARIO, ITEM, TASK."
             exam = call_groq(prompt, level)
-            st.session_state["last_exam"] = exam
             display_with_preview(exam, f"{level}_{subject}_Exam")
 
     with tabs[4]:
@@ -272,7 +268,7 @@ def show_admin_portal():
             sow = call_groq(f"Generate SOW + 12 lesson plans for {level} {subject}", level)
             display_with_preview(sow, "SOW")
 
-    with tabs[9]: # REPORT CARD PREVIEW
+    with tabs[9]:
         uploaded = st.file_uploader("Upload Results CSV", type="csv", key="rc")
         if uploaded:
             df = pd.read_csv(uploaded)
@@ -283,7 +279,7 @@ def show_admin_portal():
                 buf,fname = create_download(report_text, f"Report_{student}", "pdf")
                 st.download_button(f"Download {student}", buf, fname, key=f"dl{student}")
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.0.0")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.0.1")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
