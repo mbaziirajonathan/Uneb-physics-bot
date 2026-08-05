@@ -316,21 +316,35 @@ def call_groq(user_prompt, level="S1", sample="", instructions=""):
     return full_response
 
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
+
 @st.cache_data(ttl=60)
 def get_all_assets(): return glob.glob(f"{ASSETS_FOLDER}/*.*")
+
+# FIXED: Now searches by topic name only since your files are like animal_cell.png
 def find_asset_strict(level, subject, topic):
-    assets = get_all_assets(); level_clean = sanitize(level); subject_clean = sanitize(subject); topic_clean = sanitize(topic)
-    candidates = [p for p in assets if level_clean in sanitize(p) and subject_clean in sanitize(p)]
+    assets = get_all_assets()
+    topic_clean = sanitize(topic)
+
+    # First try: match topic keyword in filename
+    candidates = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
+
+    if not candidates:
+        # Fallback: show all images in assets
+        candidates = [p for p in assets if p.lower().endswith(('.png','.jpg','.jpeg'))]
+
     best_match = None; best_score = 0
     for path in candidates:
         score = difflib.SequenceMatcher(None, topic_clean, sanitize(os.path.basename(path))).ratio()
         if score > best_score: best_score = score; best_match = path
-    return (best_match, candidates) if best_score > 0.5 else (None, candidates)
+
+    return (best_match, candidates) if best_score > 0.3 else (None, candidates)
+
 def display_image_with_zoom(img_path):
     Image = get_pil(); img = Image.open(img_path)
     zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{img_path}_{time.time()}")
     width = int(img.width * zoom / 100)
     st.image(img.resize((width, int(img.height * zoom / 100))))
+
 def display_with_preview(content, name):
     edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
     cols = st.columns(4)
@@ -404,14 +418,20 @@ def show_student_portal():
             display_with_preview(practical, f"Practical_{topic3}_s3")
 
     with tab4:
-        st.subheader("View Diagrams")
+        st.subheader("🖼️ Diagram Library")
         subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s4_subj")
         level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s4_level")
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
         if st.button("Load Diagram", key="s4_btn"):
-            img_path,_ = find_asset_strict(level4, subject4, topic4)
-            if img_path: display_image_with_zoom(img_path)
-            else: st.error("No diagram uploaded for this topic")
+            img_path, all_found = find_asset_strict(level4, subject4, topic4)
+            if img_path:
+                st.success(f"Found: {os.path.basename(img_path)}")
+                display_image_with_zoom(img_path)
+            else:
+                st.error("No diagram uploaded for this topic")
+                if all_found:
+                    st.write("Available diagrams:")
+                    for f in all_found[:6]: st.write(f"- {os.path.basename(f)}")
 
 ### 8. ADMIN PORTAL + UPLOAD PNG ###
 def show_admin_portal():
@@ -428,11 +448,15 @@ def show_admin_portal():
         up_topic = st.text_input("Topic Name", key="admin_up_topic")
         up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
         if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-            filepath = f"{ASSETS_FOLDER}/{up_level}_{up_subj}_{up_topic}.{up_file.name.split('.')[-1]}"
+            # FIXED: Save as TopicName.png to match finder
+            ext = up_file.name.split('.')[-1]
+            filepath = f"{ASSETS_FOLDER}/{up_topic.replace(' ', '_')}.{ext}"
             with open(filepath, "wb") as f: f.write(up_file.getbuffer())
             st.success(f"Saved to {filepath}")
 
-    with tabs[0]: st.dataframe(pd.DataFrame(load_logs()))
+    with tabs[0]:
+        pd = get_pandas()
+        st.dataframe(pd.DataFrame(load_logs()))
 
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.9")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
