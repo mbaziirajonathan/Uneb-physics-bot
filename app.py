@@ -26,12 +26,12 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
 os.makedirs(ASSETS_FOLDER, exist_ok=True)
 os.makedirs(LABELS_FOLDER, exist_ok=True)
 
-### 2. SECRETS + SINGLE KEY ONLY ### [FIXED FOR RENDER]
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY", "")
-STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD") or st.secrets.get("STUDENT_PASSWORD", "1234")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD") or st.secrets.get("ADMIN_PASSWORD", "admin123")
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN") or st.secrets.get("WHATSAPP_TOKEN", "")
-WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID") or st.secrets.get("WHATSAPP_PHONE_ID", "")
+### 2. SECRETS + SINGLE KEY ONLY ### [RENDER ONLY - NO st.secrets]
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
 
 if not GROQ_API_KEY:
     st.error("Missing GROQ_API_KEY. Go to Render > Environment > Add Environment Variable")
@@ -61,7 +61,7 @@ def get_cache_key(prompt, level):
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.5\nSINGLE KEY MODE\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.6\nSINGLE KEY MODE\n📞 {CONTACT}")
 
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. AI ASSISTANT ONLY. Follow teacher sample + instructions. NCDC 2026 LOCKED. S1-S4 Simple. S5-S6 Deep. UGANDAN SCENARIO first. Use UNEB format: SCENARIO, ITEM, TASK for questions. Do not hallucinate facts. If unsure, say you don't know."""
 
@@ -369,7 +369,7 @@ def show_admin_portal():
                     st.download_button(f"Download {student}", buf, fname, key=f"dl{student}")
 
 ### 9. MAIN APP ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.5")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.6")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
 password = st.sidebar.text_input("Password", type="password")
 if st.sidebar.button("Login"):
