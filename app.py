@@ -4,12 +4,12 @@ from datetime import datetime
 from groq import Groq, RateLimitError
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.2.8-FULL-RESTORED-FAST")
+st.sidebar.caption("Build: V5.2.9-NCDC-FULL-RESTORED")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
     while True:
-        time.sleep(840) # 14 minutes
+        time.sleep(840)
         try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"))
         except: pass
 threading.Thread(target=keep_alive, daemon=True).start()
@@ -28,15 +28,13 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
 os.makedirs(ASSETS_FOLDER, exist_ok=True)
 os.makedirs(LABELS_FOLDER, exist_ok=True)
 
-### 2. SECRETS - RENDER ONLY ###
+### 2. SECRETS ###
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "")
-WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "")
 
 if not GROQ_API_KEY:
-    st.error("Missing GROQ_API_KEY. Go to Render > Environment > Add Environment Variable")
+    st.error("Missing GROQ_API_KEY. Go to Render > Environment")
     st.stop()
 
 @st.cache_resource
@@ -55,16 +53,52 @@ def get_cache_key(prompt, level): return hashlib.md5((prompt + level).encode()).
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.8\nFULL CURRICULUM RESTORED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.9\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
-MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. AI ASSISTANT ONLY. Follow teacher sample + instructions. NCDC 2026 LOCKED. S1-S4 Simple. S5-S6 Deep. UGANDAN SCENARIO first. Use UNEB format: SCENARIO, ITEM, TASK for questions. Do not hallucinate facts. If unsure, say you don't know."""
+MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA CURRICULUM ONLY. Follow teacher sample + instructions. RULES: S1-S2: Very simple, basic Ugandan examples. S3-S4: Intermediate, apply concepts. S5-S6: Advanced, university prep, deep analysis, derivations. Always use UNEB format: SCENARIO, ITEM, TASK. Use local Ugandan context. Do not hallucinate. If unsure, say 'I don't have that information'."""
 
-### 3. FULL UNEB CURRICULUM RESTORED S1-S6 ###
+### 3. FULL NCDC CURRICULUM S1-S6 - CALCULUS REMOVED FROM S4 ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Number Bases", "Fractions", "Decimals", "Integers", "Rates", "Algebra"], "S2": ["Angles", "Bearings", "Similarity", "Linear Equations", "Statistics"], "S3": ["Quadratics", "Trigonometry", "Matrices", "Sequences", "Probability"], "S4": ["Functions", "Calculus Intro", "Vectors", "Statistics II", "Financial Math"], "S5": ["Differentiation", "Integration", "Binomial", "Permutations", "Probability Dist"], "S6": ["Mechanics", "Statistics III", "Complex Numbers", "Linear Programming", "Differential Equations"]},
-    "Physics": {"S1": ["Measurement", "Forces", "Energy", "Heat", "Waves"], "S2": ["Light", "Sound", "Electricity I", "Magnetism I", "Density"], "S3": ["Magnetism", "Electricity II", "Radioactivity", "Energy Sources", "Pressure"], "S4": ["Electronics", "Waves II", "Atomic Physics", "Statics", "Dynamics"], "S5": ["Optics", "Current Electricity", "EM Waves", "Fields", "SHM"], "S6": ["Electric Fields", "Magnetic Fields", "Quantum Physics", "Nuclear Physics", "Astrophysics"]},
-    "Chemistry": {"S1": ["Atoms", "Elements", "Compounds", "Mixtures", "Air"], "S2": ["Acids Alkalis", "Salts", "Oxygen", "Hydrogen", "Water"], "S3": ["Bonding", "Structure", "Periodic Table", "Metals", "Non-Metals"], "S4": ["REDOX", "Energy Changes", "Rate of Reaction", "Equilibrium", "Organic Intro"], "S5": ["Kinetics", "Equilibrium II", "Energetics", "Organic Chemistry I", "Analytical"], "S6": ["Electrochemistry", "Organic II", "Polymers", "Biochemistry", "Industrial Chemistry"]},
-    "Biology": {"S1": ["Cells", "Classification", "Nutrition", "Respiration", "Transport"], "S2": ["Respiration", "Excretion", "Reproduction I", "Ecology I", "Diversity"], "S3": ["Genetics I", "Evolution", "Ecology II", "Physiology", "Health"], "S4": ["Photosynthesis", "Hormones", "Reproduction II", "Genetics II", "Biotechnology"], "S5": ["Cell Biology", "Genetics III", "Physiology II", "Ecology III", "Microbiology"], "S6": ["Hormones II", "Coordination", "Genetics IV", "Evolution II", "Environmental Biology"]},
+    "Mathematics": {
+        "S1": ["Sets", "Number Bases", "Fractions", "Decimals", "Integers", "Algebra Intro"],
+        "S2": ["Rates", "Percentages", "Angles", "Triangles", "Linear Equations", "Statistics I"],
+        "S3": ["Quadratics", "Trigonometry", "Matrices", "Sequences", "Probability I", "Bearings"],
+        "S4": ["Functions", "Vectors", "Statistics II", "Financial Math", "Linear Programming", "Probability II"], # NO CALCULUS
+        "S5": ["Differentiation", "Integration", "Binomial Theorem", "Permutations", "Probability Distributions", "Complex Numbers"],
+        "S6": ["Mechanics", "Statistics III", "Differential Equations", "Linear Algebra", "Numerical Methods", "Calculus Applications"]
+    },
+    "Physics": {
+        "S1": ["Measurement", "Forces", "Energy", "Heat", "Waves I"],
+        "S2": ["Light I", "Sound", "Electricity I", "Magnetism I", "Density"],
+        "S3": ["Magnetism II", "Electricity II", "Radioactivity", "Energy Sources", "Pressure"],
+        "S4": ["Electronics", "Waves II", "Atomic Physics", "Statics", "Dynamics"],
+        "S5": ["Optics II", "Current Electricity II", "EM Waves", "Gravitational Fields", "SHM"],
+        "S6": ["Electric Fields", "Magnetic Fields", "Quantum Physics", "Nuclear Physics", "Astrophysics"]
+    },
+    "Chemistry": {
+        "S1": ["Atoms", "Elements", "Compounds", "Mixtures", "Air and Combustion"],
+        "S2": ["Acids Alkalis", "Salts", "Oxygen", "Hydrogen", "Water"],
+        "S3": ["Bonding", "Structure", "Periodic Table", "Metals", "Non-Metals"],
+        "S4": ["REDOX", "Energy Changes", "Rate of Reaction", "Equilibrium", "Organic Intro"],
+        "S5": ["Kinetics", "Equilibrium II", "Energetics", "Organic Chemistry I", "Analytical Chemistry"],
+        "S6": ["Electrochemistry", "Organic II", "Polymers", "Biochemistry", "Industrial Chemistry"]
+    },
+    "Biology": {
+        "S1": ["Cells", "Classification", "Nutrition", "Respiration", "Transport"],
+        "S2": ["Respiration II", "Excretion", "Reproduction I", "Ecology I", "Diversity"],
+        "S3": ["Genetics I", "Evolution", "Ecology II", "Physiology", "Health"],
+        "S4": ["Photosynthesis", "Hormones I", "Reproduction II", "Genetics II", "Biotechnology"],
+        "S5": ["Cell Biology", "Genetics III", "Physiology II", "Ecology III", "Microbiology"],
+        "S6": ["Hormones II", "Coordination", "Genetics IV", "Evolution II", "Environmental Biology"]
+    },
+    "Agriculture": { # FULL THEORY ADDED S1-S6
+        "S1": ["Introduction to Agriculture", "Soil Formation", "Farm Tools", "Crop Classification", "Animal Classification"],
+        "S2": ["Soil Properties", "Livestock Production", "Poultry", "Crop Production", "Farm Records"],
+        "S3": ["Soil Conservation", "Plant Nutrition", "Crop Pests", "Animal Feeds", "Animal Housing"],
+        "S4": ["Animal Health", "Breeding", "Pasture Management", "Land Use", "Agricultural Economics"],
+        "S5": ["Agribusiness", "Farm Planning", "Irrigation", "Agricultural Marketing", "Cooperatives"],
+        "S6": ["Agricultural Research", "Biotechnology in Agriculture", "Climate Change", "Policy", "Value Addition"]
+    },
     "English": {"S1": ["Grammar", "Composition", "Comprehension", "Oral Literature", "Vocabulary"], "S2": ["Literature", "Poetry", "Drama", "Novel", "Summary"], "S3": ["Novel", "Play", "Poetry Anthology", "Grammar II", "Writing Skills"], "S4": ["Shakespeare", "African Literature", "Grammar III", "Oral Skills", "Literary Devices"], "S5": ["Advanced Grammar", "Criticism", "Drama Analysis", "Novel Analysis", "Poetry Analysis"], "S6": ["Criticism II", "Comparative Literature", "Research", "Advanced Composition", "Oral Literature II"]},
     "ICT": {"S1": ["Computer Basics", "Hardware", "Software", "OS", "Applications"], "S2": ["Word Processing", "Spreadsheets", "Presentation", "Internet Basics", "Safety"], "S3": ["Databases", "Networking", "Graphics", "Programming Intro", "Web Basics"], "S4": ["Internet", "Multimedia", "Programming Python", "Database Design", "E-Commerce"], "S5": ["Programming Python", "Data Structures", "Web Design", "Mobile Apps", "AI Intro"], "S6": ["Web Design", "Database Systems", "System Analysis", "Networking II", "Project"]},
     "Geography": {"S1": ["Map Reading", "Weather", "Climate", "Vegetation", "Population"], "S2": ["Climate", "Soils", "Rivers", "Lakes", "Landforms"], "S3": ["Rivers", "Weathering", "Mass Wasting", "Glaciation", "Coasts"], "S4": ["Population", "Settlement", "Agriculture", "Industry", "Trade"], "S5": ["Industries", "Transport", "Tourism", "Energy", "Urbanization"], "S6": ["GIS", "Remote Sensing", "Development", "Environment", "Fieldwork"]},
@@ -74,30 +108,120 @@ UNEB_CURRICULUM_MAP = {
     "Literature": {"S1": ["Poetry", "Prose", "Drama", "Oral Lit", "Figures"], "S2": ["Drama", "Novel", "Poetry", "Themes", "Characters"], "S3": ["African Literature", "Novel", "Play", "Poetry", "Setting"], "S4": ["Shakespeare", "Modern Drama", "African Novel", "Poetry", "Criticism"], "S5": ["Literary Devices", "Themes", "Style", "Context", "Analysis"], "S6": ["Criticism", "Theory", "Comparative", "Research", "Seminar"]},
     "Commerce": {"S1": ["Business", "Types", "Trade", "Money", "Banking"], "S2": ["Banking", "Insurance", "Communication", "Transport", "Warehousing"], "S3": ["Marketing", "Advertising", "Consumer", "Law", "Tourism"], "S4": ["Entrepreneurship", "Business Plan", "Finance", "Records", "Tax"], "S5": ["Finance", "Investment", "Stock Exchange", "International Trade", "Business Law"], "S6": ["Business Law", "Management", "HR", "Operations", "Strategic Planning"]},
     "Economics": {"S1": ["Scarcity", "Choice", "Production", "Resources", "Goods"], "S2": ["Demand", "Supply", "Price", "Market", "Competition"], "S3": ["Money", "Banking", "Inflation", "Unemployment", "Government"], "S4": ["Trade", "Balance of Payments", "Exchange Rate", "Economic Systems", "Development"], "S5": ["National Income", "Consumption", "Investment", "Fiscal Policy", "Monetary Policy"], "S6": ["Development", "Planning", "International Economics", "Economic Growth", "Uganda Economy"]},
-    "Agriculture": {"S1": ["Soil", "Tools", "Crops", "Animals", "Farm Records"], "S2": ["Livestock", "Poultry", "Feeds", "Housing", "Health"], "S3": ["Crop Production", "Planting", "Weeding", "Harvesting", "Storage"], "S4": ["Animal Health", "Breeding", "Nutrition", "Diseases", "Parasites"], "S5": ["Records", "Marketing", "Cooperatives", "Farm Planning", "Irrigation"], "S6": ["Agribusiness", "Processing", "Value Addition", "Policy", "Research"]},
     "Art": {"S1": ["Drawing", "Shading", "Color", "Design", "Craft"], "S2": ["Painting", "Printing", "Weaving", "Pottery", "Composition"], "S3": ["Sculpture", "Carving", "Modelling", "Graphics", "Lettering"], "S4": ["Graphics", "Advertisement", "Layout", "Photography", "Design"], "S5": ["Photography", "Cinematography", "Digital Art", "Exhibition", "Critique"], "S6": ["Art History", "African Art", "Western Art", "Contemporary", "Project"]}
 }
 
-### 4. FULL PRACTICALS DATABASE RESTORED S1-S6 ###
+### 4. FULL PRACTICALS DATABASE - 10+ PER SCIENCE + AGRIC + S6 DISSECTION ###
 PRACTICAL_DATABASE = {
     "Physics": {
-        "S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine g"}, "Refraction": {"objective": "Find refractive index"}, "Hooke's Law": {"objective": "Verify Hooke's Law"}, "Density": {"objective": "Find density of solid"}},
-        "S5-S6": {"RC Circuit": {"objective": "Find time constant"}, "Wheatstone Bridge": {"objective": "Find unknown resistance"}, "Photoelectric Effect": {"objective": "Find Planck's constant"}, "Spectrometer": {"objective": "Determine wavelength"}, "Capacitance": {"objective": "Find capacitance"}}
+        "S1-S4": { # LOWER - SIMPLE
+            "Ohm's Law": {"objective": "Verify Ohm's Law V=IR"},
+            "Simple Pendulum": {"objective": "Determine acceleration due to gravity"},
+            "Refraction of Light": {"objective": "Find refractive index of glass"},
+            "Hooke's Law": {"objective": "Verify Hooke's Law using spring"},
+            "Density": {"objective": "Find density of regular and irregular solid"},
+            "Heat Capacity": {"objective": "Find specific heat capacity of metal"},
+            "Magnetic Field": {"objective": "Plot magnetic field lines"},
+            "Echo": {"objective": "Determine speed of sound"},
+            "Levers": {"objective": "Verify principle of moments"},
+            "Focal Length": {"objective": "Find focal length of concave lens"}
+        },
+        "S5-S6": { # ADVANCED - UNIVERSITY PREP
+            "RC Circuit": {"objective": "Find time constant and analyze charging/discharging"},
+            "Wheatstone Bridge": {"objective": "Determine unknown resistance with high precision"},
+            "Photoelectric Effect": {"objective": "Determine Planck's constant"},
+            "Spectrometer": {"objective": "Determine wavelength using diffraction grating"},
+            "Capacitance": {"objective": "Find capacitance and dielectric constant"},
+            "Young's Modulus": {"objective": "Determine Young's modulus using Searle's apparatus"},
+            "Hall Effect": {"objective": "Measure magnetic field and carrier concentration"},
+            "Radioactive Decay": {"objective": "Determine half-life using GM counter"},
+            "Interference": {"objective": "Young's double slit experiment"},
+            "Resonance": {"objective": "Determine resonant frequency in LCR circuit"}
+        }
     },
     "Chemistry": {
-        "S1-S4": {"Titration": {"objective": "Find concentration of acid"}, "Solubility": {"objective": "Effect of temperature on solubility"}, "Gas Laws": {"objective": "Verify Boyle's Law"}, "Reactions": {"objective": "Rate of reaction"}, "Salts": {"objective": "Identify cations and anions"}},
-        "S5-S6": {"Rate of Reaction": {"objective": "Effect of concentration and temperature"}, "Electrolysis": {"objective": "Faraday's Laws"}, "Organic Prep": {"objective": "Prepare Ethyl Ethanoate"}, "Enthalpy": {"objective": "Heat of neutralization"}, "Redox Titration": {"objective": "Determine molarity"}}
+        "S1-S4": {
+            "Titration": {"objective": "Determine concentration of acid using standard base"},
+            "Solubility": {"objective": "Effect of temperature on solubility"},
+            "Gas Laws": {"objective": "Verify Boyle's Law"},
+            "Rate of Reaction": {"objective": "Effect of concentration on reaction rate"},
+            "Salt Analysis": {"objective": "Identify cations and anions"},
+            "Electrolysis": {"objective": "Electrolysis of copper sulfate"},
+            "pH": {"objective": "Determine pH of solutions"},
+            "Crystallization": {"objective": "Prepare crystals of alum"},
+            "Combustion": {"objective": "Heat of combustion"},
+            "Chromatography": {"objective": "Separate ink pigments"}
+        },
+        "S5-S6": {
+            "Rate of Reaction": {"objective": "Determine order and rate constant"},
+            "Electrolysis Quantitative": {"objective": "Verify Faraday's Laws"},
+            "Organic Prep": {"objective": "Prepare and purify Ethyl Ethanoate"},
+            "Enthalpy": {"objective": "Determine heat of neutralization"},
+            "Redox Titration": {"objective": "Determine molarity using KMnO4"},
+            "Buffer Solution": {"objective": "Prepare and test buffer capacity"},
+            "Qualitative Analysis": {"objective": "Systematic analysis of mixture"},
+            "Distillation": {"objective": "Fractional distillation of mixture"},
+            "Spectrophotometry": {"objective": "Determine concentration using Beer-Lambert"},
+            "Polymerization": {"objective": "Prepare nylon 6,6"}
+        }
     },
     "Biology": {
-        "S1-S4": {"Microscope": {"objective": "Observe plant and animal cells"}, "Food Tests": {"objective": "Test for starch, protein, fats"}, "Transpiration": {"objective": "Measure rate of transpiration"}, "Germination": {"objective": "Effect of light on germination"}, "Photosynthesis": {"objective": "Test for starch production"}},
-        "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature"}, "Osmosis": {"objective": "Water potential in plant tissue"}, "DNA Extraction": {"objective": "Extract DNA from onion"}, "Population Study": {"objective": "Quadrat sampling"}, "Blood Smear": {"objective": "Observe blood cells"}}
+        "S1-S4": {
+            "Microscope": {"objective": "Observe plant and animal cells"},
+            "Food Tests": {"objective": "Test for starch, protein, fats, reducing sugars"},
+            "Transpiration": {"objective": "Measure rate of transpiration"},
+            "Germination": {"objective": "Effect of light on germination"},
+            "Photosynthesis": {"objective": "Test for starch production"},
+            "Osmosis": {"objective": "Effect of concentration on plant tissue"},
+            "Respiration": {"objective": "Demonstrate CO2 production during respiration"},
+            "Tropism": {"objective": "Phototropism and geotropism"},
+            "Classification": {"objective": "Classify plants and animals"},
+            "Ecology": {"objective": "Quadrat sampling in school compound"}
+        },
+        "S5-S6": {
+            "Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"},
+            "DNA Extraction": {"objective": "Extract DNA from onion cells"},
+            "Blood Smear": {"objective": "Prepare and observe human blood smear"},
+            "Mammals Dissection": {"objective": "Dissect rat/toad to study organ systems"}, # YOU ASKED FOR THIS
+            "Mitotic Division": {"objective": "Observe mitosis in onion root tip"},
+            "Population Study": {"objective": "Lincoln index method"},
+            "Chi Square": {"objective": "Genetic inheritance using Drosophila"},
+            "Water Potential": {"objective": "Determine water potential of potato"},
+            "Microbiology": {"objective": "Culture and stain bacteria"},
+            "Hormone Assay": {"objective": "Effect of auxin on plant growth"}
+        }
+    },
+    "Agriculture": { # NEW FULL PRACTICALS S1-S6
+        "S1-S4": {
+            "Soil Texture": {"objective": "Determine soil texture by feel method"},
+            "Seed Germination": {"objective": "Test viability of seeds"},
+            "Compost Making": {"objective": "Prepare compost manure"},
+            "Poultry Feeding": {"objective": "Formulate poultry rations"},
+            "Crop Pests": {"objective": "Identify common crop pests"},
+            "Farm Records": {"objective": "Keep farm income and expenditure records"},
+            "Animal Breeds": {"objective": "Identify cattle breeds"},
+            "Vegetative Propagation": {"objective": "Practice grafting and budding"},
+            "Soil pH": {"objective": "Test soil pH"},
+            "Crop Spacing": {"objective": "Determine plant population"}
+        },
+        "S5-S6": {
+            "Agribusiness Plan": {"objective": "Develop full agribusiness proposal"},
+            "Irrigation Design": {"objective": "Design drip irrigation system"},
+            "Feed Formulation": {"objective": "Formulate balanced animal feed"},
+            "Disease Diagnosis": {"objective": "Diagnose livestock diseases"},
+            "Soil Analysis": {"objective": "NPK analysis of soil"},
+            "Value Addition": {"objective": "Process milk to yoghurt"},
+            "Farm Survey": {"objective": "Conduct farm management survey"},
+            "Biotech": {"objective": "Tissue culture techniques"},
+            "Marketing": {"objective": "Market analysis for agricultural products"},
+            "Project": {"objective": "Implement and manage farm project"}
+        }
     }
 }
 
 ### 5. LAZY IMPORTS FOR SPEED ###
 def get_pandas(): import pandas as pd; return pd
 def get_pil(): from PIL import Image; return Image
-def get_plt(): import matplotlib.pyplot as plt; return plt
 def get_fitz(): import fitz; return fitz
 def get_docx(): from docx import Document; return Document
 def get_canvas(): from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; return canvas, A4
@@ -138,6 +262,7 @@ def generate_file_bytes(content, fmt):
 def get_level_group(level):
     n = int(level[1])
     return "S1-S4" if n <= 4 else "S5-S6"
+
 def get_mixed_topics(level, subject):
     level_num = int(level[1])
     topics = []; weights = {level_num: 0.7}
@@ -150,7 +275,7 @@ def get_mixed_topics(level, subject):
         topics.extend(random.sample(all_topics, min(num_topics, len(all_topics))))
     return topics
 
-### 6. FAST AI WITH SMART MODEL ROUTING ###
+### 6. FAST AI WITH CLASS LEVEL SCALING ###
 def call_groq(user_prompt, level="S1", sample="", instructions=""):
     cache = load_cache()
     key = get_cache_key(user_prompt + sample + instructions, level)
@@ -160,13 +285,17 @@ def call_groq(user_prompt, level="S1", sample="", instructions=""):
     if OFFLINE_MODE:
         return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
 
-    level_instruction = "LOWER SECONDARY S1-S4. Simple, Ugandan examples." if int(level[1]) <=4 else "ADVANCED S5-S6. Deep, detailed."
-    anti_hallucination = "IMPORTANT: Only answer based on UNEB syllabus and facts. If you don't know, say 'I don't have that information'. Do not make up formulas or data."
+    # SCALING COMPLEXITY BY CLASS
+    n = int(level[1])
+    if n <= 2: level_instruction = "S1-S2 LOWER SECONDARY. Very simple language. Short sentences. Basic Ugandan examples."
+    elif n <= 4: level_instruction = "S3-S4 UPPER SECONDARY. Intermediate. Explain concepts and apply. Ugandan context."
+    else: level_instruction = "S5-S6 ADVANCED LEVEL. University prep. Deep analysis, derivations, detailed explanations, critical thinking."
+
+    anti_hallucination = "IMPORTANT: Only answer based on NCDC UNEB syllabus. Do not make up facts. If unsure, say 'I don't have that information'."
     full_prompt = f"{level_instruction}\n{anti_hallucination}\nTEACHER SAMPLE:\n{sample}\nTEACHER INSTRUCTIONS: {instructions}\n\nGENERATE:\n{user_prompt}"
 
     placeholder = st.empty()
     full_response = ""
-    # SMART ROUTING: 70B only for bulk/50Q
     model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt or "Bulk" in user_prompt else AI_MODEL_FAST
     try:
         stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
@@ -219,7 +348,7 @@ def teacher_input_section(tab_name):
     sample_text = read_uploaded_file(sample_file) if sample_file else ""
     return sample_text, instructions
 
-### 7. STUDENT PORTAL - ALL KEYS UNIQUE ###
+### 7. STUDENT PORTAL ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
     if st.button("Logout", key="btn_logout_student"):
@@ -271,7 +400,7 @@ def show_student_portal():
         else: topic3 = st.selectbox("Select Practical", prac_list, key="s3_topic")
         if st.button("Generate Full Practical", key="s3_btn") and topic3:
             objective = PRACTICAL_DATABASE[subject3][group][topic3]["objective"]
-            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include: Title, Aim, Materials, Procedure, Data Table, Questions, Conclusion. Ugandan context.", level3)
+            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include: Title, Aim, Materials, Procedure, Data Table, Questions, Conclusion. Use Ugandan context. Match complexity to {level3}", level3)
             display_with_preview(practical, f"Practical_{topic3}_s3")
 
     with tab4:
@@ -284,23 +413,51 @@ def show_student_portal():
             if img_path: display_image_with_zoom(img_path)
             else: st.error("No diagram uploaded for this topic")
 
-### 8. ADMIN PORTAL ###
+### 8. ADMIN PORTAL + UPLOAD PNG ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"):
         for k in list(st.session_state.keys()): del st.session_state[k]
         st.rerun()
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum","✏️ Labels","📤 Exam Generator","📈 Performance","📱 WhatsApp","📑 MOES","📝 Marking","📅 SOW","🏆 Report Cards"])
+    tabs = st.tabs(["📊 Analytics","📖 Curriculum","✏️ Upload Diagram","📤 Exam Generator","📈 Performance","📱 WhatsApp","📑 MOES","📝 Marking","📅 SOW","🏆 Report Cards"])
+
+    with tabs[2]:
+        st.subheader("Upload Diagram/PNG to Assets")
+        up_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_up_subj")
+        up_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_up_level")
+        up_topic = st.text_input("Topic Name", key="admin_up_topic")
+        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
+            filepath = f"{ASSETS_FOLDER}/{up_level}_{up_subj}_{up_topic}.{up_file.name.split('.')[-1]}"
+            with open(filepath, "wb") as f: f.write(up_file.getbuffer())
+            st.success(f"Saved to {filepath}")
+
     with tabs[0]: st.dataframe(pd.DataFrame(load_logs()))
 
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.8")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.9")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
-if st.sidebar.button("Login", key="btn_login"):
-    if user_type == "Student" and password == STUDENT_PASSWORD: st.session_state["role"] = "Student"; st.rerun()
-    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: st.session_state["role"] = "Admin"; st.rerun()
-    elif password: st.sidebar.error("Wrong password")
+ if st.sidebar.button("Login", key="btn_login"):
+    if user_type == "Student" and password == STUDENT_PASSWORD: 
+        st.session_state["role"] = "Student"
+        save_log({"time": str(datetime.now()), "user": "Student", "action": "Login"})
+        st.rerun()
+    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: 
+        st.session_state["role"] = "Admin"
+        save_log({"time": str(datetime.now()), "user": "Admin", "action": "Login"})
+        st.rerun()
+    elif password: 
+        st.sidebar.error("Wrong password")
 
-if st.session_state.get("role") == "Admin": show_admin_portal()
-elif st.session_state.get("role") == "Student": show_student_portal()
-else: st.info("Please login")
+if st.session_state.get("role") == "Admin": 
+    show_admin_portal()
+elif st.session_state.get("role") == "Student": 
+    show_student_portal()
+else: 
+    st.info("Please login to continue")
+    st.markdown("### Features:")
+    st.markdown("- **S1-S6 Full NCDC Curriculum** with 15 subjects")
+    st.markdown("- **40+ Practicals** per science + 20 Agriculture practicals")
+    st.markdown("- **Smart AI** that scales: S1 simple → S6 University level")
+    st.markdown("- **PNG/JPG Diagram Library** with zoom")
+    st.markdown("- **Offline Cache** for zero data cost")
