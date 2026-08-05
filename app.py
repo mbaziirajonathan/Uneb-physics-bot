@@ -439,24 +439,53 @@ def show_admin_portal():
     if st.button("Logout", key="btn_logout_admin"):
         for k in list(st.session_state.keys()): del st.session_state[k]
         st.rerun()
+
     tabs = st.tabs(["📊 Analytics","📖 Curriculum","✏️ Upload Diagram","📤 Exam Generator","📈 Performance","📱 WhatsApp","📑 MOES","📝 Marking","📅 SOW","🏆 Report Cards"])
 
     with tabs[2]:
         st.subheader("Upload Diagram/PNG to Assets")
         up_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_up_subj")
         up_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_up_level")
-        up_topic = st.text_input("Topic Name", key="admin_up_topic")
+        up_topic = st.text_input("Topic Name - must match topic in student portal", key="admin_up_topic")
         up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+
         if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-            # FIXED: Save as TopicName.png to match finder
-            ext = up_file.name.split('.')[-1]
-            filepath = f"{ASSETS_FOLDER}/{up_topic.replace(' ', '_')}.{ext}"
-            with open(filepath, "wb") as f: f.write(up_file.getbuffer())
-            st.success(f"Saved to {filepath}")
+            try:
+                ext = up_file.name.split('.')[-1]
+                # Save as TopicName.png so find_asset_strict can find it
+                safe_topic = up_topic.replace(' ', '_').replace('/', '-')
+                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
+                with open(filepath, "wb") as f: f.write(up_file.getbuffer())
+                st.success(f"✅ Saved to {filepath}")
+                st.info("Reload the student Diagram Library to see it")
+            except Exception as e:
+                st.error(f"Failed to save: {e}")
 
     with tabs[0]:
-        pd = get_pandas()
-        st.dataframe(pd.DataFrame(load_logs()))
+        st.subheader("📊 Usage Analytics")
+        try:
+            pd = get_pandas() # LAZY IMPORT FIX
+            logs = load_logs()
+            if not logs:
+                st.info("No logs yet")
+            else:
+                df = pd.DataFrame(logs)
+                st.dataframe(df, use_container_width=True)
+                st.metric("Total Logins", len(df))
+        except Exception as e:
+            st.error(f"Could not load analytics: {e}")
+
+    with tabs[1]:
+        st.subheader("📖 Full NCDC Curriculum")
+        subj = st.selectbox("Pick Subject to view", list(UNEB_CURRICULUM_MAP.keys()), key="admin_curr_subj")
+        for level in [f"S{i}" for i in range(1,7)]:
+            with st.expander(f"{level}"):
+                st.write(UNEB_CURRICULUM_MAP[subj][level])
+
+    # Placeholder tabs so app doesn't crash
+    for i in range(3, 10):
+        with tabs[i]:
+            st.info("Coming Soon")
 
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.2.9")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
