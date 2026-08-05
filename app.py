@@ -1,34 +1,20 @@
 import streamlit as st
-import pandas as pd
 
 st.set_page_config(page_title="UNEB TUTOR TEST", layout="wide")
-
-st.title("🎓 DIGITAL UNEB TUTOR 2026 - BOOT TEST")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 - BOOT TEST 3.14")
 
 try:
-    STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
-    ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
-    GROQ_API_KEY_1 = st.secrets["GROQ_API_KEY_1"]
-    st.success("Secrets loaded OK")
-except Exception as e:
-    st.error(f"Secrets error: {e}")
-    st.stop()
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    st.success("Secrets OK")
+except: 
+    st.warning("Add GROQ_API_KEY to secrets")
 
-user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"])
-password = st.sidebar.text_input("Password", type="password")
+if st.button("Test Groq"):
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        st.success("Groq works on Python 3.14")
+    except Exception as e:
+        st.error(f"Groq failed: {e}")
 
-if st.sidebar.button("Login"):
-    if user_type == "Student" and password == STUDENT_PASSWORD: 
-        st.session_state["role"] = "Student"
-        st.rerun()
-    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: 
-        st.session_state["role"] = "Admin"
-        st.rerun()
-    elif password: 
-        st.sidebar.error("Wrong password")
-
-if st.session_state.get("role"):
-    st.write(f"Logged in as: {st.session_state['role']}")
-    st.write("App boots successfully. Streamlit 1.37.1 working")
-else:
-    st.info("Please login to continue")
+st.info("If this loads, the problem was pandas/pillow. We add them back later with cloud workarounds")
