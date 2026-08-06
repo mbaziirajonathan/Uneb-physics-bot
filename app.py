@@ -224,13 +224,15 @@ def generate_diagram_ai(topic, subject, level):
     cache_key = f"diagram_{sanitize(topic)}_{subject}_{level}"
     if cache_key in DIAGRAM_CACHE: return DIAGRAM_CACHE[cache_key]
 
+    # FIXED: escaped braces with double {{
     prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 diagram formats.
-Return ONLY valid JSON: {{"type": "mermaid", "title": "...", "mermaid": "graph TD\nA-->B"}, "ascii": "text diagram"}
+Return ONLY valid JSON: {{"type": "mermaid", "title": "...", "mermaid": "graph TD\\nA-->B", "ascii": "text diagram"}}
 Rules: Mermaid must be valid. ASCII must be <20 lines. Use Ugandan examples if relevant."""
 
     diagram_json = call_groq(prompt, level, instructions="Output ONLY JSON. No explanation.")
     try:
-        data = json.loads(diagram_json.split("```json")[-1].split("```")[0])
+        cleaned = diagram_json.split("```json")[-1].split("```")[0]
+        data = json.loads(cleaned)
         DIAGRAM_CACHE[cache_key] = data
         return data
     except:
