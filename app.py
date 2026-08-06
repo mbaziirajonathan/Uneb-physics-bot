@@ -1,12 +1,11 @@
 import streamlit as st
-import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading, base64
+import os, io, json, re, time, difflib, requests, random, hashlib, threading
 from datetime import datetime
 from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
-import pathlib
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.4.2-NCDC-SCALABLE-BASE64")
+st.sidebar.caption("Build: V5.4.4-AI-MERMAID-ANY-TOPIC")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -21,35 +20,20 @@ DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
 LOG_FILE = f"{DATA_PATH}/usage_log.json"
 CACHE_FILE = f"{DATA_PATH}/ai_cache.json"
 PARENTS_FILE = f"{DATA_PATH}/parents.json"
-DIAGRAMS_TXT = f"{DATA_PATH}/diagrams.txt"
+
+def save_db(file,data):
+    with open(file,"w") as f: json.dump(data,f,indent=2)
 
 for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
     if not os.path.exists(f):
-        with open(f, "w") as fp: json.dump(default, fp)
-if not os.path.exists(DIAGRAMS_TXT):
-    with open(DIAGRAMS_TXT, "w", encoding="utf-8") as fp: fp.write("# FORMAT: topic:data:image/png;base64,...\n")
+        save_db(f, default)
 
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
-### 1B. DIAGRAM BANK - LOADS FROM diagrams.txt ###
-DIAGRAM_BANK = {}
+### 1B. DIAGRAM CACHE - AI GENERATED MERMAID/ASCII ###
+DIAGRAM_CACHE = {}
 
-def load_diagram_bank():
-    global DIAGRAM_BANK
-    DIAGRAM_BANK = {}
-    if os.path.exists(DIAGRAMS_TXT):
-        with open(DIAGRAMS_TXT, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"): continue
-                if ":" in line:
-                    key, b64 = line.split(":", 1)
-                    DIAGRAM_BANK[sanitize(key)] = b64.strip()
-    st.sidebar.info(f"📁 Diagrams Embedded: {len(DIAGRAM_BANK)}")
-
-load_diagram_bank()
-
-### 2. TTL CACHE CLASS + SCALING LOGIC ###
+### 2. TTL CACHE CLASS ###
 class TTLSchoolCache:
     def __init__(self, ttl_seconds: int = 86400, similarity_threshold: float = 0.75):
         self.ttl = ttl_seconds
@@ -63,15 +47,13 @@ class TTLSchoolCache:
                 data = json.load(f)
                 now = time.time()
                 clean_data = {k:v for k,v in data.items() if now < v["expires_at"]}
-                if len(clean_data)!= len(data):
-                    self.save_to_disk(clean_data)
+                if len(clean_data)!= len(data): self.save_to_disk(clean_data)
                 return clean_data
         return {}
 
     def save_to_disk(self, data=None):
         if data is None: data = self.cache
-        with open(self.cache_file, "w") as f:
-            json.dump(data, f, indent=2)
+        save_db(self.cache_file, data)
 
     def _clean_text(self, text: str) -> str:
         text = text.strip().lower()
@@ -90,10 +72,8 @@ class TTLSchoolCache:
         now = time.time()
         if clean_question in self.cache:
             item = self.cache[clean_question]
-            if now < item["expires_at"]:
-                return item["answer"]
-            else:
-                del self.cache[clean_question]
+            if now < item["expires_at"]: return item["answer"]
+            else: del self.cache[clean_question]
         best_match = None; best_score = 0; expired_keys = []
         for cached_q, item in self.cache.items():
             if now >= item["expires_at"]: expired_keys.append(cached_q); continue
@@ -144,29 +124,45 @@ CORE RULES:
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.2\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.4\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
-### 4. FULL NCDC CURRICULUM S1-S6 ###
+### 4. ALL 15 SUBJECTS NCDC S1-S6 ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Sets", "Number Bases"], "S2": ["Rates", "Percentages"], "S3": ["Quadratics", "Trigonometry"], "S4": ["Functions", "Vectors"], "S5": ["Differentiation", "Integration"], "S6": ["Mechanics", "Statistics III"]},
-    "Physics": {"S1": ["Measurement", "Forces"], "S2": ["Light I", "Sound"], "S3": ["Magnetism II", "Electricity II"], "S4": ["Electronics", "Waves II"], "S5": ["Optics II", "Current Electricity II"], "S6": ["Electric Fields", "Magnetic Fields"]},
-    "Chemistry": {"S1": ["Atoms", "Elements"], "S2": ["Acids Alkalis", "Salts"], "S3": ["Bonding", "Structure"], "S4": ["REDOX", "Energy Changes"], "S5": ["Kinetics", "Equilibrium II"], "S6": ["Electrochemistry", "Organic II"]},
-    "Biology": {"S1": ["Cells", "Classification"], "S2": ["Respiration II", "Excretion"], "S3": ["Genetics I", "Evolution"], "S4": ["Photosynthesis", "Hormones I"], "S5": ["Cell Biology", "Genetics III"], "S6": ["Hormones II", "Coordination"]},
-    "Agriculture": {"S1": ["Introduction to Agriculture", "Soil Formation"], "S2": ["Soil Properties", "Livestock Production"], "S3": ["Soil Conservation", "Plant Nutrition"], "S4": ["Animal Health", "Breeding"], "S5": ["Agribusiness", "Farm Planning"], "S6": ["Agricultural Research", "Biotechnology in Agriculture"]},
+    "Mathematics": {"S1": ["Sets","Number Bases","Integers"], "S2": ["Rates","Percentages","Algebra"], "S3": ["Quadratics","Trigonometry","Probability"], "S4": ["Functions","Vectors","Matrices"], "S5": ["Differentiation","Integration","Binomial"], "S6": ["Mechanics","Statistics III","Complex Numbers"]},
+    "Physics": {"S1": ["Measurement","Forces","Energy"], "S2": ["Light I","Sound","Pressure"], "S3": ["Magnetism II","Electricity II","Heat"], "S4": ["Electronics","Waves II","Radioactivity"], "S5": ["Optics II","Current Electricity II","Gravitation"], "S6": ["Electric Fields","Magnetic Fields","Nuclear Physics"]},
+    "Chemistry": {"S1": ["Atoms","Elements","Compounds"], "S2": ["Acids Alkalis","Salts","Air"], "S3": ["Bonding","Structure","Periodic Table"], "S4": ["REDOX","Energy Changes","Kinetics I"], "S5": ["Kinetics","Equilibrium II","Acids Bases II"], "S6": ["Electrochemistry","Organic II","Industrial Chemistry"]},
+    "Biology": {"S1": ["Cells","Classification","Nutrition"], "S2": ["Respiration II","Excretion","Circulation"], "S3": ["Genetics I","Evolution","Ecology"], "S4": ["Photosynthesis","Hormones I","Reproduction"], "S5": ["Cell Biology","Genetics III","Microbiology"], "S6": ["Hormones II","Coordination","Biotechnology"]},
+    "Agriculture": {"S1": ["Introduction","Soil Formation"], "S2": ["Soil Properties","Livestock"], "S3": ["Soil Conservation","Plant Nutrition"], "S4": ["Animal Health","Breeding"], "S5": ["Agribusiness","Farm Planning"], "S6": ["Research","Biotech Agriculture"]},
+    "Geography": {"S1": ["Map Reading","Weather"], "S2": ["Vegetation","Soils"], "S3": ["Population","Settlement"], "S4": ["Industrialization","Trade"], "S5": ["Climatology","Geomorphology"], "S6": ["Regional Geography","Field Work"]},
+    "History": {"S1": ["Sources of History","Early Man"], "S2": ["Kingdoms of Uganda","Colonialism"], "S3": ["WWI","Nationalism"], "S4": ["Decolonization","Cold War"], "S5": ["EA History","African Nationalism"], "S6": ["International Relations","Genocide"]},
+    "Literature": {"S1": ["Oral Literature","Poetry"], "S2": ["Novels","Drama"], "S3": ["Prose","Literary Devices"], "S4": ["African Literature","World Literature"], "S5": ["Critical Analysis","Themes"], "S6": ["Research Project","Comparative Literature"]},
+    "CRE": {"S1": ["God and Man","Bible"], "S2": ["Prophets","Jesus"], "S3": ["Church","Sacraments"], "S4": ["Christian Living","Social Issues"], "S5": ["Theology","Ethics"], "S6": ["World Religions","Christian Leadership"]},
+    "ICT": {"S1": ["Computer Basics","Word"], "S2": ["Excel","Internet"], "S3": ["Database","Programming"], "S4": ["Web Design","Graphics"], "S5": ["Networking","Systems Analysis"], "S6": ["AI","Cyber Security"]},
+    "Entrepreneurship": {"S1": ["Business Ideas","Resources"], "S2": ["Marketing","Finance"], "S3": ["Business Plan","Risk"], "S4": ["Management","Law"], "S5": ["Project","Investment"], "S6": ["Innovation","Global Trade"]},
+    "Art": {"S1": ["Drawing","Color"], "S2": ["Painting","Craft"], "S3": ["Design","Sculpture"], "S4": ["Art History","Printmaking"], "S5": ["Advanced Drawing","Portfolio"], "S6": ["Exhibition","Art Business"]},
+    "Music": {"S1": ["Notes","Rhythm"], "S2": ["Instruments","Songs"], "S3": ["Theory","Composition"], "S4": ["Music History","Performance"], "S5": ["Harmony","Arrangement"], "S6": ["Conducting","Music Technology"]},
+    "Luganda": {"S1": ["Ebigambo","Ennukuta"], "S2": ["Ekitabo","Olulimi"], "S3": ["Ennono","Ebyafaayo"], "S4": ["Ebiwandiiko","Engero"], "S5": ["Okunoonyereza","Emboozi"], "S6": ["Olulimi Olugazi","Ebyobuwangwa"]},
+    "Kiswahili": {"S1": ["Alfabeti","Maneno"], "S2": ["Sarufi","Kusoma"], "S3": ["Fasihi","Utungaji"], "S4": ["Riwaya","Michezo"], "S5": ["Uchambuzi","Insha"], "S6": ["Tafsiri","Mjadala"]}
 }
-# Add the rest of your 15 subjects here. I trimmed for length
 
-### 5. FULL PRACTICALS DATABASE ###
+### 5. ALL 10 PRACTICALS ###
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}}, "S5-S6": {"RC Circuit": {"objective": "Find time constant"}}},
-    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine concentration"}}, "S5-S6": {"Rate of Reaction": {"objective": "Determine order"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells"}}, "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH"}}},
+    "Physics": {
+        "S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity g"}},
+        "S5-S6": {"RC Circuit": {"objective": "Find time constant of RC circuit"}, "Potentiometer": {"objective": "Compare emfs of two cells"}}
+    },
+    "Chemistry": {
+        "S1-S4": {"Acid-Base Titration": {"objective": "Determine concentration of HCl"}, "Solubility": {"objective": "Investigate effect of temperature on solubility"}},
+        "S5-S6": {"Rate of Reaction": {"objective": "Determine order of reaction"}, "Electrolysis": {"objective": "Verify Faraday's laws of electrolysis"}}
+    },
+    "Biology": {
+        "S1-S4": {"Microscope Use": {"objective": "Observe plant and animal cells"}, "Food Tests": {"objective": "Test for starch, proteins, lipids, reducing sugars"}},
+        "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"}, "Plasmolysis": {"objective": "Observe osmosis in onion epidermal cells"}}
+    }
 }
 
-### 6. LAZY IMPORTS + UTILS ###
+### 6. UTILS ###
 def get_pandas(): import pandas as pd; return pd
-def get_pil(): from PIL import Image; return Image
-def get_fitz(): import fitz; return fitz
 def get_docx(): from docx import Document; return Document
 def get_canvas(): from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; return canvas, A4
 
@@ -174,8 +170,6 @@ def load_logs():
     with open(LOG_FILE) as f: return json.load(f)
 def save_log(entry):
     logs = load_logs(); logs.append(entry); save_db(LOG_FILE, logs)
-def save_db(file,data):
-    with open(file,"w") as f: json.dump(data,f,indent=2)
 
 @st.cache_data
 def generate_file_bytes(content, fmt):
@@ -185,27 +179,13 @@ def generate_file_bytes(content, fmt):
     elif fmt == "docx": Document = get_docx(); doc = Document(); doc.add_paragraph(content); buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0); return buffer.getvalue()
 
 def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
-def get_mixed_topics(level, subject): level_num = int(level[1]); topics = []; weights = {level_num: 0.7}; [weights.update({level_num-1: 0.2}) if level_num-1 >= 1 else None]; [topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], 1)) for l, w in weights.items() if f"S{l}" in UNEB_CURRICULUM_MAP[subject]]; return topics
-
-def img_to_base64(uploaded_file):
-    bytes_data = uploaded_file.getvalue()
-    b64 = base64.b64encode(bytes_data).decode()
-    return f"data:image/png;base64,{b64}"
-
-### NEW DIAGRAM SYSTEM - BASE64 FROM TXT ###
-def find_asset_strict(level, subject, topic):
-    key = sanitize(topic)
-    matches = [k for k in DIAGRAM_BANK.keys() if key in k]
-    if not matches:
-        st.warning(f"📂 No diagram for '{topic}'. Add it in Admin > Upload Diagram")
-        return None, []
-    b64_list = [DIAGRAM_BANK[m] for m in matches]
-    st.success(f"✅ Found {len(matches)} for '{topic}'")
-    return b64_list[0], b64_list
-
-def display_image_with_zoom(b64_string):
-    zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{hash(b64_string)}_{time.time()}")
-    st.image(b64_string, width=int(400 * zoom / 100))
+def get_mixed_topics(level, subject):
+    level_num = int(level[1]); topics = []; weights = {level_num: 0.7}
+    if level_num-1 >= 1: weights[level_num-1] = 0.2
+    for l, w in weights.items():
+        if f"S{l}" in UNEB_CURRICULUM_MAP[subject]:
+            topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(1, len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))))
+    return topics
 
 def display_with_preview(content, name):
     edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
@@ -214,7 +194,64 @@ def display_with_preview(content, name):
         if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
             st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}")
 
-### 7. STUDENT PORTAL ###
+### 7. AI CALL + AI DIAGRAM GENERATOR ###
+def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=False):
+    complexity = get_complexity_instructions(level)
+    anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
+    format_instruction = "IMPORTANT: Use UNEB format with SCENARIO, ITEM, TASK." if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper"]) else ""
+    full_instructions = f"{complexity}\n{anti_hallucination}\n{format_instruction}\n{instructions}"
+    cache_key = user_prompt + sample + full_instructions + level + str(force_format)
+    cached_response = ai_cache.get_answer(cache_key)
+    if cached_response: st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used."); return cached_response
+    if OFFLINE_MODE: return "❌ OFFLINE MODE: This question not in cache. Go online once."
+    full_prompt = f"{full_instructions}\nTEACHER SAMPLE:\n{sample}\n\nUSER QUESTION:\n{user_prompt}"
+    placeholder = st.empty(); full_response = ""
+    model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt else AI_MODEL_FAST
+    try:
+        stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content; placeholder.markdown(full_response + "▌")
+        placeholder.markdown(full_response)
+    except Exception as e:
+        st.error(f"AI Error: {e}")
+        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
+        full_response = res.choices[0].message.content; st.markdown(full_response)
+    ai_cache.set_answer(cache_key, full_response); st.success("✅ Saved to Local TTL Cache for 24hrs")
+    return full_response
+
+def generate_diagram_ai(topic, subject, level):
+    cache_key = f"diagram_{sanitize(topic)}_{subject}_{level}"
+    if cache_key in DIAGRAM_CACHE: return DIAGRAM_CACHE[cache_key]
+
+    prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 diagram formats.
+Return ONLY valid JSON: {{"type": "mermaid", "title": "...", "mermaid": "graph TD\nA-->B"}, "ascii": "text diagram"}
+Rules: Mermaid must be valid. ASCII must be <20 lines. Use Ugandan examples if relevant."""
+
+    diagram_json = call_groq(prompt, level, instructions="Output ONLY JSON. No explanation.")
+    try:
+        data = json.loads(diagram_json.split("```json")[-1].split("```")[0])
+        DIAGRAM_CACHE[cache_key] = data
+        return data
+    except:
+        fallback = {"type": "ascii", "title": topic, "ascii": f"Diagram for {topic}\n[AI failed to generate]", "mermaid": ""}
+        DIAGRAM_CACHE[cache_key] = fallback
+        return fallback
+
+def show_diagram(topic, subject, level):
+    st.subheader(f"Diagram: {topic}")
+    with st.spinner("Generating diagram with AI..."):
+        diag = generate_diagram_ai(topic, subject, level)
+
+    tab1, tab2 = st.tabs(["📊 Mermaid", "📝 ASCII"])
+    with tab1:
+        if diag.get("mermaid"):
+            st.markdown(f"```mermaid\n{diag['mermaid']}\n```")
+        else: st.info("No mermaid available for this topic")
+    with tab2:
+        st.code(diag.get("ascii","No ASCII available"), language="text")
+
+### 8. STUDENT PORTAL ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
     if st.button("Logout", key="btn_logout_student"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
@@ -225,10 +262,14 @@ def show_student_portal():
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s1_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s1_level")
         difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="s1_diff")
-        ask_q = st.text_area("Ask anything", key="s1_ask")
+        ask_q = st.text_area("Ask anything. Type 'diagram:Cells' to generate diagram", key="s1_ask")
         if st.button("Ask AI", key="s1_btn") and ask_q:
-            ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level)
-            display_with_preview(ans, "Answer_s1")
+            if ask_q.lower().startswith("diagram:"):
+                topic = ask_q.split(":")[1].strip()
+                show_diagram(topic, subject, level)
+            else:
+                ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level)
+                display_with_preview(ans, "Answer_s1")
 
     with tab2:
         st.subheader("Generate Content for a Topic")
@@ -249,83 +290,47 @@ def show_student_portal():
         subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="s3_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s3_level")
         group = get_level_group(level3); prac_list = list(PRACTICAL_DATABASE.get(subject3, {}).get(group, {}).keys())
-        topic3 = None if not prac_list else st.selectbox("Select Practical", prac_list, key="s3_topic")
+        if not prac_list: st.warning("No practicals for this subject/level")
+        topic3 = st.selectbox("Select Practical", prac_list, key="s3_topic") if prac_list else None
         if st.button("Generate Full Practical", key="s3_btn") and topic3:
             objective = PRACTICAL_DATABASE[subject3][group][topic3]["objective"]
-            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}.", level3)
+            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include apparatus, procedure, results table.", level3)
             display_with_preview(practical, f"Practical_{topic3}_s3")
 
     with tab4:
-        st.subheader("🖼️ Diagram Library - Base64")
+        st.subheader("🖼️ Diagram Library - AI Generated")
         subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s4_subj")
         level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s4_level")
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
-        if st.button("Load Diagram", key="s4_btn"):
-            img_b64, all_found = find_asset_strict(level4, subject4, topic4)
-            if all_found:
-                cols = st.columns(3)
-                for i, path in enumerate(all_found):
-                    with cols[i % 3]: display_image_with_zoom(path); st.caption(f"Diagram {i+1}")
+        if st.button("Generate Diagram for Topic", key="s4_btn"):
+            show_diagram(topic4, subject4, level4)
 
-### 8. ADMIN PORTAL ###
+### 9. ADMIN PORTAL ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram","📤 Exam Generator"])
+    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","🧪 Practicals Editor","📤 Exam Generator"])
 
     with tabs[0]:
         st.subheader("📊 Usage Analytics + Cache Control")
         pd = get_pandas(); logs = load_logs(); stats = ai_cache.get_stats()
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns(2)
         col1.metric("Total Actions", len(logs)); col2.metric("Cache Entries", stats['total'])
-        if st.button("Clear Entire AI Cache", type="primary"): ai_cache.clear_cache(); st.success("✅ Cache Cleared!"); st.rerun()
+        if st.button("Clear Entire AI Cache", type="primary"): ai_cache.clear_cache(); DIAGRAM_CACHE.clear(); st.success("✅ Cache Cleared!"); st.rerun()
 
     with tabs[1]:
         st.subheader("📖 NCDC Curriculum Editor")
         edit_subj = st.selectbox("Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_edit_subj")
-        st.write("Current Topics:", UNEB_CURRICULUM_MAP[edit_subj])
+        st.json(UNEB_CURRICULUM_MAP[edit_subj])
 
     with tabs[2]:
-        st.subheader("✏️ Upload Diagram to diagrams.txt")
-        st.success("Upload PNG/JPG. Appends to diagrams.txt. Permanent until next deploy")
-        up_topic = st.text_input("Topic Name: must match curriculum. e.g. Cells", key="admin_up_topic_b64")
-        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file_b64")
-        if st.button("Save Diagram", key="admin_up_btn_b64") and up_file and up_topic:
-            b64_code = img_to_base64(up_file)
-            key = sanitize(up_topic)
-            line = f'{key}:{b64_code}\n'
-            with open(DIAGRAMS_TXT, "a", encoding="utf-8") as f: f.write(line)
-            load_diagram_bank()
-            st.success(f"✅ Saved '{key}'. Total: {len(DIAGRAM_BANK)}"); st.image(up_file, width=200); st.rerun()
-        st.write(f"**Currently Embedded: {list(DIAGRAM_BANK.keys())}**")
+        st.subheader("🧪 Practicals Database")
+        st.json(PRACTICAL_DATABASE)
 
     with tabs[3]: st.subheader("📤 Bulk Exam Generator"); st.info("Coming Soon")
 
-def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=False):
-    complexity = get_complexity_instructions(level)
-    anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
-    format_instruction = "IMPORTANT: Use UNEB format with SCENARIO, ITEM, TASK." if force_format else ""
-    full_instructions = f"{complexity}\n{anti_hallucination}\n{format_instruction}\n{instructions}"
-    cache_key = user_prompt + sample + full_instructions + level + str(force_format)
-    cached_response = ai_cache.get_answer(cache_key)
-    if cached_response: st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used."); return cached_response
-    if OFFLINE_MODE: return "❌ OFFLINE MODE: This question not in cache."
-    full_prompt = f"{full_instructions}\nTEACHER SAMPLE:\n{sample}\n\nUSER QUESTION:\n{user_prompt}"
-    placeholder = st.empty(); full_response = ""
-    model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt else AI_MODEL_FAST
-    try:
-        stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content; placeholder.markdown(full_response + "▌")
-        placeholder.markdown(full_response)
-    except Exception as e:
-        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
-        full_response = res.choices[0].message.content; st.markdown(full_response)
-    ai_cache.set_answer(cache_key, full_response); st.success("✅ Saved to Local TTL Cache for 24hrs")
-    return full_response
-
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.2")
+### 10. LOGIN ###
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.4")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
