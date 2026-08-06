@@ -394,7 +394,18 @@ def show_admin_portal():
                 scan_assets_library.clear() # FORCE RESCAN
                 st.success(f"✅ Saved to {filepath}"); st.rerun()
             except Exception as e: st.error(f"Failed to save: {e}")
-        st.markdown("---"); st.write(f"**Existing Diagrams in {ASSETS_FOLDER}:
+        st.markdown("---") 
+        st.write(f"**Existing Diagrams in {ASSETS_FOLDER}:**")
+        all_assets = scan_assets_library() # Use the auto-scan function
+        if all_assets: 
+            cols = st.columns(4)
+            for i, f in enumerate(all_assets):
+                with cols[i%4]:
+                    st.image(f, width=120)
+                    st.caption(os.path.basename(f))
+        else: 
+            st.warning("assets folder is empty")
+   
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.3")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
