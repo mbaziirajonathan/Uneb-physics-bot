@@ -45,10 +45,28 @@ if not GROQ_API_KEY:
 @st.cache_resource
 def get_client(): return Groq(api_key=GROQ_API_KEY)
 client = get_client()
-
+ 
 OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE", value=False, key="toggle_offline")
 if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON")
 
+def call_groq(user_prompt, level="S1", sample="", instructions=""):
+    # NEW: Check TTL cache first
+    cached_response = ai_cache.get_answer(user_prompt + sample + instructions + level)
+    if cached_response:
+        st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used.")
+        return cached_response # <-- THIS IS INSIDE
+
+    if OFFLINE_MODE:
+        return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
+
+    # ... your groq api call code ...
+    
+    full_response = result # whatever your AI result variable is
+
+    # NEW: Save to TTL cache
+    ai_cache.set_answer(user_prompt + sample + instructions + level, full_response)
+    st.success("✅ Saved to Local TTL Cache for 24hrs")
+    return full_response # <-- THIS MUST ALSO BE INDENTED INSIDE
 def load_cache():
     with open(CACHE_FILE) as f: return json.load(f)
 def save_cache(cache):
@@ -224,6 +242,7 @@ PRACTICAL_DATABASE = {
     }
 }
 
+ 
 ### 5. LAZY IMPORTS FOR SPEED ###
 def get_pandas(): import pandas as pd; return pd
 def get_pil(): from PIL import Image; return Image
