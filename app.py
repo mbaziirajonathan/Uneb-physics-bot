@@ -486,8 +486,8 @@ def show_student_portal():
             notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty2}", level2)
             display_with_preview(notes, "Notes_s2")
         elif mode == "AOI" and st.button("Generate AOI Questions", key="s2_btn_aoi"):n
-            aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
-            display_with_preview(aoi, "AOI_s2")
+             aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
+             display_with_preview(aoi, "AOI_s2")
         elif mode == "Practicals" and st.button("Generate Practical", key="s2_btn_prac"):
             group = get_level_group(level2); prac_db = PRACTICAL_DATABASE.get(subject2, {}).get(group, {})
             prac_name = list(prac_db.keys())[0] if prac_db else topic2; objective = prac_db.get(prac_name, {}).get("objective", "")
