@@ -320,7 +320,7 @@ def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
     tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram","📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs","📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"])
-        with tabs[0]:
+    with tabs[0]:
         st.subheader("📊 Usage Analytics + Cache Control")
         try:
             pd = get_pandas()
