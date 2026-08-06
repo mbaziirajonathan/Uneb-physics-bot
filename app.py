@@ -398,22 +398,44 @@ def show_admin_portal():
             if st.button("🗑️ Delete Topic", key="btn_del_topic"): UNEB_CURRICULUM_MAP[edit_subj][edit_level].remove(del_topic); st.success(f"Deleted '{del_topic}'"); st.rerun()
         st.write("**Current Topics:**"); st.write(current_topics)
 
-# IN ADMIN TAB 3
-with tabs[2]:
-    st.subheader("✏️ Upload Diagram/PNG to Assets")
-    st.info(f"Diagrams are saved to: `{os.path.abspath(ASSETS_FOLDER)}` on server")
-    up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
-    up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
-    if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-        try:
-            ext = up_file.name.split('.')[-1]; safe_topic = sanitize(up_topic)
-            filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
-            with open(filepath, "wb") as f: f.write(up_file.getbuffer())
-            scan_assets_library.clear() # FORCE RESCAN
-            st.success(f"✅ Saved to {filepath}")
-            st.image(filepath, width=200) # Show proof it saved
-            st.rerun()
-        except Exception as e: st.error(f"Failed to save: {e}")
+    with tabs[2]:
+        st.subheader("✏️ Upload Diagram/PNG to Assets")
+        st.info(f"Diagrams are saved to: `{os.path.abspath(ASSETS_FOLDER)}` on server")
+        
+        # Debug: show what is in assets right now
+        current_files = scan_assets_library()
+        st.caption(f"Current files in assets: {[os.path.basename(f) for f in current_files]}")
+
+        up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
+        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+        
+        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
+            try:
+                ext = up_file.name.split('.')[-1]
+                safe_topic = sanitize(up_topic) # "AC Generator" -> "acgenerator"
+                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
+                
+                with open(filepath, "wb") as f: 
+                    f.write(up_file.getbuffer())
+                
+                scan_assets_library.clear() # FORCE RESCAN so it shows immediately
+                st.success(f"✅ Saved to {filepath}")
+                st.image(filepath, width=200) # Proof it saved
+                st.rerun()
+            except Exception as e: 
+                st.error(f"Failed to save: {e}")
+        
+        st.markdown("---") 
+        st.write(f"**Existing Diagrams in {ASSETS_FOLDER}:**")
+        all_assets = scan_assets_library()
+        if all_assets: 
+            cols = st.columns(4)
+            for i, f in enumerate(all_assets):
+                with cols[i%4]:
+                    st.image(f, width=120)
+                    st.caption(os.path.basename(f))
+        else: 
+            st.warning("assets folder is empty. Upload one above")
 
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.3")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
