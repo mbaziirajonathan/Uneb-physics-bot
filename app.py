@@ -1,11 +1,11 @@
-import streamlit as st 
+import streamlit as st
 import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading
 from datetime import datetime
 from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.3.0-NCDC-SMART-BALANCED")
+st.sidebar.caption("Build: V5.3.3-NCDC-SMART-AUTOASSETS")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -21,15 +21,16 @@ LOG_FILE = f"{DATA_PATH}/usage_log.json"
 CACHE_FILE = f"{DATA_PATH}/ai_cache.json"
 PARENTS_FILE = f"{DATA_PATH}/parents.json"
 
-# FIX 2: CHECK BOTH LOCAL AND /APP FOR GITHUB/RENDER
-ASSETS_FOLDER = f"{DATA_PATH}/assets" if os.path.exists(f"{DATA_PATH}/assets") else "/app/assets"
+# FIX: AUTO SCAN ASSETS. RENDER USES /APP/ASSETS
+ASSETS_FOLDER = "/app/assets" if os.path.exists("/app/assets") else "assets"
+os.makedirs(ASSETS_FOLDER, exist_ok=True)
 LABELS_FOLDER = f"{ASSETS_FOLDER}/labels"
+os.makedirs(LABELS_FOLDER, exist_ok=True)
+st.sidebar.caption(f"📁 Diagrams: {ASSETS_FOLDER}")
 
 for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
     if not os.path.exists(f):
         with open(f, "w") as fp: json.dump(default, fp)
-os.makedirs(ASSETS_FOLDER, exist_ok=True)
-os.makedirs(LABELS_FOLDER, exist_ok=True)
 
 ### 2. TTL CACHE CLASS + SCALING LOGIC ###
 class TTLSchoolCache:
@@ -115,7 +116,7 @@ client = get_client()
 OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE", value=False, key="toggle_offline")
 if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON")
 
-# FIX 1: SMART BALANCED SYSTEM PROMPT - NO MORE DRIFTING
+# SMART BALANCED SYSTEM PROMPT - NO MORE DRIFTING
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA CURRICULUM ONLY.
 CORE RULES:
 1. ALWAYS answer the question asked directly first. Be smart like ChatGPT/Meta AI.
@@ -129,7 +130,6 @@ def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=
     complexity = get_complexity_instructions(level)
     anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
 
-    # SMART WEIGHTING: Only add format instruction if needed
     format_instruction = ""
     if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper", "scenario", "item", "task"]):
         format_instruction = "IMPORTANT: Use UNEB format with SCENARIO, ITEM, TASK."
@@ -170,7 +170,7 @@ def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.3.0\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.3.3\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
 ### 4. FULL NCDC CURRICULUM S1-S6 ###
 UNEB_CURRICULUM_MAP = {
@@ -193,31 +193,37 @@ UNEB_CURRICULUM_MAP = {
 
 ### 5. FULL PRACTICALS DATABASE ###
 PRACTICAL_DATABASE = {
-    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity"}, "Refraction of Light": {"objective": "Find refractive index of glass"}, "Hooke's Law": {"objective": "Verify Hooke's Law using spring"}, "Density": {"objective": "Find density of regular and irregular solid"}, "Heat Capacity": {"objective": "Find specific heat capacity of metal"}, "Magnetic Field": {"objective": "Plot magnetic field lines"}, "Echo": {"objective": "Determine speed of sound"}, "Levers": {"objective": "Verify principle of moments"}, "Focal Length": {"objective": "Find focal length of concave lens"}}, "S5-S6": {"RC Circuit": {"objective": "Find time constant"}, "Wheatstone Bridge": {"objective": "Determine unknown resistance"}, "Photoelectric Effect": {"objective": "Determine Planck's constant"}, "Spectrometer": {"objective": "Determine wavelength"}, "Capacitance": {"objective": "Find capacitance"}, "Young's Modulus": {"objective": "Determine Young's modulus"}, "Hall Effect": {"objective": "Measure magnetic field"}, "Radioactive Decay": {"objective": "Determine half-life"}, "Interference": {"objective": "Young's double slit"}, "Resonance": {"objective": "Determine resonant frequency"}}},
-    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine concentration"}, "Solubility": {"objective": "Effect of temperature"}, "Gas Laws": {"objective": "Verify Boyle's Law"}, "Rate of Reaction": {"objective": "Effect of concentration"}, "Salt Analysis": {"objective": "Identify cations"}, "Electrolysis": {"objective": "Electrolysis of copper sulfate"}, "pH": {"objective": "Determine pH"}, "Crystallization": {"objective": "Prepare crystals"}, "Combustion": {"objective": "Heat of combustion"}, "Chromatography": {"objective": "Separate ink"}}, "S5-S6": {"Rate of Reaction": {"objective": "Determine order"}, "Electrolysis Quantitative": {"objective": "Verify Faraday's Laws"}, "Organic Prep": {"objective": "Prepare Ethyl Ethanoate"}, "Enthalpy": {"objective": "Heat of neutralization"}, "Redox Titration": {"objective": "Determine molarity"}, "Buffer Solution": {"objective": "Test buffer capacity"}, "Qualitative Analysis": {"objective": "Analysis of mixture"}, "Distillation": {"objective": "Fractional distillation"}, "Spectrophotometry": {"objective": "Beer-Lambert"}, "Polymerization": {"objective": "Prepare nylon"}}},
-    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells"}, "Food Tests": {"objective": "Test for starch"}, "Transpiration": {"objective": "Measure rate"}, "Germination": {"objective": "Effect of light"}, "Photosynthesis": {"objective": "Test for starch"}, "Osmosis": {"objective": "Effect of concentration"}, "Respiration": {"objective": "Demonstrate CO2"}, "Tropism": {"objective": "Phototropism"}, "Classification": {"objective": "Classify plants"}, "Ecology": {"objective": "Quadrat sampling"}}, "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH"}, "DNA Extraction": {"objective": "Extract DNA"}, "Blood Smear": {"objective": "Observe blood"}, "Mammals Dissection": {"objective": "Dissect rat/toad"}, "Mitotic Division": {"objective": "Observe mitosis"}, "Population Study": {"objective": "Lincoln index"}, "Chi Square": {"objective": "Genetic inheritance"}, "Water Potential": {"objective": "Determine water potential"}, "Microbiology": {"objective": "Culture bacteria"}, "Hormone Assay": {"objective": "Effect of auxin"}}},
-    "Agriculture": {"S1-S4": {"Soil Texture": {"objective": "Determine soil texture"}, "Seed Germination": {"objective": "Test viability"}, "Compost Making": {"objective": "Prepare compost"}, "Poultry Feeding": {"objective": "Formulate rations"}, "Crop Pests": {"objective": "Identify pests"}, "Farm Records": {"objective": "Keep records"}, "Animal Breeds": {"objective": "Identify breeds"}, "Vegetative Propagation": {"objective": "Practice grafting"}, "Soil pH": {"objective": "Test soil pH"}, "Crop Spacing": {"objective": "Determine population"}}, "S5-S6": {"Agribusiness Plan": {"objective": "Develop proposal"}, "Irrigation Design": {"objective": "Design drip"}, "Feed Formulation": {"objective": "Formulate feed"}, "Disease Diagnosis": {"objective": "Diagnose diseases"}, "Soil Analysis": {"objective": "NPK analysis"}, "Value Addition": {"objective": "Process milk"}, "Farm Survey": {"objective": "Conduct survey"}, "Biotech": {"objective": "Tissue culture"}, "Marketing": {"objective": "Market analysis"}, "Project": {"objective": "Manage project"}}}
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity"}, "Refraction of Light": {"objective": "Find refractive index of glass"}, "Hooke's Law": {"objective": "Verify Hooke's Law using spring"}, "Density": {"objective": "Find density of regular and irregular solid"}}, "S5-S6": {"RC Circuit": {"objective": "Find time constant"}, "Wheatstone Bridge": {"objective": "Determine unknown resistance"}}},
+    "Chemistry": {"S1-S4": {"Titration": {"objective": "Determine concentration"}, "Solubility": {"objective": "Effect of temperature"}}, "S5-S6": {"Rate of Reaction": {"objective": "Determine order"}, "Electrolysis Quantitative": {"objective": "Verify Faraday's Laws"}}},
+    "Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells"}, "Food Tests": {"objective": "Test for starch"}}, "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH"}, "DNA Extraction": {"objective": "Extract DNA"}}},
+    "Agriculture": {"S1-S4": {"Soil Texture": {"objective": "Determine soil texture"}, "Seed Germination": {"objective": "Test viability"}}, "S5-S6": {"Agribusiness Plan": {"objective": "Develop proposal"}, "Irrigation Design": {"objective": "Design drip"}}}
 }
 
-### 6. LAZY IMPORTS ###
+### 6. LAZY IMPORTS + UTILS ###
 def get_pandas(): import pandas as pd; return pd
 def get_pil(): from PIL import Image; return Image
 def get_fitz(): import fitz; return fitz
 def get_docx(): from docx import Document; return Document
 def get_canvas(): from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; return canvas, A4
 
-def load_logs(): 
-    with open(LOG_FILE) as f: 
+def load_logs():
+    with open(LOG_FILE) as f:
         return json.load(f)
 
-def save_log(entry): 
+def save_log(entry):
     logs = load_logs()
     logs.append(entry)
     save_db(LOG_FILE, logs)
 
-def save_db(file,data): 
-    with open(file,"w") as f: 
+def save_db(file,data):
+    with open(file,"w") as f:
         json.dump(data,f,indent=2)
+
+def read_uploaded_file(uploaded_file):
+    if uploaded_file.name.endswith(".pdf"): fitz = get_fitz(); doc = fitz.open(stream=uploaded_file.read(), filetype="pdf"); return "\n".join([page.get_text() for page in doc])
+    elif uploaded_file.name.endswith(".docx"): Document = get_docx(); doc = Document(uploaded_file); return "\n".join([p.text for p in doc.paragraphs])
+    elif uploaded_file.name.endswith(".txt"): return uploaded_file.read().decode()
+    return ""
 
 @st.cache_data
 def generate_file_bytes(content, fmt):
@@ -230,17 +236,23 @@ def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
 def get_mixed_topics(level, subject): level_num = int(level[1]); topics = []; weights = {level_num: 0.7}; [weights.update({level_num-1: 0.2}) if level_num-1 >= 1 else None]; [weights.update({level_num-2: 0.1}) if level_num-2 >= 1 else None]; [topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(max(1, int(len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]) * w)), len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))) ) for l, w in weights.items()]; return topics
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
-@st.cache_data(ttl=60)
-def get_all_assets(): return glob.glob(f"{ASSETS_FOLDER}/*.*") + glob.glob(f"/app/assets/*.*")
+# AUTO SCAN ASSETS LIBRARY EVERY 5 SECONDS
+@st.cache_data(ttl=5)
+def scan_assets_library():
+    files = []
+    for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
+        files.extend(glob.glob(f"{ASSETS_FOLDER}/{ext}"))
+    return sorted(files)
 
-# FIX 2: BETTER ASSET FINDER FOR GITHUB
 def find_asset_strict(level, subject, topic):
-    assets = get_all_assets()
+    assets = scan_assets_library()
+    if not assets:
+        st.warning(f"📂 Assets folder is empty: `{ASSETS_FOLDER}`")
+        return None, []
     topic_clean = sanitize(topic)
-    st.info(f"🔍 Searching in: {ASSETS_FOLDER}") # DEBUG LINE
     matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
     if not matches: matches = [p for p in assets if sanitize(subject) in sanitize(os.path.basename(p))]
-    if not matches: matches = [p for p in assets if p.lower().endswith(('.png','.jpg','.jpeg'))]
+    st.caption(f"Scanned {len(assets)} diagrams. Found {len(matches)} for '{topic}'")
     return (matches[0], matches) if matches else (None, [])
 
 def display_image_with_zoom(img_path):
@@ -250,7 +262,10 @@ def display_image_with_zoom(img_path):
 
 def display_with_preview(content, name):
     edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
-    cols = st.columns(4); [cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}") and st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}") for i, fmt in enumerate(["pdf","excel","html","docx"])]
+    cols = st.columns(4)
+    for i, fmt in enumerate(["pdf","excel","html","docx"]):
+        if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
+            st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}")
 
 ### 7. STUDENT PORTAL ###
 def show_student_portal():
@@ -265,7 +280,7 @@ def show_student_portal():
         difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="s1_diff")
         ask_q = st.text_area("Ask anything", key="s1_ask")
         if st.button("Ask AI", key="s1_btn") and ask_q:
-            ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level) # NO force_format
+            ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level)
             display_with_preview(ans, "Answer_s1")
 
     with tab2:
@@ -287,10 +302,10 @@ def show_student_portal():
             prac = call_groq(f"Generate UNEB practical experiment: {prac_name}. Objective: {objective}. Include: Aim, Apparatus, Procedure, Observations, Conclusion for {level2} {subject2}", level2)
             display_with_preview(prac, f"Practical_{prac_name}_s2")
         elif mode == "Quiz" and st.button("Generate Quiz", key="s2_btn_quiz"):
-            topics = get_mixed_topics(level2, subject2); quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2, force_format=True) # FORCE FORMAT HERE
+            topics = get_mixed_topics(level2, subject2); quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2, force_format=True)
             display_with_preview(quiz, "Quiz_s2")
         elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
-            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2, force_format=True) # FORCE FORMAT HERE
+            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2, force_format=True)
             display_with_preview(exam, "BulkQuiz_s2")
 
     with tab3:
@@ -312,7 +327,9 @@ def show_student_portal():
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
         if st.button("Load Diagram", key="s4_btn"):
             img_path, all_found = find_asset_strict(level4, subject4, topic4)
-            if all_found: st.success(f"Found {len(all_found)} diagram(s) in {ASSETS_FOLDER}"); cols = st.columns(3); [display_image_with_zoom(path) or st.caption(os.path.basename(path)) for i, path in enumerate(all_found) for _ in [cols[i % 3]]]
+            if all_found: st.success(f"Found {len(all_found)} diagram(s)"); cols = st.columns(3)
+            for i, path in enumerate(all_found):
+                with cols[i % 3]: display_image_with_zoom(path); st.caption(os.path.basename(path))
             else: st.error(f"No diagrams found in {ASSETS_FOLDER}. Upload one in Admin Portal")
 
 ### 8. ADMIN PORTAL ###
@@ -320,40 +337,33 @@ def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
     tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram","📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs","📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"])
+
     with tabs[0]:
         st.subheader("📊 Usage Analytics + Cache Control")
         try:
             pd = get_pandas()
             logs = load_logs()
             stats = ai_cache.get_stats()
-
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Total Actions", len(logs))
             col2.metric("Students", len([l for l in logs if l['user']=="Student"]))
             col3.metric("Cache Entries", stats['total'])
             col4.metric("Active Cache", stats['active'])
-
             if logs:
                 df = pd.DataFrame(logs)
                 df['time'] = pd.to_datetime(df['time'])
                 st.dataframe(df, use_container_width=True)
-
             st.markdown("---")
             st.subheader("🗑️ Cache Management")
-            st.warning("Clearing cache will force AI to regenerate answers. Use if AI gave wrong info.")
-
             if st.button("Clear Entire AI Cache", type="primary", key="btn_clear_cache"):
                 ai_cache.clear_cache()
-                st.success("✅ Cache Cleared Successfully! All 24hr cached answers deleted.")
+                st.success("✅ Cache Cleared Successfully!")
                 st.rerun()
-
-        except Exception as e: # <-- THIS IS LINE 344
+        except Exception as e:
             st.error(f"Analytics Error: {e}")
 
-    # TAB 2: CURRICULUM/SYLLABUS EDITOR
     with tabs[1]:
         st.subheader("📖 NCDC Curriculum Editor")
-        st.warning("Changes here affect what students see. Be careful.")
         edit_subj = st.selectbox("1. Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_edit_subj")
         edit_level = st.selectbox("2. Pick Class", [f"S{i}" for i in range(1,7)], key="admin_edit_level")
         current_topics = UNEB_CURRICULUM_MAP[edit_subj][edit_level]
@@ -370,87 +380,22 @@ def show_admin_portal():
         with tab_c:
             del_topic = st.selectbox("Select Topic to Delete", current_topics, key="admin_del_topic")
             if st.button("🗑️ Delete Topic", key="btn_del_topic"): UNEB_CURRICULUM_MAP[edit_subj][edit_level].remove(del_topic); st.success(f"Deleted '{del_topic}'"); st.rerun()
-        st.markdown("---"); st.write("**Current Topics:**"); st.write(current_topics)
+        st.write("**Current Topics:**"); st.write(current_topics)
 
-    # TAB 3: UPLOAD DIAGRAM
     with tabs[2]:
         st.subheader("✏️ Upload Diagram/PNG to Assets")
         up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
         up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
         if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
             try:
-                ext = up_file.name.split('.')[-1]; safe_topic = up_topic.replace(' ', '_').replace('/', '-')
+                ext = up_file.name.split('.')[-1]; safe_topic = sanitize(up_topic)
                 filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
                 with open(filepath, "wb") as f: f.write(up_file.getbuffer())
+                scan_assets_library.clear() # FORCE RESCAN
                 st.success(f"✅ Saved to {filepath}"); st.rerun()
             except Exception as e: st.error(f"Failed to save: {e}")
-        st.markdown("---"); st.write("**Existing Diagrams in assets/:**")
-        all_assets = get_all_assets()
-        if all_assets: [st.write(f"- {os.path.basename(f)}") or st.image(f, width=150) for f in all_assets]
-        else: st.warning("assets folder is empty")
-
-    # TAB 4: EXAM GENERATOR
-    with tabs[3]:
-        st.subheader("📤 Bulk Exam Generator")
-        ex_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_ex_subj")
-        ex_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_ex_level")
-        ex_topics = st.multiselect("Pick Topics", UNEB_CURRICULUM_MAP[ex_subj][ex_level], key="admin_ex_topics")
-        ex_num = st.slider("Number of Questions", 10, 100, 50)
-        if st.button("Generate Exam", key="btn_gen_exam") and ex_topics:
-            prompt = f"Generate {ex_num} UNEB questions from: {ex_topics}. For {ex_level} {ex_subj}"
-            exam = call_groq(prompt, ex_level, force_format=True) # FORCE UNEB FORMAT
-            display_with_preview(exam, f"Exam_{ex_subj}_{ex_level}")
-
-    # TAB 5: PERFORMANCE TRACKER
-    with tabs[4]:
-        st.subheader("📈 Student Performance Tracker")
-        st.info("Upload CSV of student scores to analyze")
-        perf_file = st.file_uploader("Upload scores.csv", type=["csv"], key="admin_perf_file")
-        if perf_file: pd = get_pandas(); df = pd.read_csv(perf_file); st.dataframe(df); st.bar_chart(df.set_index(df.columns[0]))
-
-    # TAB 6: WHATSAPP LOGS
-    with tabs[5]:
-        st.subheader("📱 WhatsApp Integration Logs")
-        st.text_area("Paste WhatsApp API logs here", height=300, key="wa_logs")
-        st.download_button("Download Logs", data="log data", file_name="whatsapp_logs.txt")
-
-    # TAB 7: MOES DOCS
-    with tabs[6]:
-        st.subheader("📑 MOES Document Vault")
-        moes_file = st.file_uploader("Upload MOES Circular/PDF", type=["pdf","docx"], key="admin_moes")
-        if moes_file: content = read_uploaded_file(moes_file); st.text_area("Preview", content, height=300); st.download_button("Download", data=moes_file.getvalue(), file_name=moes_file.name)
-
-    # TAB 8: MARKING GUIDE
-    with tabs[7]:
-        st.subheader("📝 AI Marking Guide Generator")
-        qn = st.text_area("Paste UNEB Question", key="admin_qn")
-        memo = st.text_area("Paste Student Answer", key="admin_memo")
-        if st.button("Generate Marking Guide", key="btn_mark"):
-            guide = call_groq(f"Create UNEB marking guide for: {qn}. Student answer: {memo}. Give points and marks", "S4", force_format=True)
-            st.write(guide)
-
-    # TAB 9: SCHEME OF WORK
-    with tabs[8]:
-        st.subheader("📅 Scheme of Work Generator")
-        sow_subj = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_sow_subj")
-        sow_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="admin_sow_level")
-        term = st.selectbox("Term", ["Term 1", "Term 2", "Term 3"])
-        if st.button("Generate SOW", key="btn_sow"):
-            topics = UNEB_CURRICULUM_MAP[sow_subj][sow_level]
-            sow = call_groq(f"Generate {term} Scheme of Work for {sow_level} {sow_subj}. Topics: {topics}. Include week, topic, objectives, activities", sow_level)
-            display_with_preview(sow, f"SOW_{sow_subj}_{sow_level}")
-
-    # TAB 10: REPORT CARDS
-    with tabs[9]:
-        st.subheader("🏆 Report Card Generator")
-        student_name = st.text_input("Student Name")
-        student_class = st.selectbox("Class", [f"S{i}" for i in range(1,7)])
-        scores_text = st.text_area("Paste Subject:Score pairs. Eg: Math:85\nPhysics:70")
-        if st.button("Generate Report Card", key="btn_report"):
-            report = call_groq(f"Generate UNEB report card for {student_name} {student_class}. Scores: {scores_text}. Include remarks and position", student_class)
-            display_with_preview(report, f"Report_{student_name}")
-
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.0")
+        st.markdown("---"); st.write(f"**Existing Diagrams in {ASSETS_FOLDER}:
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.3")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
@@ -472,5 +417,5 @@ else:
     st.markdown("- **Smart AI**: Direct answers, no more forced SCENARIO")
     st.markdown("- **S1-S6 Full NCDC Curriculum** with 15 subjects")
     st.markdown("- **40+ Practicals** per science + 20 Agriculture practicals")
-    st.markdown("- **PNG/JPG Diagram Library** with GitHub/Render path fix")
+    st.markdown("- **PNG/JPG Diagram Library** with Auto-Scan every 5s")
     st.markdown("- **Offline TTL Cache** for zero data cost")
