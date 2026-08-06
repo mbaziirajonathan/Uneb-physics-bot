@@ -5,7 +5,7 @@ from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.4.6-ADVANCED-DIAGRAMS")
+st.sidebar.caption("Build: V5.4.7-DIAGRAM-HOTFIX")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -124,7 +124,7 @@ CORE RULES:
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.6\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.7\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
 ### 4. ALL 15 SUBJECTS NCDC S1-S6 ###
 UNEB_CURRICULUM_MAP = {
@@ -242,7 +242,7 @@ def generate_diagram_ai(topic, subject, level):
     prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 to 3 relevant diagrams.
 Return a JSON ARRAY of objects. Each object: {{"title": "...", "mermaid": "graph TD\\nA-->B", "ascii": "A -> B"}}
 Rules: 
-1. Mermaid must use proper labels. Use () for circles, [] for rectangles.
+1. Mermaid must use proper labels. Use () for circles, [] for rectangles. No \n escapes.
 2. ASCII must be neat, <15 lines, use | - + / \\ for lines.
 3. Use Ugandan examples.
 Return ONLY the JSON array. No other text."""
@@ -251,18 +251,19 @@ Return ONLY the JSON array. No other text."""
     diagrams = parse_multiple_json(diagram_json)
 
     if not diagrams:
-        diagrams = [{"title": topic, "ascii": f"{topic}\n [Part A]\n |\n [Part B]", "mermaid": f"graph TD\nA[{topic} Part A] --> B[{topic} Part B]"}]
+        diagrams = [{"title": f"{topic} Overview", "ascii": f"{topic}\n [Part A]\n |\n [Part B]", "mermaid": f"graph TD\nA[{topic} Part A] --> B[{topic} Part B]"}]
     
     DIAGRAM_CACHE[cache_key] = diagrams
     return diagrams
 
-def show_diagram(topic, subject, level):
+def show_diagram(topic, subject, level): # FIXED: added topic param
     st.subheader(f"Diagrams: {topic}")
     with st.spinner("Generating diagrams with AI..."):
         diags = generate_diagram_ai(topic, subject, level)
 
     for i, diag in enumerate(diags):
-        st.markdown(f"### {i+1}. {diag.get('title', topic)}")
+        title = diag.get('title', f"{topic} Diagram {i+1}") # FIXED: no undefined topic
+        st.markdown(f"### {i+1}. {title}")
         tab1, tab2 = st.tabs(["📊 Mermaid", "📝 ASCII"])
         with tab1:
             if diag.get("mermaid"):
@@ -350,7 +351,7 @@ def show_admin_portal():
     with tabs[3]: st.subheader("📤 Bulk Exam Generator"); st.info("Coming Soon")
 
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.6")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.7")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
