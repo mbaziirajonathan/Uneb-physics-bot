@@ -320,29 +320,35 @@ def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
     tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram","📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs","📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"])
-    with tabs[0]:
-        st.subheader("📊 Usage Analytics + Cache Control"); pd = get_pandas(); logs = load_logs(); stats = ai_cache.get_stats()
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Actions", len(logs))
-        col2.metric("Students", len([l for l in logs if l['user']=="Student"]))
-        col3.metric("Cache Entries", stats['total'])
-        col4.metric("Active Cache", stats['active'])
+        with tabs[0]:
+        st.subheader("📊 Usage Analytics + Cache Control")
+        try:
+            pd = get_pandas()
+            logs = load_logs()
+            stats = ai_cache.get_stats()
 
-        if logs:
-            df = pd.DataFrame(logs)
-            df['time'] = pd.to_datetime(df['time'])
-            st.dataframe(df, use_container_width=True)
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Actions", len(logs))
+            col2.metric("Students", len([l for l in logs if l['user']=="Student"]))
+            col3.metric("Cache Entries", stats['total'])
+            col4.metric("Active Cache", stats['active'])
 
-        st.markdown("---")
-        st.subheader("🗑️ Cache Management")
-        st.warning("Clearing cache will force AI to regenerate answers. Use if AI gave wrong info.")
+            if logs:
+                df = pd.DataFrame(logs)
+                df['time'] = pd.to_datetime(df['time'])
+                st.dataframe(df, use_container_width=True)
 
-        if st.button("Clear Entire AI Cache", type="primary", key="btn_clear_cache"):
-            ai_cache.clear_cache()
-            st.success("✅ Cache Cleared Successfully! All 24hr cached answers deleted.")
-            st.rerun()
-    except Exception as e:
-        st.error(f"Analytics Error: {e}")
+            st.markdown("---")
+            st.subheader("🗑️ Cache Management")
+            st.warning("Clearing cache will force AI to regenerate answers. Use if AI gave wrong info.")
+
+            if st.button("Clear Entire AI Cache", type="primary", key="btn_clear_cache"):
+                ai_cache.clear_cache()
+                st.success("✅ Cache Cleared Successfully! All 24hr cached answers deleted.")
+                st.rerun()
+
+        except Exception as e: # <-- THIS IS LINE 344
+            st.error(f"Analytics Error: {e}")
 
     # TAB 2: CURRICULUM/SYLLABUS EDITOR
     with tabs[1]:
