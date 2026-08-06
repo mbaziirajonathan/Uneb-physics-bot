@@ -236,37 +236,39 @@ def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
 def get_mixed_topics(level, subject): level_num = int(level[1]); topics = []; weights = {level_num: 0.7}; [weights.update({level_num-1: 0.2}) if level_num-1 >= 1 else None]; [weights.update({level_num-2: 0.1}) if level_num-2 >= 1 else None]; [topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(max(1, int(len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]) * w)), len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))) ) for l, w in weights.items()]; return topics
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
-### FIX OPTION B: CHECK MULTIPLE PATHS + DEBUG ###
-POSSIBLE_ASSET_PATHS = ["assets", "/app/assets", "./assets"]
+ ### DEBUG + FORCE CREATE ASSETS ###
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔍 DEBUG PATH SCANNER")
 
-@st.cache_data(ttl=3) # Rescan every 3 seconds
+# 1. Show what Render actually sees
+root_files = os.listdir(".")
+st.sidebar.code(f"Root of /app: {root_files}")
+
+# 2. FORCE USE./assets - this always works for writes
+ASSETS_FOLDER = "./assets" 
+os.makedirs(ASSETS_FOLDER, exist_ok=True)
+st.sidebar.success(f"Saving/Reading from: {os.path.abspath(ASSETS_FOLDER)}")
+
+@st.cache_data(ttl=2) 
 def scan_assets_library(): 
     files = []
-    found_path = None
-    for p in POSSIBLE_ASSET_PATHS:
-        if os.path.exists(p):
-            found_path = p
-            for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
-                files.extend(glob.glob(f"{p}/{ext}"))
-    
-    st.sidebar.info(f"Scanning: {POSSIBLE_ASSET_PATHS} | Found in: {found_path} | Total: {len(files)}")
-    return sorted(list(set(files))) # remove duplicates
-
-ASSETS_FOLDER = POSSIBLE_ASSET_PATHS[0] # Default to "assets" for saving uploads
+    for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
+        files.extend(glob.glob(f"{ASSETS_FOLDER}/{ext}"))
+    return sorted(files)
 
 def find_asset_strict(level, subject, topic):
     assets = scan_assets_library()
+    st.sidebar.info(f"Found {len(assets)} files in {ASSETS_FOLDER}: {[os.path.basename(f) for f in assets]}")
+    
     if not assets:
-        st.warning(f"📂 Assets folder empty. Checked: {POSSIBLE_ASSET_PATHS}")
-        st.info("Fix: 1. Check GitHub has /assets/ folder 2. Re-deploy 3. Upload via Admin")
+        st.warning(f"📂 Folder `{ASSETS_FOLDER}` is empty on server")
+        st.error("Your GitHub 'assets' folder was not deployed. Use Admin Upload as workaround.")
         return None, []
 
     topic_clean = sanitize(topic) # "cells"
-    
-    # Match: cells.png, animal_cell.png
     matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
-
-    st.success(f"✅ Scanned {len(assets)} diagrams. Found {len(matches)} for '{topic}'")
+    
+    if matches: st.success(f"✅ Found {len(matches)} match for '{topic}'")
     return (matches[0], matches) if matches else (None, [])
 
 def display_image_with_zoom(img_path):
@@ -396,30 +398,23 @@ def show_admin_portal():
             if st.button("🗑️ Delete Topic", key="btn_del_topic"): UNEB_CURRICULUM_MAP[edit_subj][edit_level].remove(del_topic); st.success(f"Deleted '{del_topic}'"); st.rerun()
         st.write("**Current Topics:**"); st.write(current_topics)
 
-    with tabs[2]:
-        st.subheader("✏️ Upload Diagram/PNG to Assets")
-        up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
-        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
-        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-            try:
-                ext = up_file.name.split('.')[-1]; safe_topic = sanitize(up_topic)
-                filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
-                with open(filepath, "wb") as f: f.write(up_file.getbuffer())
-                scan_assets_library.clear() # FORCE RESCAN
-                st.success(f"✅ Saved to {filepath}"); st.rerun()
-            except Exception as e: st.error(f"Failed to save: {e}")
-        st.markdown("---") 
-        st.write(f"**Existing Diagrams in {ASSETS_FOLDER}:**")
-        all_assets = scan_assets_library() # Use the auto-scan function
-        if all_assets: 
-            cols = st.columns(4)
-            for i, f in enumerate(all_assets):
-                with cols[i%4]:
-                    st.image(f, width=120)
-                    st.caption(os.path.basename(f))
-        else: 
-            st.warning("assets folder is empty")
-   
+# IN ADMIN TAB 3
+with tabs[2]:
+    st.subheader("✏️ Upload Diagram/PNG to Assets")
+    st.info(f"Diagrams are saved to: `{os.path.abspath(ASSETS_FOLDER)}` on server")
+    up_topic = st.text_input("Topic Name - use same name as in curriculum", key="admin_up_topic")
+    up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+    if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
+        try:
+            ext = up_file.name.split('.')[-1]; safe_topic = sanitize(up_topic)
+            filepath = f"{ASSETS_FOLDER}/{safe_topic}.{ext}"
+            with open(filepath, "wb") as f: f.write(up_file.getbuffer())
+            scan_assets_library.clear() # FORCE RESCAN
+            st.success(f"✅ Saved to {filepath}")
+            st.image(filepath, width=200) # Show proof it saved
+            st.rerun()
+        except Exception as e: st.error(f"Failed to save: {e}")
+
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.3")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
