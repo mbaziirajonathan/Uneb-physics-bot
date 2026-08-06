@@ -2,8 +2,6 @@ import streamlit as st
 import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading
 from datetime import datetime
 from groq import Groq, RateLimitError
-import time
-import difflib
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
@@ -31,9 +29,105 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
 os.makedirs(ASSETS_FOLDER, exist_ok=True)
 os.makedirs(LABELS_FOLDER, exist_ok=True)
 
+### 2. TTL CACHE CLASS + SCALING LOGIC - MUST BE BEFORE ai_cache INIT ###
+class TTLSchoolCache:
+    def __init__(self, ttl_seconds: int = 86400, similarity_threshold: float = 0.75):
+        self.ttl = ttl_seconds
+        self.threshold = similarity_threshold # 75% similar = same question
+        self.cache_file = CACHE_FILE
+        self.cache = self.load_from_disk() # Load previous data, no data lost
+
+    def load_from_disk(self):
+        """Load cache from JSON so we don't lose data on restart"""
+        if os.path.exists(self.cache_file):
+            with open(self.cache_file, "r") as f:
+                data = json.load(f)
+                # Remove expired items on load
+                now = time.time()
+                clean_data = {k:v for k,v in data.items() if now < v["expires_at"]}
+                if len(clean_data)!= len(data):
+                    self.save_to_disk(clean_data) # Clean stale data
+                return clean_data
+        return {}
+
+    def save_to_disk(self, data=None):
+        """Save to disk to prevent data loss"""
+        if data is None: data = self.cache
+        with open(self.cache_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def _clean_text(self, text: str) -> str:
+        """Makes uneb = UNEB. Removes extra spaces/punctuation for better matching"""
+        text = text.strip().lower()
+        text = re.sub(r'[^a-z0-9\s]', '', text) # remove punctuation?.!
+        text = re.sub(r'\s+', ' ', text) # remove double spaces
+        return text
+
+    def set_answer(self, question: str, answer: str):
+        """Saves an answer with an expiration timestamp."""
+        clean_question = self._clean_text(question)
+        expire_at = time.time() + self.ttl
+        self.cache[clean_question] = {
+            "answer": answer,
+            "expires_at": expire_at,
+            "original_q": question
+        }
+        self.save_to_disk()
+
+    def get_answer(self, question: str) -> str:
+        """Retrieves a fresh answer. Uses fuzzy match if exact not found."""
+        clean_question = self._clean_text(question)
+        now = time.time()
+        # 1. EXACT MATCH FIRST
+        if clean_question in self.cache:
+            item = self.cache[clean_question]
+            if now < item["expires_at"]:
+                print("--- Cache Hit! Exact Match ---")
+                return item["answer"]
+            else:
+                del self.cache[clean_question]
+        # 2. FUZZY/SEMANTIC MATCH
+        best_match = None
+        best_score = 0
+        expired_keys = []
+        for cached_q, item in self.cache.items():
+            if now >= item["expires_at"]:
+                expired_keys.append(cached_q)
+                continue
+            score = SequenceMatcher(None, clean_question, cached_q).ratio()
+            if score > best_score:
+                best_score = score
+                best_match = item
+        for k in expired_keys: del self.cache[k]
+        if best_match and best_score >= self.threshold:
+            print(f"--- Cache Hit! Semantic Match: {best_score:.2f} ---")
+            return best_match["answer"]
+        self.save_to_disk()
+        return None # Cache miss
+
+    def clear_cache(self):
+        """Admin function to wipe all cache"""
+        self.cache = {}
+        self.save_to_disk()
+        print("--- Cache Cleared by Admin ---")
+
+    def get_stats(self):
+        """Return cache stats for admin"""
+        now = time.time()
+        active = len([v for v in self.cache.values() if now < v["expires_at"]])
+        return {"total": len(self.cache), "active": active}
+
+def get_complexity_instructions(level):
+    """Scaling complexity by class"""
+    n = int(level[1])
+    if n <= 2: return "S1-S2 LOWER SECONDARY. Very simple language. Short sentences. Basic Ugandan examples."
+    elif n <= 4: return "S3-S4 UPPER SECONDARY. Intermediate. Explain concepts and apply. Ugandan context."
+    else: return "S5-S6 ADVANCED LEVEL. University prep. Deep analysis, derivations, detailed explanations, critical thinking."
+
+# INIT CACHE AFTER CLASS IS DEFINED
 ai_cache = TTLSchoolCache(ttl_seconds=86400) # 24 hours
 
-### 2. SECRETS ###
+### 3. SECRETS ###
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
@@ -45,33 +139,53 @@ if not GROQ_API_KEY:
 @st.cache_resource
 def get_client(): return Groq(api_key=GROQ_API_KEY)
 client = get_client()
- 
+
 OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE", value=False, key="toggle_offline")
 if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON")
 
 def call_groq(user_prompt, level="S1", sample="", instructions=""):
-    # NEW: Check TTL cache first
-    cached_response = ai_cache.get_answer(user_prompt + sample + instructions + level)
+    """Main AI function with TTL cache + scaling"""
+    complexity = get_complexity_instructions(level)
+    anti_hallucination = "IMPORTANT: Only answer based on NCDC UNEB syllabus. Do not make up facts. If unsure, say 'I don't have that information'."
+    full_instructions = f"{complexity}\n{anti_hallucination}\n{instructions}"
+    cache_key = user_prompt + sample + full_instructions + level
+
+    # 1. CHECK CACHE FIRST
+    cached_response = ai_cache.get_answer(cache_key)
     if cached_response:
         st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used.")
-        return cached_response # <-- THIS IS INSIDE
+        return cached_response
 
     if OFFLINE_MODE:
         return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
 
-    # ... your groq api call code ...
-    
-    full_response = result # whatever your AI result variable is
+    # 2. BUILD PROMPT
+    full_prompt = f"{full_instructions}\nTEACHER SAMPLE:\n{sample}\n\nGENERATE:\n{user_prompt}"
+    placeholder = st.empty()
+    full_response = ""
+    model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt or "Bulk" in user_prompt else AI_MODEL_FAST
 
-    # NEW: Save to TTL cache
-    ai_cache.set_answer(user_prompt + sample + instructions + level, full_response)
+    # 3. CALL AI
+    try:
+        stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content
+                placeholder.markdown(full_response + "▌")
+        placeholder.markdown(full_response)
+
+    except Exception as e:
+        st.warning(f"Fast model failed. Trying 70B: {e}")
+        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
+        full_response = res.choices[0].message.content
+        st.markdown(full_response)
+
+    # 4. SAVE TO CACHE
+    ai_cache.set_answer(cache_key, full_response)
     st.success("✅ Saved to Local TTL Cache for 24hrs")
-    return full_response # <-- THIS MUST ALSO BE INDENTED INSIDE
-def load_cache():
-    with open(CACHE_FILE) as f: return json.load(f)
-def save_cache(cache):
-    with open(CACHE_FILE,"w") as f: json.dump(cache, f, indent=2)
-def get_cache_key(prompt, level): return hashlib.md5((prompt + level).encode()).hexdigest()
+    return full_response
+
+# DELETED: load_cache, save_cache, get_cache_key - replaced by TTLSchoolCache
 
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
@@ -80,7 +194,7 @@ st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.2.9\nNCDC 2026 LOCKED
 
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA CURRICULUM ONLY. Follow teacher sample + instructions. RULES: S1-S2: Very simple, basic Ugandan examples. S3-S4: Intermediate, apply concepts. S5-S6: Advanced, university prep, deep analysis, derivations. Always use UNEB format: SCENARIO, ITEM, TASK. Use local Ugandan context. Do not hallucinate. If unsure, say 'I don't have that information'."""
 
-### 3. FULL NCDC CURRICULUM S1-S6 - CALCULUS REMOVED FROM S4 ###
+### 4. FULL NCDC CURRICULUM S1-S6 - CALCULUS REMOVED FROM S4 ###
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {
         "S1": ["Sets", "Number Bases", "Fractions", "Decimals", "Integers", "Algebra Intro"],
@@ -134,7 +248,7 @@ UNEB_CURRICULUM_MAP = {
     "Art": {"S1": ["Drawing", "Shading", "Color", "Design", "Craft"], "S2": ["Painting", "Printing", "Weaving", "Pottery", "Composition"], "S3": ["Sculpture", "Carving", "Modelling", "Graphics", "Lettering"], "S4": ["Graphics", "Advertisement", "Layout", "Photography", "Design"], "S5": ["Photography", "Cinematography", "Digital Art", "Exhibition", "Critique"], "S6": ["Art History", "African Art", "Western Art", "Contemporary", "Project"]}
 }
 
-### 4. FULL PRACTICALS DATABASE - 10+ PER SCIENCE + AGRIC + S6 DISSECTION ###
+### 5. FULL PRACTICALS DATABASE - 10+ PER SCIENCE + AGRIC + S6 DISSECTION ###
 PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": { # LOWER - SIMPLE
@@ -242,8 +356,7 @@ PRACTICAL_DATABASE = {
     }
 }
 
- 
-### 5. LAZY IMPORTS FOR SPEED ###
+### 6. LAZY IMPORTS FOR SPEED ###
 def get_pandas(): import pandas as pd; return pd
 def get_pil(): from PIL import Image; return Image
 def get_fitz(): import fitz; return fitz
@@ -298,134 +411,6 @@ def get_mixed_topics(level, subject):
         num_topics = max(1, int(len(all_topics) * w))
         topics.extend(random.sample(all_topics, min(num_topics, len(all_topics))))
     return topics
-  
-class TTLSchoolCache:
-    def __init__(self, ttl_seconds: int = 86400, similarity_threshold: float = 0.75):
-        self.ttl = ttl_seconds
-        self.threshold = similarity_threshold # 75% similar = same question
-        self.cache_file = CACHE_FILE
-        self.cache = self.load_from_disk() # Load previous data, no data lost
-
-    def load_from_disk(self):
-        """Load cache from JSON so we don't lose data on restart"""
-        if os.path.exists(self.cache_file):
-            with open(self.cache_file, "r") as f:
-                data = json.load(f)
-                # Remove expired items on load
-                now = time.time()
-                clean_data = {k:v for k,v in data.items() if now < v["expires_at"]}
-                if len(clean_data)!= len(data):
-                    self.save_to_disk(clean_data) # Clean stale data
-                return clean_data
-        return {}
-
-    def save_to_disk(self, data=None):
-        """Save to disk to prevent data loss"""
-        if data is None: data = self.cache
-        with open(self.cache_file, "w") as f:
-            json.dump(data, f, indent=2)
-
-    def _clean_text(self, text: str) -> str:
-        """Makes uneb = UNEB. Removes extra spaces/punctuation for better matching"""
-        text = text.strip().lower()
-        text = re.sub(r'[^a-z0-9\s]', '', text) # remove punctuation?.!
-        text = re.sub(r'\s+', ' ', text) # remove double spaces
-        return text
-
-    def set_answer(self, question: str, answer: str):
-        """Saves an answer with an expiration timestamp."""
-        clean_question = self._clean_text(question)
-        expire_at = time.time() + self.ttl
-
-        self.cache[clean_question] = {
-            "answer": answer,
-            "expires_at": expire_at,
-            "original_q": question # Keep original for debugging
-        }
-        self.save_to_disk() # Save immediately, no data leak on crash
-
-    def get_answer(self, question: str) -> str:
-        """Retrieves a fresh answer. Uses fuzzy match if exact not found."""
-        clean_question = self._clean_text(question)
-        now = time.time()
-
-        # 1. EXACT MATCH FIRST - fastest
-        if clean_question in self.cache:
-            item = self.cache[clean_question]
-            if now < item["expires_at"]:
-                print("--- Cache Hit! Exact Match ---")
-                return item["answer"]
-            else:
-                del self.cache[clean_question]
-
-        # 2. FUZZY/SEMANTIC MATCH - define nutrition vs what is nutrition
-        best_match = None
-        best_score = 0
-        expired_keys = []
-
-        for cached_q, item in self.cache.items():
-            # Check expiry first
-            if now >= item["expires_at"]:
-                expired_keys.append(cached_q)
-                continue
-            score = SequenceMatcher(None, clean_question, cached_q).ratio()
-            if score > best_score:
-                best_score = score
-                best_match = item
-
-        # Clean expired keys to save RAM
-        for k in expired_keys: del self.cache[k]
-
-        # If we found a similar question above threshold
-        if best_match and best_score >= self.threshold:
-            print(f"--- Cache Hit! Semantic Match: {best_score:.2f} ---")
-            return best_match["answer"]
-
-        self.save_to_disk() # Save after cleaning expired
-        return None # Cache miss
-
-    def clear_cache(self):
-        """Admin function to wipe all cache"""
-        self.cache = {}
-        self.save_to_disk()
-        print("--- Cache Cleared by Admin ---")
-
-    def get_stats(self):
-        """Return cache stats for admin"""
-        now = time.time()
-        active = len([v for v in self.cache.values() if now < v["expires_at"]])
-        return {"total": len(self.cache), "active": active}
-   
-    # SCALING COMPLEXITY BY CLASS
-    n = int(level[1])
-    if n <= 2: level_instruction = "S1-S2 LOWER SECONDARY. Very simple language. Short sentences. Basic Ugandan examples."
-    elif n <= 4: level_instruction = "S3-S4 UPPER SECONDARY. Intermediate. Explain concepts and apply. Ugandan context."
-    else: level_instruction = "S5-S6 ADVANCED LEVEL. University prep. Deep analysis, derivations, detailed explanations, critical thinking."
-
-    anti_hallucination = "IMPORTANT: Only answer based on NCDC UNEB syllabus. Do not make up facts. If unsure, say 'I don't have that information'."
-    full_prompt = f"{level_instruction}\n{anti_hallucination}\nTEACHER SAMPLE:\n{sample}\nTEACHER INSTRUCTIONS: {instructions}\n\nGENERATE:\n{user_prompt}"
-
-    placeholder = st.empty()
-    full_response = ""
-    model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt or "Bulk" in user_prompt else AI_MODEL_FAST
-    try:
-        stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content
-                placeholder.markdown(full_response + "▌")
-        placeholder.markdown(full_response)
-    
-    except Exception as e:
-        st.warning(f"Fast model failed. Trying 70B: {e}")
-        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
-        full_response = res.choices[0].message.content
-        st.markdown(full_response)
-
-    cache[key] = full_response
-    save_cache(cache)
-    st.success("✅ Saved to Local Cache for next time")
-    return full_response
 
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
@@ -435,21 +420,16 @@ def get_all_assets(): return glob.glob(f"{ASSETS_FOLDER}/*.*")
 def find_asset_strict(level, subject, topic):
     assets = get_all_assets()
     topic_clean = sanitize(topic)
-
     st.write(f"🔍 Searching for: {topic}") # DEBUG LINE
-
     # 1. Try exact topic match in filename
     matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
-
     # 2. If no match, try subject match
     if not matches:
         subj_clean = sanitize(subject)
         matches = [p for p in assets if subj_clean in sanitize(os.path.basename(p))]
-
     # 3. If still no match, show all images
     if not matches:
         matches = [p for p in assets if p.lower().endswith(('.png','.jpg','.jpeg'))]
-
     if matches:
         return matches[0], matches # return first best + all options
     return None, []
@@ -505,7 +485,7 @@ def show_student_portal():
         if mode == "Theory" and st.button("Generate Notes", key="s2_btn_notes"):
             notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty2}", level2)
             display_with_preview(notes, "Notes_s2")
-        elif mode == "AOI" and st.button("Generate AOI Questions", key="s2_btn_aoi"):
+        elif mode == "AOI" and st.button("Generate AOI Questions", key="s2_btn_aoi"):n
             aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
             display_with_preview(aoi, "AOI_s2")
         elif mode == "Practicals" and st.button("Generate Practical", key="s2_btn_prac"):
@@ -517,6 +497,8 @@ def show_student_portal():
             topics = get_mixed_topics(level2, subject2); quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2)
             display_with_preview(quiz, "Quiz_s2")
         elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
+            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}. Use SCENARIO, ITEM, TASK format.", level2)
+                  elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
             topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}. Use SCENARIO, ITEM, TASK format.", level2)
             display_with_preview(exam, "BulkQuiz_s2")
 
@@ -551,8 +533,8 @@ def show_student_portal():
                         display_image_with_zoom(path)
                         st.caption(os.path.basename(path))
             else:
-                st.error("No diagrams found in assets folder. Upload one in Admin Portal") 
-    
+                st.error("No diagrams found in assets folder. Upload one in Admin Portal")
+
 ### 8. ADMIN PORTAL - FULLY INTERACTIVE ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
@@ -596,7 +578,7 @@ def show_admin_portal():
 
         except Exception as e:
             st.error(f"Analytics Error: {e}")
-    
+
     # TAB 2: CURRICULUM/SYLLABUS EDITOR - FULL CRUD
     with tabs[1]:
         st.subheader("📖 NCDC Curriculum Editor")
@@ -665,7 +647,7 @@ def show_admin_portal():
                 st.image(f, width=150)
         else:
             st.warning("assets folder is empty")
-   
+
     # TAB 4: EXAM GENERATOR
     with tabs[3]:
         st.subheader("📤 Bulk Exam Generator")
@@ -740,22 +722,22 @@ user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radi
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
 if st.sidebar.button("Login", key="btn_login"):
-    if user_type == "Student" and password == STUDENT_PASSWORD: 
+    if user_type == "Student" and password == STUDENT_PASSWORD:
         st.session_state["role"] = "Student"
         save_log({"time": str(datetime.now()), "user": "Student", "action": "Login"})
         st.rerun()
-    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD: 
+    elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD:
         st.session_state["role"] = "Admin"
         save_log({"time": str(datetime.now()), "user": "Admin", "action": "Login"})
         st.rerun()
-    elif password: 
+    elif password:
         st.sidebar.error("Wrong password")
 
-if st.session_state.get("role") == "Admin": 
+if st.session_state.get("role") == "Admin":
     show_admin_portal()
-elif st.session_state.get("role") == "Student": 
+elif st.session_state.get("role") == "Student":
     show_student_portal()
-else: 
+else:
     st.info("Please login to continue")
     st.markdown("### Features:")
     st.markdown("- **S1-S6 Full NCDC Curriculum** with 15 subjects")
