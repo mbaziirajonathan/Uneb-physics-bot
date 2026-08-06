@@ -206,14 +206,18 @@ def get_fitz(): import fitz; return fitz
 def get_docx(): from docx import Document; return Document
 def get_canvas(): from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; return canvas, A4
 
-def load_logs(): with open(LOG_FILE) as f: return json.load(f)
-def save_log(entry): logs = load_logs(); logs.append(entry); save_db(LOG_FILE, logs)
-def save_db(file,data): with open(file,"w") as f: json.dump(data,f,indent=2)
-def read_uploaded_file(uploaded_file):
-    if uploaded_file.name.endswith(".pdf"): fitz = get_fitz(); doc = fitz.open(stream=uploaded_file.read(), filetype="pdf"); return "\n".join([page.get_text() for page in doc])
-    elif uploaded_file.name.endswith(".docx"): Document = get_docx(); doc = Document(uploaded_file); return "\n".join([p.text for p in doc.paragraphs])
-    elif uploaded_file.name.endswith(".txt"): return uploaded_file.read().decode()
-    return ""
+def load_logs(): 
+    with open(LOG_FILE) as f: 
+        return json.load(f)
+
+def save_log(entry): 
+    logs = load_logs()
+    logs.append(entry)
+    save_db(LOG_FILE, logs)
+
+def save_db(file,data): 
+    with open(file,"w") as f: 
+        json.dump(data,f,indent=2)
 
 @st.cache_data
 def generate_file_bytes(content, fmt):
