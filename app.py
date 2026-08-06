@@ -5,7 +5,7 @@ from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.4.4-AI-MERMAID-ANY-TOPIC")
+st.sidebar.caption("Build: V5.4.5-AI-MERMAID-PARSER-FIX")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -124,7 +124,7 @@ CORE RULES:
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.4\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.5\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
 ### 4. ALL 15 SUBJECTS NCDC S1-S6 ###
 UNEB_CURRICULUM_MAP = {
@@ -194,7 +194,7 @@ def display_with_preview(content, name):
         if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
             st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}")
 
-### 7. AI CALL + AI DIAGRAM GENERATOR ###
+### 7. AI CALL + AI DIAGRAM GENERATOR - FIXED PARSER ###
 def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=False):
     complexity = get_complexity_instructions(level)
     anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
@@ -224,19 +224,28 @@ def generate_diagram_ai(topic, subject, level):
     cache_key = f"diagram_{sanitize(topic)}_{subject}_{level}"
     if cache_key in DIAGRAM_CACHE: return DIAGRAM_CACHE[cache_key]
 
-    # FIXED: escaped braces with double {{
     prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 diagram formats.
-Return ONLY valid JSON: {{"type": "mermaid", "title": "...", "mermaid": "graph TD\\nA-->B", "ascii": "text diagram"}}
-Rules: Mermaid must be valid. ASCII must be <20 lines. Use Ugandan examples if relevant."""
+Return ONLY a JSON object with keys: type, title, mermaid, ascii.
+Example: {{"type": "mermaid", "title": "Water Cycle", "mermaid": "graph TD\\nA-->B", "ascii": "A -> B"}}
+Do not add any other text before or after the JSON."""
 
     diagram_json = call_groq(prompt, level, instructions="Output ONLY JSON. No explanation.")
+
+    # FIXED PARSER: strip markdown and extract JSON
+    cleaned = diagram_json.strip()
+    cleaned = re.sub(r'```json|```', '', cleaned)
+    start = cleaned.find('{')
+    end = cleaned.rfind('}') + 1
+    if start!= -1 and end!= 0:
+        cleaned = cleaned[start:end]
+
     try:
-        cleaned = diagram_json.split("```json")[-1].split("```")[0]
         data = json.loads(cleaned)
         DIAGRAM_CACHE[cache_key] = data
         return data
-    except:
-        fallback = {"type": "ascii", "title": topic, "ascii": f"Diagram for {topic}\n[AI failed to generate]", "mermaid": ""}
+    except Exception as e:
+        st.error(f"Diagram JSON parse error: {e}")
+        fallback = {"type": "mermaid", "title": topic, "ascii": f"{topic}\n[ Component 1 ]\n[ Component 2 ]", "mermaid": f"graph TD\nA[{topic} Part 1] --> B[{topic} Part 2]"}
         DIAGRAM_CACHE[cache_key] = fallback
         return fallback
 
@@ -253,7 +262,7 @@ def show_diagram(topic, subject, level):
     with tab2:
         st.code(diag.get("ascii","No ASCII available"), language="text")
 
-### 8. STUDENT PORTAL ###
+### 8. STUDENT PORTAL - ALL 4 TABS ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
     if st.button("Logout", key="btn_logout_student"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
@@ -307,7 +316,7 @@ def show_student_portal():
         if st.button("Generate Diagram for Topic", key="s4_btn"):
             show_diagram(topic4, subject4, level4)
 
-### 9. ADMIN PORTAL ###
+### 9. ADMIN PORTAL - ALL 4 TABS ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
@@ -332,7 +341,7 @@ def show_admin_portal():
     with tabs[3]: st.subheader("📤 Bulk Exam Generator"); st.info("Coming Soon")
 
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.4")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.5")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
