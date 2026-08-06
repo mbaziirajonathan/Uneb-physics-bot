@@ -236,23 +236,37 @@ def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
 def get_mixed_topics(level, subject): level_num = int(level[1]); topics = []; weights = {level_num: 0.7}; [weights.update({level_num-1: 0.2}) if level_num-1 >= 1 else None]; [weights.update({level_num-2: 0.1}) if level_num-2 >= 1 else None]; [topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(max(1, int(len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]) * w)), len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))) ) for l, w in weights.items()]; return topics
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
-# AUTO SCAN ASSETS LIBRARY EVERY 5 SECONDS
-@st.cache_data(ttl=5)
-def scan_assets_library():
+### FIX OPTION B: CHECK MULTIPLE PATHS + DEBUG ###
+POSSIBLE_ASSET_PATHS = ["assets", "/app/assets", "./assets"]
+
+@st.cache_data(ttl=3) # Rescan every 3 seconds
+def scan_assets_library(): 
     files = []
-    for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
-        files.extend(glob.glob(f"{ASSETS_FOLDER}/{ext}"))
-    return sorted(files)
+    found_path = None
+    for p in POSSIBLE_ASSET_PATHS:
+        if os.path.exists(p):
+            found_path = p
+            for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
+                files.extend(glob.glob(f"{p}/{ext}"))
+    
+    st.sidebar.info(f"Scanning: {POSSIBLE_ASSET_PATHS} | Found in: {found_path} | Total: {len(files)}")
+    return sorted(list(set(files))) # remove duplicates
+
+ASSETS_FOLDER = POSSIBLE_ASSET_PATHS[0] # Default to "assets" for saving uploads
 
 def find_asset_strict(level, subject, topic):
     assets = scan_assets_library()
     if not assets:
-        st.warning(f"📂 Assets folder is empty: `{ASSETS_FOLDER}`")
+        st.warning(f"📂 Assets folder empty. Checked: {POSSIBLE_ASSET_PATHS}")
+        st.info("Fix: 1. Check GitHub has /assets/ folder 2. Re-deploy 3. Upload via Admin")
         return None, []
-    topic_clean = sanitize(topic)
+
+    topic_clean = sanitize(topic) # "cells"
+    
+    # Match: cells.png, animal_cell.png
     matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
-    if not matches: matches = [p for p in assets if sanitize(subject) in sanitize(os.path.basename(p))]
-    st.caption(f"Scanned {len(assets)} diagrams. Found {len(matches)} for '{topic}'")
+
+    st.success(f"✅ Scanned {len(assets)} diagrams. Found {len(matches)} for '{topic}'")
     return (matches[0], matches) if matches else (None, [])
 
 def display_image_with_zoom(img_path):
