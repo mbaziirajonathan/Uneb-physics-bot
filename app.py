@@ -1,11 +1,12 @@
 import streamlit as st
-import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading
+import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading, base64
 from datetime import datetime
 from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
+import pathlib
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.3.3-NCDC-SMART-AUTOASSETS")
+st.sidebar.caption("Build: V5.4.1-NCDC-BASE64-DIAGRAMS")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -21,16 +22,17 @@ LOG_FILE = f"{DATA_PATH}/usage_log.json"
 CACHE_FILE = f"{DATA_PATH}/ai_cache.json"
 PARENTS_FILE = f"{DATA_PATH}/parents.json"
 
-# FIX: AUTO SCAN ASSETS. RENDER USES /APP/ASSETS
-ASSETS_FOLDER = "/app/assets" if os.path.exists("/app/assets") else "assets"
-os.makedirs(ASSETS_FOLDER, exist_ok=True)
-LABELS_FOLDER = f"{ASSETS_FOLDER}/labels"
-os.makedirs(LABELS_FOLDER, exist_ok=True)
-st.sidebar.caption(f"📁 Diagrams: {ASSETS_FOLDER}")
-
 for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
     if not os.path.exists(f):
         with open(f, "w") as fp: json.dump(default, fp)
+
+### 1B. DIAGRAM BANK - BASE64 EMBED. NO FILES NEEDED ###
+# Add diagrams here: "topicname": "data:image/png;base64,...."
+DIAGRAM_BANK = {
+    # Example: "cells": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    # "acgenerator": "data:image/png;base64,iVBORw0KGgoAAAANS...",
+}
+st.sidebar.info(f"📁 Diagrams Embedded: {len(DIAGRAM_BANK)}")
 
 ### 2. TTL CACHE CLASS + SCALING LOGIC ###
 class TTLSchoolCache:
@@ -116,7 +118,7 @@ client = get_client()
 OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE", value=False, key="toggle_offline")
 if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON")
 
-# SMART BALANCED SYSTEM PROMPT - NO MORE DRIFTING
+# SMART BALANCED SYSTEM PROMPT
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA CURRICULUM ONLY.
 CORE RULES:
 1. ALWAYS answer the question asked directly first. Be smart like ChatGPT/Meta AI.
@@ -126,30 +128,23 @@ CORE RULES:
 5. Always use Ugandan context. Do not hallucinate. If unsure say 'I don't have that information'."""
 
 def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=False):
-    """Main AI function with TTL cache + scaling + smart formatting"""
     complexity = get_complexity_instructions(level)
     anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
-
     format_instruction = ""
     if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper", "scenario", "item", "task"]):
         format_instruction = "IMPORTANT: Use UNEB format with SCENARIO, ITEM, TASK."
-
     full_instructions = f"{complexity}\n{anti_hallucination}\n{format_instruction}\n{instructions}"
     cache_key = user_prompt + sample + full_instructions + level + str(force_format)
-
     cached_response = ai_cache.get_answer(cache_key)
     if cached_response:
         st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used.")
         return cached_response
-
     if OFFLINE_MODE:
         return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
-
     full_prompt = f"{full_instructions}\nTEACHER SAMPLE:\n{sample}\n\nUSER QUESTION:\n{user_prompt}"
     placeholder = st.empty()
     full_response = ""
     model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt or "Bulk" in user_prompt else AI_MODEL_FAST
-
     try:
         stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
         for chunk in stream:
@@ -162,7 +157,6 @@ def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
         full_response = res.choices[0].message.content
         st.markdown(full_response)
-
     ai_cache.set_answer(cache_key, full_response)
     st.success("✅ Saved to Local TTL Cache for 24hrs")
     return full_response
@@ -170,7 +164,7 @@ def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.3.3\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.1\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
 ### 4. FULL NCDC CURRICULUM S1-S6 ###
 UNEB_CURRICULUM_MAP = {
@@ -236,48 +230,28 @@ def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
 def get_mixed_topics(level, subject): level_num = int(level[1]); topics = []; weights = {level_num: 0.7}; [weights.update({level_num-1: 0.2}) if level_num-1 >= 1 else None]; [weights.update({level_num-2: 0.1}) if level_num-2 >= 1 else None]; [topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(max(1, int(len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]) * w)), len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))) ) for l, w in weights.items()]; return topics
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
 
-### V5.3.8 - DUAL PATH SYSTEM FOR RENDER ###
-GITHUB_ASSETS = "assets" # Read-only from GitHub
-RUNTIME_ASSETS = "/tmp/assets" # Writable on Render
-os.makedirs(RUNTIME_ASSETS, exist_ok=True)
+def img_to_base64(uploaded_file):
+    bytes_data = uploaded_file.getvalue()
+    b64 = base64.b64encode(bytes_data).decode()
+    return f"data:image/png;base64,{b64}"
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔍 ASSET PATHS")
-st.sidebar.code(f"1. GitHub: {os.path.abspath(GITHUB_ASSETS)}\n2. Runtime: {os.path.abspath(RUNTIME_ASSETS)}")
-
-@st.cache_data(ttl=2) 
-def scan_assets_library(): 
-    files = []
-    # 1. Check GitHub assets first
-    if os.path.exists(GITHUB_ASSETS):
-        for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
-            files.extend(glob.glob(f"{GITHUB_ASSETS}/{ext}"))
-    
-    # 2. Check /tmp/assets for uploaded files
-    for ext in ["*.png", "*.jpg", "*.jpeg", "*.webp"]:
-        files.extend(glob.glob(f"{RUNTIME_ASSETS}/{ext}"))
-    
-    return sorted(list(set(files)))
-
+### NEW DIAGRAM SYSTEM - BASE64 ###
 def find_asset_strict(level, subject, topic):
-    assets = scan_assets_library()
-    st.sidebar.info(f"Total diagrams found: {len(assets)}")
+    key = sanitize(topic) 
+    matches = [k for k in DIAGRAM_BANK.keys() if key in k]
+    st.sidebar.info(f"Total diagrams embedded: {len(DIAGRAM_BANK)}")
     
-    if not assets:
-        st.warning(f"📂 No diagrams found. Checked GitHub + /tmp")
+    if not matches:
+        st.warning(f"📂 No diagram for '{topic}'. Add it in Admin > Upload Diagram")
         return None, []
-
-    topic_clean = sanitize(topic) # "cells"
-    matches = [p for p in assets if topic_clean in sanitize(os.path.basename(p))]
     
-    if matches: st.success(f"✅ Found {len(matches)} for '{topic}'")
-    else: st.info(f"No match for '{topic}'. Found: {[os.path.basename(f) for f in assets]}")
-    return (matches[0], matches) if matches else (None, [])
+    b64_list = [DIAGRAM_BANK[m] for m in matches]
+    st.success(f"✅ Found {len(matches)} for '{topic}'")
+    return b64_list[0], b64_list
 
-def display_image_with_zoom(img_path):
-    Image = get_pil(); img = Image.open(img_path)
-    zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{img_path}_{time.time()}")
-    width = int(img.width * zoom / 100); st.image(img.resize((width, int(img.height * zoom / 100))))
+def display_image_with_zoom(b64_string):
+    zoom = st.slider("Zoom %", 50, 200, 100, key=f"zoom_{hash(b64_string)}_{time.time()}")
+    st.image(b64_string, width=int(400 * zoom / 100))
 
 def display_with_preview(content, name):
     edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
@@ -340,22 +314,27 @@ def show_student_portal():
             display_with_preview(practical, f"Practical_{topic3}_s3")
 
     with tab4:
-        st.subheader("🖼️ Diagram Library")
+        st.subheader("🖼️ Diagram Library - Base64")
         subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s4_subj")
         level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s4_level")
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
         if st.button("Load Diagram", key="s4_btn"):
-            img_path, all_found = find_asset_strict(level4, subject4, topic4)
-            if all_found: st.success(f"Found {len(all_found)} diagram(s)"); cols = st.columns(3)
-            for i, path in enumerate(all_found):
-                with cols[i % 3]: display_image_with_zoom(path); st.caption(os.path.basename(path))
-            else: st.error(f"No diagrams found in {ASSETS_FOLDER}. Upload one in Admin Portal")
+            img_b64, all_found = find_asset_strict(level4, subject4, topic4)
+            if all_found: 
+                st.success(f"Found {len(all_found)} diagram(s)")
+                cols = st.columns(3)
+                for i, path in enumerate(all_found):
+                    with cols[i % 3]: 
+                        display_image_with_zoom(path)
+                        st.caption(f"Diagram {i+1}")
+            else: 
+                st.error(f"No diagrams found. Upload one in Admin Portal > Tab 3")
 
 ### 8. ADMIN PORTAL ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram","📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs","📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"])
+    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","✏️ Upload Diagram to Code","📤 Exam Generator","📈 Performance Tracker","📱 WhatsApp Logs","📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"])
 
     with tabs[0]:
         st.subheader("📊 Usage Analytics + Cache Control")
@@ -401,43 +380,59 @@ def show_admin_portal():
             if st.button("🗑️ Delete Topic", key="btn_del_topic"): UNEB_CURRICULUM_MAP[edit_subj][edit_level].remove(del_topic); st.success(f"Deleted '{del_topic}'"); st.rerun()
         st.write("**Current Topics:**"); st.write(current_topics)
 
-    # IN ADMIN TAB 3
+    # TAB 3: BASE64 DIAGRAM UPLOADER
     with tabs[2]:
-        st.subheader("✏️ Upload Diagram/PNG to Assets")
-        st.warning(f"Files uploaded here save to `/tmp/assets` and survive until next Render deploy")
+        st.subheader("✏️ Upload Diagram to Base64 Code")
+        st.success("Upload PNG/JPG. I will give you code to paste into DIAGRAM_BANK at top of app.py")
+        st.warning("This is now PERMANENT. Render cannot delete base64 code.")
         
-        up_topic = st.text_input("Topic Name - MUST match curriculum", key="admin_up_topic")
-        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file")
+        up_topic = st.text_input("Topic Name: must match curriculum. e.g. Cells", key="admin_up_topic_b64")
+        up_file = st.file_uploader("Upload PNG/JPG", type=["png","jpg","jpeg"], key="admin_up_file_b64")
         
-        if st.button("Save Diagram", key="admin_up_btn") and up_file and up_topic:
-            try:
-                ext = up_file.name.split('.')[-1]
-                safe_topic = sanitize(up_topic) 
-                filepath = f"{RUNTIME_ASSETS}/{safe_topic}.{ext}" # SAVE TO /TMP
-                
-                with open(filepath, "wb") as f: 
-                    f.write(up_file.getbuffer())
-                
-                scan_assets_library.clear() 
-                st.success(f"✅ Saved to {filepath}")
-                st.image(filepath, width=200)
-                st.rerun()
-            except Exception as e: 
-                st.error(f"Failed to save: {e}")
+        if st.button("Generate Base64 Code", key="admin_up_btn_b64") and up_file and up_topic:
+            b64_code = img_to_base64(up_file)
+            key = sanitize(up_topic)
+            st.code(f'"{key}": "{b64_code}",', language="python")
+            st.image(up_file, width=200, caption=f"Preview: {up_topic}")
+            st.info("1. Copy the code above 2. Paste it inside DIAGRAM_BANK {} at top of app.py 3. git push")
         
         st.markdown("---") 
-        st.write(f"**All Diagrams Found:**")
-        all_assets = scan_assets_library()
-        if all_assets: 
-            cols = st.columns(4)
-            for i, f in enumerate(all_assets):
-                with cols[i%4]:
-                    st.image(f, width=120)
-                    st.caption(os.path.basename(f))
+        st.write(f"**Currently Embedded Diagrams: {len(DIAGRAM_BANK)}**")
+        if DIAGRAM_BANK: 
+            st.code(list(DIAGRAM_BANK.keys()))
         else: 
-            st.warning("No diagrams. Upload one or add to GitHub /assets")
-    
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.3.3")
+            st.warning("DIAGRAM_BANK is empty. Add diagrams above")
+
+    with tabs[3]:
+        st.subheader("📤 Bulk Exam Generator")
+        st.info("Coming Soon")
+
+    with tabs[4]:
+        st.subheader("📈 Performance Tracker")
+        st.info("Coming Soon")
+
+    with tabs[5]:
+        st.subheader("📱 WhatsApp Logs")
+        st.info("Coming Soon")
+
+    with tabs[6]:
+        st.subheader("📑 MOES Docs")
+        st.info("Coming Soon")
+
+    with tabs[7]:
+        st.subheader("📝 Marking Guide Generator")
+        st.info("Coming Soon")
+
+    with tabs[8]:
+        st.subheader("📅 Scheme of Work")
+        st.info("Coming Soon")
+
+    with tabs[9]:
+        st.subheader("🏆 Report Cards")
+        st.info("Coming Soon")
+
+
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.1")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
@@ -459,5 +454,5 @@ else:
     st.markdown("- **Smart AI**: Direct answers, no more forced SCENARIO")
     st.markdown("- **S1-S6 Full NCDC Curriculum** with 15 subjects")
     st.markdown("- **40+ Practicals** per science + 20 Agriculture practicals")
-    st.markdown("- **PNG/JPG Diagram Library** with Auto-Scan every 5s")
-    st.markdown("- **Offline TTL Cache** for zero data cost")
+    st.markdown("- **Base64 Diagram Library** - 100% Render Proof")
+    st.markdown("- **Offline TTL Cache** for zero data cost") 
