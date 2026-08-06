@@ -482,26 +482,29 @@ def show_student_portal():
         topic2 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject2][level2], key="s2_topic")
         mode = st.radio("Mode", ["Theory","AOI","Practicals","Quiz","Bulk Quiz"], key="s2_mode")
         difficulty2 = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="s2_diff")
+
         if mode == "Theory" and st.button("Generate Notes", key="s2_btn_notes"):
             notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty2}", level2)
             display_with_preview(notes, "Notes_s2")
-        elif mode == "AOI" and st.button("Generate AOI Questions", key="s2_btn_aoi"):n
-             aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
-             display_with_preview(aoi, "AOI_s2")
+
+        elif mode == "AOI" and st.button("Generate AOI Questions", key="s2_btn_aoi"): # <-- LINE 489
+            aoi = call_groq(f"Generate 5 Areas Of Interaction questions on {topic2} for {level2} {subject2}", level2)
+            display_with_preview(aoi, "AOI_s2")
+
         elif mode == "Practicals" and st.button("Generate Practical", key="s2_btn_prac"):
             group = get_level_group(level2); prac_db = PRACTICAL_DATABASE.get(subject2, {}).get(group, {})
             prac_name = list(prac_db.keys())[0] if prac_db else topic2; objective = prac_db.get(prac_name, {}).get("objective", "")
             prac = call_groq(f"Generate UNEB practical experiment: {prac_name}. Objective: {objective}. Include: Aim, Apparatus, Procedure, Observations, Conclusion for {level2} {subject2}", level2)
             display_with_preview(prac, f"Practical_{prac_name}_s2")
+
         elif mode == "Quiz" and st.button("Generate Quiz", key="s2_btn_quiz"):
             topics = get_mixed_topics(level2, subject2); quiz = call_groq(f"Generate 10 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2)
             display_with_preview(quiz, "Quiz_s2")
+
         elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
             topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}. Use SCENARIO, ITEM, TASK format.", level2)
-                  elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
-            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}. Use SCENARIO, ITEM, TASK format.", level2)
             display_with_preview(exam, "BulkQuiz_s2")
-
+    
     with tab3:
         st.subheader("🧪 Practical Experiments from DATABASE")
         subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="s3_subj")
