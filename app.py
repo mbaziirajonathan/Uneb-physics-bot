@@ -473,4 +473,4 @@ else:
     st.markdown("- **S1-S6 Full NCDC Curriculum** with 15 subjects")
     st.markdown("- **40+ Practicals** per science + 20 Agriculture practicals")
     st.markdown("- **PNG/JPG Diagram Library** with GitHub/Render path fix")
-    st.markdown("- **Offline TTL Cache** for zero data cost")la
+    st.markdown("- **Offline TTL Cache** for zero data cost")
