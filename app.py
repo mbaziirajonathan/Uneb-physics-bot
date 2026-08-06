@@ -2,6 +2,9 @@ import streamlit as st
 import os, io, json, re, time, glob, difflib, requests, random, hashlib, threading
 from datetime import datetime
 from groq import Groq, RateLimitError
+import time
+import difflib
+from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 st.sidebar.caption("Build: V5.2.9-NCDC-FULL-RESTORED")
@@ -27,6 +30,8 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
         with open(f, "w") as fp: json.dump(default, fp)
 os.makedirs(ASSETS_FOLDER, exist_ok=True)
 os.makedirs(LABELS_FOLDER, exist_ok=True)
+
+ai_cache = TTLSchoolCache(ttl_seconds=86400) # 24 hours
 
 ### 2. SECRETS ###
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -274,17 +279,104 @@ def get_mixed_topics(level, subject):
         num_topics = max(1, int(len(all_topics) * w))
         topics.extend(random.sample(all_topics, min(num_topics, len(all_topics))))
     return topics
+  
+class TTLSchoolCache:
+    def __init__(self, ttl_seconds: int = 86400, similarity_threshold: float = 0.75):
+        self.ttl = ttl_seconds
+        self.threshold = similarity_threshold # 75% similar = same question
+        self.cache_file = CACHE_FILE
+        self.cache = self.load_from_disk() # Load previous data, no data lost
 
-### 6. FAST AI WITH CLASS LEVEL SCALING ###
-def call_groq(user_prompt, level="S1", sample="", instructions=""):
-    cache = load_cache()
-    key = get_cache_key(user_prompt + sample + instructions, level)
-    if key in cache:
-        st.info("⚡ Loaded from Local Cache. 0 Tokens used.")
-        return cache[key]
-    if OFFLINE_MODE:
-        return "❌ OFFLINE MODE: This question not in cache. Please go online once to generate and cache it."
+    def load_from_disk(self):
+        """Load cache from JSON so we don't lose data on restart"""
+        if os.path.exists(self.cache_file):
+            with open(self.cache_file, "r") as f:
+                data = json.load(f)
+                # Remove expired items on load
+                now = time.time()
+                clean_data = {k:v for k,v in data.items() if now < v["expires_at"]}
+                if len(clean_data)!= len(data):
+                    self.save_to_disk(clean_data) # Clean stale data
+                return clean_data
+        return {}
 
+    def save_to_disk(self, data=None):
+        """Save to disk to prevent data loss"""
+        if data is None: data = self.cache
+        with open(self.cache_file, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def _clean_text(self, text: str) -> str:
+        """Makes uneb = UNEB. Removes extra spaces/punctuation for better matching"""
+        text = text.strip().lower()
+        text = re.sub(r'[^a-z0-9\s]', '', text) # remove punctuation?.!
+        text = re.sub(r'\s+', ' ', text) # remove double spaces
+        return text
+
+    def set_answer(self, question: str, answer: str):
+        """Saves an answer with an expiration timestamp."""
+        clean_question = self._clean_text(question)
+        expire_at = time.time() + self.ttl
+
+        self.cache[clean_question] = {
+            "answer": answer,
+            "expires_at": expire_at,
+            "original_q": question # Keep original for debugging
+        }
+        self.save_to_disk() # Save immediately, no data leak on crash
+
+    def get_answer(self, question: str) -> str:
+        """Retrieves a fresh answer. Uses fuzzy match if exact not found."""
+        clean_question = self._clean_text(question)
+        now = time.time()
+
+        # 1. EXACT MATCH FIRST - fastest
+        if clean_question in self.cache:
+            item = self.cache[clean_question]
+            if now < item["expires_at"]:
+                print("--- Cache Hit! Exact Match ---")
+                return item["answer"]
+            else:
+                del self.cache[clean_question]
+
+        # 2. FUZZY/SEMANTIC MATCH - define nutrition vs what is nutrition
+        best_match = None
+        best_score = 0
+        expired_keys = []
+
+        for cached_q, item in self.cache.items():
+            # Check expiry first
+            if now >= item["expires_at"]:
+                expired_keys.append(cached_q)
+                continue
+            score = SequenceMatcher(None, clean_question, cached_q).ratio()
+            if score > best_score:
+                best_score = score
+                best_match = item
+
+        # Clean expired keys to save RAM
+        for k in expired_keys: del self.cache[k]
+
+        # If we found a similar question above threshold
+        if best_match and best_score >= self.threshold:
+            print(f"--- Cache Hit! Semantic Match: {best_score:.2f} ---")
+            return best_match["answer"]
+
+        self.save_to_disk() # Save after cleaning expired
+        return None # Cache miss
+
+    def clear_cache(self):
+        """Admin function to wipe all cache"""
+        self.cache = {}
+        self.save_to_disk()
+        print("--- Cache Cleared by Admin ---")
+
+    def get_stats(self):
+        """Return cache stats for admin"""
+        now = time.time()
+        active = len([v for v in self.cache.values() if now < v["expires_at"]])
+        return {"total": len(self.cache), "active": active}
+   
     # SCALING COMPLEXITY BY CLASS
     n = int(level[1])
     if n <= 2: level_instruction = "S1-S2 LOWER SECONDARY. Very simple language. Short sentences. Basic Ugandan examples."
@@ -304,6 +396,7 @@ def call_groq(user_prompt, level="S1", sample="", instructions=""):
                 full_response += chunk.choices[0].delta.content
                 placeholder.markdown(full_response + "▌")
         placeholder.markdown(full_response)
+    
     except Exception as e:
         st.warning(f"Fast model failed. Trying 70B: {e}")
         res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
@@ -454,25 +547,37 @@ def show_admin_portal():
         "📑 MOES Docs","📝 Marking Guide","📅 Scheme of Work","🏆 Report Cards"
     ])
 
-    # TAB 1: ANALYTICS
+    # TAB 1: ANALYTICS + CACHE CONTROL
     with tabs[0]:
-        st.subheader("📊 Usage Analytics")
+        st.subheader("📊 Usage Analytics + Cache Control")
         try:
             pd = get_pandas()
             logs = load_logs()
-            if not logs:
-                st.info("No logs yet")
-            else:
+            stats = ai_cache.get_stats()
+
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Actions", len(logs))
+            col2.metric("Students", len([l for l in logs if l['user']=="Student"]))
+            col3.metric("Cache Entries", stats['total'])
+            col4.metric("Active Cache", stats['active'])
+
+            if logs:
                 df = pd.DataFrame(logs)
                 df['time'] = pd.to_datetime(df['time'])
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Total Actions", len(df))
-                col2.metric("Students", len(df[df['user']=="Student"]))
-                col3.metric("Admins", len(df[df['user']=="Admin"]))
                 st.dataframe(df, use_container_width=True)
+
+            st.markdown("---")
+            st.subheader("🗑️ Cache Management")
+            st.warning("Clearing cache will force AI to regenerate answers. Use if AI gave wrong info.")
+
+            if st.button("Clear Entire AI Cache", type="primary", key="btn_clear_cache"):
+                ai_cache.clear_cache()
+                st.success("✅ Cache Cleared Successfully! All 24hr cached answers deleted.")
+                st.rerun()
+
         except Exception as e:
             st.error(f"Analytics Error: {e}")
-
+    
     # TAB 2: CURRICULUM/SYLLABUS EDITOR - FULL CRUD
     with tabs[1]:
         st.subheader("📖 NCDC Curriculum Editor")
