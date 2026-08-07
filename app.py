@@ -5,7 +5,7 @@ from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.4.7-DIAGRAM-HOTFIX")
+st.sidebar.caption("Build: V5.4.8-FULL-RESTORE")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -124,40 +124,44 @@ CORE RULES:
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.7\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.8\nNCDC 2026 LOCKED\n📞 {CONTACT}")
 
-### 4. ALL 15 SUBJECTS NCDC S1-S6 ###
+### 4. ALL 15 SUBJECTS NCDC S1-S6 - FULL TOPICS RESTORED ###
 UNEB_CURRICULUM_MAP = {
-    "Mathematics": {"S1": ["Sets","Number Bases","Integers"], "S2": ["Rates","Percentages","Algebra"], "S3": ["Quadratics","Trigonometry","Probability"], "S4": ["Functions","Vectors","Matrices"], "S5": ["Differentiation","Integration","Binomial"], "S6": ["Mechanics","Statistics III","Complex Numbers"]},
-    "Physics": {"S1": ["Measurement","Forces","Energy"], "S2": ["Light I","Sound","Pressure"], "S3": ["Magnetism II","Electricity II","Heat"], "S4": ["Electronics","Waves II","Radioactivity"], "S5": ["Optics II","Current Electricity II","Gravitation"], "S6": ["Electric Fields","Magnetic Fields","Nuclear Physics"]},
-    "Chemistry": {"S1": ["Atoms","Elements","Compounds"], "S2": ["Acids Alkalis","Salts","Air"], "S3": ["Bonding","Structure","Periodic Table"], "S4": ["REDOX","Energy Changes","Kinetics I"], "S5": ["Kinetics","Equilibrium II","Acids Bases II"], "S6": ["Electrochemistry","Organic II","Industrial Chemistry"]},
-    "Biology": {"S1": ["Cells","Classification","Nutrition"], "S2": ["Respiration II","Excretion","Circulation"], "S3": ["Genetics I","Evolution","Ecology"], "S4": ["Photosynthesis","Hormones I","Reproduction"], "S5": ["Cell Biology","Genetics III","Microbiology"], "S6": ["Hormones II","Coordination","Biotechnology"]},
-    "Agriculture": {"S1": ["Introduction","Soil Formation"], "S2": ["Soil Properties","Livestock"], "S3": ["Soil Conservation","Plant Nutrition"], "S4": ["Animal Health","Breeding"], "S5": ["Agribusiness","Farm Planning"], "S6": ["Research","Biotech Agriculture"]},
-    "Geography": {"S1": ["Map Reading","Weather"], "S2": ["Vegetation","Soils"], "S3": ["Population","Settlement"], "S4": ["Industrialization","Trade"], "S5": ["Climatology","Geomorphology"], "S6": ["Regional Geography","Field Work"]},
-    "History": {"S1": ["Sources of History","Early Man"], "S2": ["Kingdoms of Uganda","Colonialism"], "S3": ["WWI","Nationalism"], "S4": ["Decolonization","Cold War"], "S5": ["EA History","African Nationalism"], "S6": ["International Relations","Genocide"]},
-    "Literature": {"S1": ["Oral Literature","Poetry"], "S2": ["Novels","Drama"], "S3": ["Prose","Literary Devices"], "S4": ["African Literature","World Literature"], "S5": ["Critical Analysis","Themes"], "S6": ["Research Project","Comparative Literature"]},
-    "CRE": {"S1": ["God and Man","Bible"], "S2": ["Prophets","Jesus"], "S3": ["Church","Sacraments"], "S4": ["Christian Living","Social Issues"], "S5": ["Theology","Ethics"], "S6": ["World Religions","Christian Leadership"]},
-    "ICT": {"S1": ["Computer Basics","Word"], "S2": ["Excel","Internet"], "S3": ["Database","Programming"], "S4": ["Web Design","Graphics"], "S5": ["Networking","Systems Analysis"], "S6": ["AI","Cyber Security"]},
-    "Entrepreneurship": {"S1": ["Business Ideas","Resources"], "S2": ["Marketing","Finance"], "S3": ["Business Plan","Risk"], "S4": ["Management","Law"], "S5": ["Project","Investment"], "S6": ["Innovation","Global Trade"]},
-    "Art": {"S1": ["Drawing","Color"], "S2": ["Painting","Craft"], "S3": ["Design","Sculpture"], "S4": ["Art History","Printmaking"], "S5": ["Advanced Drawing","Portfolio"], "S6": ["Exhibition","Art Business"]},
-    "Music": {"S1": ["Notes","Rhythm"], "S2": ["Instruments","Songs"], "S3": ["Theory","Composition"], "S4": ["Music History","Performance"], "S5": ["Harmony","Arrangement"], "S6": ["Conducting","Music Technology"]},
-    "Luganda": {"S1": ["Ebigambo","Ennukuta"], "S2": ["Ekitabo","Olulimi"], "S3": ["Ennono","Ebyafaayo"], "S4": ["Ebiwandiiko","Engero"], "S5": ["Okunoonyereza","Emboozi"], "S6": ["Olulimi Olugazi","Ebyobuwangwa"]},
-    "Kiswahili": {"S1": ["Alfabeti","Maneno"], "S2": ["Sarufi","Kusoma"], "S3": ["Fasihi","Utungaji"], "S4": ["Riwaya","Michezo"], "S5": ["Uchambuzi","Insha"], "S6": ["Tafsiri","Mjadala"]}
+    "Mathematics": {"S1": ["Sets","Number Bases","Integers","Fractions","Decimals"], "S2": ["Rates","Percentages","Algebra","Equations","Geometry"], "S3": ["Quadratics","Trigonometry","Probability","Statistics I","Vectors"], "S4": ["Functions","Matrices","Sequences","Logarithms","Circle Geometry"], "S5": ["Differentiation","Integration","Binomial","Complex Numbers","Mechanics I"], "S6": ["Mechanics II","Statistics III","Probability II","Linear Programming","Vectors II"]},
+    "Physics": {"S1": ["Measurement","Forces","Energy","Heat","Light I"], "S2": ["Sound","Pressure","Magnetism I","Electricity I","Waves I"], "S3": ["Magnetism II","Electricity II","Heat II","Optics I","Modern Physics I"], "S4": ["Electronics","Waves II","Radioactivity","Mechanics","Thermal Physics"], "S5": ["Optics II","Current Electricity II","Gravitation","Fields","Nuclear Physics I"], "S6": ["Electric Fields","Magnetic Fields","Electromagnetic Induction","Nuclear Physics II","Electronics II"]},
+    "Chemistry": {"S1": ["Atoms","Elements","Compounds","Mixtures","Air"], "S2": ["Acids Alkalis","Salts","Water","Metals","Non-Metals"], "S3": ["Bonding","Structure","Periodic Table","Kinetics I","Organic I"], "S4": ["REDOX","Energy Changes","Kinetics II","Equilibrium I","Acids Bases I"], "S5": ["Kinetics III","Equilibrium II","Acids Bases II","Electrochemistry I","Organic II"], "S6": ["Electrochemistry II","Organic III","Industrial Chemistry","Environmental Chemistry","Analytical Chemistry"]},
+    "Biology": {"S1": ["Cells","Classification","Nutrition","Respiration I","Ecology I"], "S2": ["Respiration II","Excretion","Circulation","Support","Reproduction I"], "S3": ["Genetics I","Evolution","Ecology II","Diversity","Physiology I"], "S4": ["Photosynthesis","Hormones I","Reproduction II","Growth","Physiology II"], "S5": ["Cell Biology","Genetics III","Microbiology","Biotechnology I","Ecology III"], "S6": ["Hormones II","Coordination","Biotechnology II","Genetics IV","Applied Biology"]},
+    "Agriculture": {"S1": ["Introduction","Soil Formation","Farm Tools","Crops","Livestock Basics"], "S2": ["Soil Properties","Crop Production","Animal Nutrition","Pests","Farm Records"], "S3": ["Soil Conservation","Plant Nutrition","Animal Health","Breeding","Agroforestry"], "S4": ["Crop Protection","Animal Diseases","Farm Structures","Irrigation","Farm Management"], "S5": ["Agribusiness","Farm Planning","Soil Science","Animal Production","Crop Science"], "S6": ["Research Methods","Biotech Agriculture","Agricultural Economics","Extension","Project"]},
+    "Geography": {"S1": ["Map Reading","Weather","Climate","Vegetation","Rocks"], "S2": ["Soils","Drainage","Population","Settlement","Transport"], "S3": ["Industry","Trade","Tourism","Environmental Issues","Field Work I"], "S4": ["Industrialization","Trade","Settlement Patterns","Population Structure","GIS"], "S5": ["Climatology","Geomorphology","Hydrology","Biogeography","Regional Geography I"], "S6": ["Regional Geography II","Economic Geography","Political Geography","Research Methods","Field Work II"]},
+    "History": {"S1": ["Sources of History","Early Man","Ancient Civilizations","Iron Age","Bantu Migrations"], "S2": ["Kingdoms of Uganda","Colonialism","Resistance","Missionaries","Trade"], "S3": ["WWI","WWII","Nationalism","Decolonization","Cold War"], "S4": ["UN","OAU","East African Community","Post-Colonial Africa","Human Rights"], "S5": ["EA History","African Nationalism","Pan-Africanism","Economic History","Political History"], "S6": ["International Relations","Genocide","Globalization","Democracy","Contemporary Issues"]},
+    "Literature": {"S1": ["Oral Literature","Poetry","Prose","Drama","Literary Terms"], "S2": ["Novels","Plays","Poems","Themes","Characters"], "S3": ["Prose","Literary Devices","Style","Setting","Plot"], "S4": ["African Literature","World Literature","Critical Analysis","Themes","Style"], "S5": ["Critical Analysis","Themes","Style","Language","Context"], "S6": ["Research Project","Comparative Literature","Literary Criticism","Advanced Drama","Advanced Poetry"]},
+    "CRE": {"S1": ["God and Man","Bible","Creation","Sin","Salvation"], "S2": ["Prophets","Jesus","Parables","Miracles","Disciples"], "S3": ["Church","Sacraments","Prayer","Christian Living","Community"], "S4": ["Christian Living","Social Issues","Ethics","Leadership","Service"], "S5": ["Theology","Ethics","World Religions","Christian Doctrine","Biblical Studies"], "S6": ["World Religions","Christian Leadership","Pastoral Care","Mission","Contemporary Theology"]},
+    "ICT": {"S1": ["Computer Basics","Word","Keyboard","Mouse","Internet Basics"], "S2": ["Excel","Internet","Email","PowerPoint","File Management"], "S3": ["Database","Programming","Algorithms","Flowcharts","Web Basics"], "S4": ["Web Design","Graphics","Multimedia","Networking","Security"], "S5": ["Networking","Systems Analysis","Database Design","Programming II","Web Development"], "S6": ["AI","Cyber Security","Software Engineering","Data Science","Project"]},
+    "Entrepreneurship": {"S1": ["Business Ideas","Resources","Market","Money","Saving"], "S2": ["Marketing","Finance","Business Plan","Risk","Customers"], "S3": ["Business Plan","Risk","Management","Law","Records"], "S4": ["Management","Law","Tax","Insurance","Growth"], "S5": ["Project","Investment","Business Growth","Innovation","Global Trade"], "S6": ["Innovation","Global Trade","Business Strategy","Leadership","Case Studies"]},
+    "Art": {"S1": ["Drawing","Color","Shapes","Lines","Composition"], "S2": ["Painting","Craft","Design","Patterns","Texture"], "S3": ["Design","Sculpture","Printmaking","Art History","Critique"], "S4": ["Art History","Printmaking","Advanced Design","Portfolio","Exhibition"], "S5": ["Advanced Drawing","Portfolio","Art Theory","Contemporary Art","Project"], "S6": ["Exhibition","Art Business","Curating","Art Criticism","Final Project"]},
+    "Music": {"S1": ["Notes","Rhythm","Instruments","Songs","Listening"], "S2": ["Instruments","Songs","Theory","Composition","Performance"], "S3": ["Theory","Composition","Music History","Ensemble","Arrangement"], "S4": ["Music History","Performance","Harmony","Conducting","Technology"], "S5": ["Harmony","Arrangement","Composition II","Musicology","Performance II"], "S6": ["Conducting","Music Technology","Composition III","Music Business","Recital"]},
+    "Luganda": {"S1": ["Ebigambo","Ennukuta","Ennongo","Emiramwa","Ebiwandiiko"], "S2": ["Ekitabo","Olulimi","Ennono","Emboozi","Ebyafaayo"], "S3": ["Ennono","Ebyafaayo","Olulimi","Ebiwandiiko","Okwogerera"], "S4": ["Ebiwandiiko","Engero","Enkola","Olulimi Olugazi","Ebyobuwangwa"], "S5": ["Okunoonyereza","Emboozi","Ebyafaayo","Olulimi","Ebiwandiiko"], "S6": ["Olulimi Olugazi","Ebyobuwangwa","Okutunga","Okulongoosa","Omulimu"]},
+    "Kiswahili": {"S1": ["Alfabeti","Maneno","Sentensi","Kusoma","Kuandika"], "S2": ["Sarufi","Kusoma","Kusikia","Kuongea","Utungaji"], "S3": ["Fasihi","Utungaji","Insha","Barua","Ripoti"], "S4": ["Riwaya","Michezo","Ushairi","Maqala","Hotuba"], "S5": ["Uchambuzi","Insha","Tafsiri","Utafiti","Fasihi"], "S6": ["Tafsiri","Mjadala","Uchambuzi wa Kina","Uandishi wa Kitaaluma","Mradi"]}
 }
 
-### 5. ALL 10 PRACTICALS ###
+### 5. ALL 10 PRACTICALS + AGRICULTURE RESTORED ###
 PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity g"}},
-        "S5-S6": {"RC Circuit": {"objective": "Find time constant of RC circuit"}, "Potentiometer": {"objective": "Compare emfs of two cells"}}
+        "S5-S6": {"RC Circuit": {"objective": "Find time constant of RC circuit"}, "Potentiometer": {"objective": "Compare emfs of two cells"}, "Wheatstone Bridge": {"objective": "Determine unknown resistance"}}
     },
     "Chemistry": {
         "S1-S4": {"Acid-Base Titration": {"objective": "Determine concentration of HCl"}, "Solubility": {"objective": "Investigate effect of temperature on solubility"}},
-        "S5-S6": {"Rate of Reaction": {"objective": "Determine order of reaction"}, "Electrolysis": {"objective": "Verify Faraday's laws of electrolysis"}}
+        "S5-S6": {"Rate of Reaction": {"objective": "Determine order of reaction"}, "Electrolysis": {"objective": "Verify Faraday's laws"}, "Organic Prep": {"objective": "Prepare ethanoic acid"}}
     },
     "Biology": {
         "S1-S4": {"Microscope Use": {"objective": "Observe plant and animal cells"}, "Food Tests": {"objective": "Test for starch, proteins, lipids, reducing sugars"}},
-        "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"}, "Plasmolysis": {"objective": "Observe osmosis in onion epidermal cells"}}
+        "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"}, "Plasmolysis": {"objective": "Observe osmosis in onion epidermal cells"}, "Chromatography": {"objective": "Separate plant pigments"}}
+    },
+    "Agriculture": {
+        "S1-S4": {"Soil pH Test": {"objective": "Determine soil pH using indicator"}, "Seed Germination": {"objective": "Test germination percentage"}},
+        "S5-S6": {"Feed Formulation": {"objective": "Formulate poultry feed"}, "Farm Budget": {"objective": "Prepare farm enterprise budget"}}
     }
 }
 
@@ -184,7 +188,7 @@ def get_mixed_topics(level, subject):
     if level_num-1 >= 1: weights[level_num-1] = 0.2
     for l, w in weights.items():
         if f"S{l}" in UNEB_CURRICULUM_MAP[subject]:
-            topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(1, len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))))
+            topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(2, len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))))
     return topics
 
 def display_with_preview(content, name):
@@ -221,7 +225,6 @@ def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=
     return full_response
 
 def parse_multiple_json(text):
-    """Extract all JSON objects from text, even if concatenated"""
     text = re.sub(r'```json|```', '', text).strip()
     objs = []
     decoder = json.JSONDecoder()
@@ -238,31 +241,23 @@ def parse_multiple_json(text):
 def generate_diagram_ai(topic, subject, level):
     cache_key = f"diagram_{sanitize(topic)}_{subject}_{level}"
     if cache_key in DIAGRAM_CACHE: return DIAGRAM_CACHE[cache_key]
-
     prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 to 3 relevant diagrams.
 Return a JSON ARRAY of objects. Each object: {{"title": "...", "mermaid": "graph TD\\nA-->B", "ascii": "A -> B"}}
-Rules: 
-1. Mermaid must use proper labels. Use () for circles, [] for rectangles. No \n escapes.
-2. ASCII must be neat, <15 lines, use | - + / \\ for lines.
-3. Use Ugandan examples.
+Rules: 1. Mermaid must use proper labels. 2. ASCII must be neat, <15 lines. 3. Use Ugandan examples.
 Return ONLY the JSON array. No other text."""
-
     diagram_json = call_groq(prompt, level, instructions="Output ONLY JSON array. No explanation.")
     diagrams = parse_multiple_json(diagram_json)
-
     if not diagrams:
         diagrams = [{"title": f"{topic} Overview", "ascii": f"{topic}\n [Part A]\n |\n [Part B]", "mermaid": f"graph TD\nA[{topic} Part A] --> B[{topic} Part B]"}]
-    
     DIAGRAM_CACHE[cache_key] = diagrams
     return diagrams
 
-def show_diagram(topic, subject, level): # FIXED: added topic param
+def show_diagram(topic, subject, level):
     st.subheader(f"Diagrams: {topic}")
     with st.spinner("Generating diagrams with AI..."):
         diags = generate_diagram_ai(topic, subject, level)
-
     for i, diag in enumerate(diags):
-        title = diag.get('title', f"{topic} Diagram {i+1}") # FIXED: no undefined topic
+        title = diag.get('title', f"{topic} Diagram {i+1}")
         st.markdown(f"### {i+1}. {title}")
         tab1, tab2 = st.tabs(["📊 Mermaid", "📝 ASCII"])
         with tab1:
@@ -272,7 +267,7 @@ def show_diagram(topic, subject, level): # FIXED: added topic param
             st.code(diag.get("ascii","No ASCII available"), language="text")
         st.divider()
 
-### 8. STUDENT PORTAL ###
+### 8. STUDENT PORTAL - 4 TABS FULL ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
     if st.button("Logout", key="btn_logout_student"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
@@ -311,11 +306,11 @@ def show_student_portal():
         subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="s3_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s3_level")
         group = get_level_group(level3); prac_list = list(PRACTICAL_DATABASE.get(subject3, {}).get(group, {}).keys())
-        if not prac_list: st.warning("No practicals for this subject/level")
+        if not prac_list: st.warning("No practicals for this subject/level in DB")
         topic3 = st.selectbox("Select Practical", prac_list, key="s3_topic") if prac_list else None
         if st.button("Generate Full Practical", key="s3_btn") and topic3:
             objective = PRACTICAL_DATABASE[subject3][group][topic3]["objective"]
-            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include apparatus, procedure, results table.", level3)
+            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include apparatus, procedure, results table, safety, Ugandan context.", level3)
             display_with_preview(practical, f"Practical_{topic3}_s3")
 
     with tab4:
@@ -326,32 +321,44 @@ def show_student_portal():
         if st.button("Generate Diagrams for Topic", key="s4_btn"):
             show_diagram(topic4, subject4, level4)
 
-### 9. ADMIN PORTAL ###
+### 9. ADMIN PORTAL - ALL 4 TABS RESTORED ###
 def show_admin_portal():
     st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","🧪 Practicals Editor","📤 Exam Generator"])
+    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","🧪 Practicals Editor","📤 Bulk Exam Generator"])
 
     with tabs[0]:
         st.subheader("📊 Usage Analytics + Cache Control")
         pd = get_pandas(); logs = load_logs(); stats = ai_cache.get_stats()
-        col1, col2 = st.columns(2)
-        col1.metric("Total Actions", len(logs)); col2.metric("Cache Entries", stats['total'])
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Actions", len(logs)); col2.metric("Cache Entries", stats['total']); col3.metric("Active Cache", stats['active'])
         if st.button("Clear Entire AI Cache", type="primary"): ai_cache.clear_cache(); DIAGRAM_CACHE.clear(); st.success("✅ Cache Cleared!"); st.rerun()
+        if logs: st.dataframe(pd.DataFrame(logs[-20:]))
 
     with tabs[1]:
         st.subheader("📖 NCDC Curriculum Editor")
         edit_subj = st.selectbox("Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_edit_subj")
         st.json(UNEB_CURRICULUM_MAP[edit_subj])
+        st.info("To edit curriculum, update UNEB_CURRICULUM_MAP dict in code and redeploy")
 
     with tabs[2]:
-        st.subheader("🧪 Practicals Database")
-        st.json(PRACTICAL_DATABASE)
+        st.subheader("🧪 Practicals Database Editor")
+        edit_prac_subj = st.selectbox("Pick Subject", list(PRACTICAL_DATABASE.keys()), key="admin_edit_prac")
+        st.json(PRACTICAL_DATABASE[edit_prac_subj])
+        st.info("To add practicals, update PRACTICAL_DATABASE dict in code and redeploy")
 
-    with tabs[3]: st.subheader("📤 Bulk Exam Generator"); st.info("Coming Soon")
+    with tabs[3]:
+        st.subheader("📤 Bulk Exam Generator")
+        b_subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
+        b_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
+        b_difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="bulk_diff")
+        if st.button("Generate 50Q Bulk Paper"):
+            topics = get_mixed_topics(b_level, b_subject)
+            paper = call_groq(f"Generate full 50 question UNEB exam paper from: {topics}. Include marking guide.", b_level, force_format=True)
+            display_with_preview(paper, f"BulkPaper_{b_subject}_{b_level}")
 
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.7")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.8")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 
