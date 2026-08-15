@@ -2,7 +2,7 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# System deps for PyMuPDF, pillow, matplotlib, reportlab
+# System deps for PyMuPDF, pillow, matplotlib, reportlab, faiss
 RUN apt-get update && apt-get install -y \
     build-essential \
     libglib2.0-0 \
@@ -10,6 +10,11 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Prevent Streamlit file watcher + auto reload. Fixes inotify limit on Render
+ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
+ENV STREAMLIT_SERVER_RUN_ON_SAVE=false
+ENV STREAMLIT_SERVER_HEADLESS=true
 
 # Install python deps first for caching
 COPY requirements.txt .
@@ -26,4 +31,5 @@ ENV STREAMLIT_DATA_PATH=/data
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.fileWatcherType", "none", "--server.runOnSave", "false"]
+# Start command with no file watcher
+CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.fileWatcherType", "none", "--server.runOnSave", "false", "--server.headless", "true"]
