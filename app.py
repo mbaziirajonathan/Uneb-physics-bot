@@ -1,3 +1,4 @@
+from difflib import SequenceMatcher # <- ADD THIS AT TOP
 import streamlit as st
 import os, io, json, re, time, difflib, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
@@ -151,7 +152,7 @@ def load_vector_tools():
             import faiss as _faiss
             from sentence_transformers import SentenceTransformer
             faiss = _faiss
-            embedding_model = SentenceTransformer('paraphrase-MiniLM-L3-v2') # 30MB model
+            embedding_model = SentenceTransformer('all-MiniLM-L6-v2') # <- CHANGE THIS
             return True
         except Exception as e:
             st.sidebar.error(f"RAG Disabled: {e}")
@@ -198,24 +199,25 @@ def chunk_text(text, chunk_size=500):
     if current: chunks.append(current)
     return chunks
 
-### 7. SIDEBAR RAG UPLOAD ###
 def render_sidebar_upload():
     st.sidebar.title("📚 Admin: Knowledge Base")
     uploaded_file = st.sidebar.file_uploader("Upload PDF/DOCX/TXT", type=["pdf", "docx", "txt"])
     if uploaded_file:
         text = ""
         if uploaded_file.name.endswith(".pdf"):
-            reader = PdfReader(uploaded_file) # No import here now
+            from pypdf import PdfReader  # <- ADD THIS
+            reader = PdfReader(uploaded_file)
             for page in reader.pages: text += page.extract_text() or ""
         elif uploaded_file.name.endswith(".docx"):
-            doc = docx.Document(uploaded_file)
+            from docx import Document  # <- ADD THIS
+            doc = Document(uploaded_file)
             for para in doc.paragraphs: text += para.text + "\n"
         else: 
             text = uploaded_file.getvalue().decode("utf-8")
         
         chunks = chunk_text(text)
         if st.sidebar.button(f"Add {len(chunks)} Chunks to Vector DB"):
-            if load_vector_tools(): # Make sure faiss loads first
+            if load_vector_tools():
                 vector_rag.add_documents(chunks)
                 st.sidebar.success(f"Added {len(chunks)} chunks to RAG!")
             else:
