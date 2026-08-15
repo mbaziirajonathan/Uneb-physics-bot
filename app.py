@@ -1,6 +1,6 @@
 from difflib import SequenceMatcher # <- ADD THIS AT TOP
 import streamlit as st
-import os, io, json, re, time, difflib, requests, random, hashlib, threading, pickle, numpy as np
+import os, io, json, re, time, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
 from groq import Groq, RateLimitError
 
@@ -402,14 +402,15 @@ def show_admin_portal():
         b_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
         if st.button("Generate 50Q"):
             topics = get_mixed_topics(b_level, b_subject); paper = call_groq(f"50Q UNEB from: {topics}. Marking guide.", b_level, force_format=True); display_with_preview(paper, f"Bulk_{b_subject}_{b_level}")
+       
     with tabs[4]:
-    st.subheader("📚 Vector DB Management")
-    st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
+        st.subheader("📚 Vector DB Management")
+        st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
 
-    render_sidebar_upload() # <- ADD THIS LINE
+        render_sidebar_upload() # <- FIXED INDENT
 
-    if st.button("Reset Vector DB"):
-        vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
+        if st.button("Reset Vector DB"):
+            vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
 
 ### 12. LOGIN ###
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.6.4")
