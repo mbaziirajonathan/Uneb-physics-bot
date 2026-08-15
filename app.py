@@ -207,7 +207,7 @@ def render_sidebar_upload():
     if st.sidebar.button("Add to Vector DB", key="btn_add_vector"):
         with st.spinner("Loading RAG engine... 20s first time"):
             if uploaded:
-                from PyPDF2 import PdfReader
+                from Pypdf import PdfReader
                 all_text = []
                 for file in uploaded:
                     if file.name.endswith(".pdf"):
