@@ -2,8 +2,10 @@ import streamlit as st
 import os, io, json, re, time, difflib, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
 from groq import Groq, RateLimitError
-from difflib import SequenceMatcher
-
+import faiss
+from sentence_transformers import SentenceTransformer
+from pypdf import PdfReader  # <- ADD THIS HERE
+import docx
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 st.sidebar.caption("Build: V5.6.4-LIGHT-LAZY-RAG")
 
@@ -201,26 +203,26 @@ def chunk_text(text, chunk_size=500):
 
 ### 7. SIDEBAR RAG UPLOAD ###
 def render_sidebar_upload():
-    st.sidebar.divider()
-    st.sidebar.subheader("📚 RAG Knowledge Base")
-    uploaded = st.sidebar.file_uploader("Upload PDF/TXT", type=["pdf","txt"], accept_multiple_files=True, key="sidebar_upload")
-    if st.sidebar.button("Add to Vector DB", key="btn_add_vector"):
-        with st.spinner("Loading RAG engine... 20s first time"):
-            if uploaded:
-                from Pypdf import PdfReader
-                all_text = []
-                for file in uploaded:
-                    if file.name.endswith(".pdf"):
-                        reader = PdfReader(file)
-                        text = "".join([p.extract_text() for p in reader.pages if p.extract_text()])
-                    else:
-                        text = file.read().decode("utf-8", errors="ignore")
-                    all_text.extend(chunk_text(text))
-                vector_rag.add_documents(all_text)
-                st.sidebar.success(f"✅ Added {len(all_text)} chunks")
-    st.sidebar.caption(f"Vector DB: {len(vector_rag.docs)} chunks")
-
-render_sidebar_upload()
+    st.sidebar.title("📚 Admin: Knowledge Base")
+    uploaded_file = st.sidebar.file_uploader("Upload PDF/DOCX/TXT", type=["pdf", "docx", "txt"])
+    if uploaded_file:
+        text = ""
+        if uploaded_file.name.endswith(".pdf"):
+            reader = PdfReader(uploaded_file) # No import here now
+            for page in reader.pages: text += page.extract_text() or ""
+        elif uploaded_file.name.endswith(".docx"):
+            doc = docx.Document(uploaded_file)
+            for para in doc.paragraphs: text += para.text + "\n"
+        else: 
+            text = uploaded_file.getvalue().decode("utf-8")
+        
+        chunks = chunk_text(text)
+        if st.sidebar.button(f"Add {len(chunks)} Chunks to Vector DB"):
+            if load_vector_tools(): # Make sure faiss loads first
+                vector_rag.add_documents(chunks)
+                st.sidebar.success(f"Added {len(chunks)} chunks to RAG!")
+            else:
+                st.sidebar.error("RAG tools failed to load")
 
 ### 8. UTILS ###
 def get_pandas(): import pandas as pd; return pd
