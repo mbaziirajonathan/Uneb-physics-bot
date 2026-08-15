@@ -226,34 +226,91 @@ def get_cached_answer(query): return ai_cache.get_answer(query)
 TOOLS = [{"type": "function", "function": {"name": "search_notes", "description": "Search NCDC notes vector database", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}}]
 
 def call_groq(user_prompt, level="S1", instructions="", force_format=False):
+    """
+    Calls Groq with cache, RAG, and tool calling. Returns tuple: (answer, sources_used)
+    """
     complexity = get_complexity_instructions(level)
-    format_instruction = "Use SCENARIO/ITEM/TASK." if force_format else ""
+    format_instruction = "Use SCENARIO/ITEM/TASK FORMAT with headers." if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper"]) else ""
     full_instructions = f"{complexity}\n{format_instruction}\n{instructions}"
+    
+    # 1. CHECK CACHE FIRST
     cached = get_cached_answer(user_prompt)
-    if cached: st.info("⚡ Cache Hit. 0 Tokens."); return cached, []
+    if cached: 
+        st.info("⚡ Cache Hit. 0 Tokens used.")
+        return cached, []
+    
+    # 2. SEARCH VDB / RAG
     rag_context = search_notes(user_prompt)
-    if rag_context and OFFLINE_MODE: return f"📚 OFFLINE RAG:\n{chr(10).join(rag_context[:2])}", rag_context
-    if OFFLINE_MODE: return "❌ OFFLINE: Not in cache/vector. Go online.", []
+    st.sidebar.caption(f"RAG hits: {len(rag_context)} | Prompt len: {len(user_prompt)}")
+    
+    if rag_context and OFFLINE_MODE:
+        answer = f"📚 OFFLINE RAG MODE:\n\nSource: Your Uploaded Notes\n{chr(10).join(rag_context[:3])}"
+        return answer, rag_context
+        
+    if OFFLINE_MODE: 
+        return "❌ OFFLINE: Not in cache/vector. Go online to generate new content.", []
+    
+    # 3. BUILD MESSAGES FOR GROQ
     context_history = get_conversation_context()
     messages = [{"role":"system","content":MASTER_SYSTEM_PROMPT + "\n" + full_instructions}]
-    messages.extend(context_history); messages.append({"role":"user","content":compress_prompt(user_prompt)})
-    if rag_context: messages.append({"role":"system","content":f"CONTEXT FROM TEACHER NOTES: {chr(10).join(rag_context[:2])}"})
+    messages.extend(context_history)
+    messages.append({"role":"user","content":compress_prompt(user_prompt)})
+    
+    # Add RAG context if found
+    if rag_context: 
+        messages.append({"role":"system","content":f"CONTEXT FROM TEACHER'S UPLOADED NOTES - CITE THIS: {chr(10).join(rag_context[:3])}"})
+    
     model_to_use = AI_MODEL_FAST if len(user_prompt) < 100 else AI_MODEL_LONG
-    placeholder = st.empty(); full_response = ""
+    placeholder = st.empty()
+    full_response = ""
+    
+    # 4. CALL GROQ WITH TOOL CALLING
     try:
-        response = client.chat.completions.create(model=model_to_use, messages=messages, tools=TOOLS, tool_choice="auto", max_tokens=1500)
-        msg = response.choices[0].message
-        if msg.tool_calls:
-            for tool_call in msg.tool_calls:
-                if tool_call.function.name == "search_notes": args = json.loads(tool_call.function.arguments); tool_result = search_notes(args["query"]); messages.append({"role":"tool","content":str(tool_result),"tool_call_id":tool_call.id})
-            response = client.chat.completions.create(model=model_to_use, messages=messages, max_tokens=1500)
-            full_response = response.choices[0].message.content
-        else: full_response = msg.content
+        with st.spinner(f"Thinking with {model_to_use}..."):
+            response = client.chat.completions.create(
+                model=model_to_use, 
+                messages=messages, 
+                tools=TOOLS, 
+                tool_choice="auto", 
+                max_tokens=2000,
+                temperature=0.3
+            )
+            msg = response.choices[0].message
+            
+            # Handle tool calls
+            if msg.tool_calls:
+                for tool_call in msg.tool_calls:
+                    if tool_call.function.name == "search_notes":
+                        args = json.loads(tool_call.function.arguments)
+                        st.sidebar.info(f"AI called tool: search_notes('{args['query']}')")
+                        tool_result = search_notes(args["query"])
+                        messages.append({"role":"tool","content":str(tool_result),"tool_call_id":tool_call.id})
+                
+                # Second call with tool results
+                response = client.chat.completions.create(model=model_to_use, messages=messages, max_tokens=2000)
+                full_response = response.choices[0].message.content
+            else:
+                full_response = msg.content
+                
         placeholder.markdown(full_response)
-    except Exception as e: st.error(f"AI Error: {e}"); full_response = "Error. Try again."
-    st.session_state.chat_history.append({"role":"user","content":user_prompt}); st.session_state.chat_history.append({"role":"assistant","content":full_response})
-    if len(st.session_state.chat_history) > 8: st.session_state.chat_history = st.session_state.chat_history[-8:]
-    ai_cache.set_answer(user_prompt, full_response); st.success("✅ Saved to Cache")
+        
+    except RateLimitError:
+        st.error("Groq Rate Limit. Try again in 10s or switch to OFFLINE MODE")
+        full_response = "Rate limit error. Please try again."
+    except Exception as e:
+        st.error(f"AI Error: {e}")
+        full_response = "Error. Try again."
+    
+    # 5. SAVE TO HISTORY + CACHE
+    st.session_state.chat_history.append({"role":"user","content":user_prompt})
+    st.session_state.chat_history.append({"role":"assistant","content":full_response})
+    if len(st.session_state.chat_history) > 8: 
+        st.session_state.chat_history = st.session_state.chat_history[-8:]
+    
+    ai_cache.set_answer(user_prompt, full_response)
+    st.success("✅ Saved to Cache for 24hrs")
+    save_log({"time": str(datetime.now()), "user": st.session_state.get("role"), "action": "AI Query", "prompt": user_prompt[:50]})
+    
     return full_response, rag_context
 
 ### 10. STUDENT PORTAL ###
