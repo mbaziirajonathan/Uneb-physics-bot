@@ -2,10 +2,7 @@ import streamlit as st
 import os, io, json, re, time, difflib, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
 from groq import Groq, RateLimitError
-import faiss
-from sentence_transformers import SentenceTransformer
-from pypdf import PdfReader  # <- ADD THIS HERE
-import docx
+
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 st.sidebar.caption("Build: V5.6.4-LIGHT-LAZY-RAG")
 
