@@ -152,13 +152,14 @@ def chunk_text(text, chunk_size=500):
     current = ""
     for s in sentences:
         if len(current) + len(s) < chunk_size: 
-            current += s + "
+            current += s + " "  # <-- FIXED: added closing "
         else: 
             chunks.append(current)
             current = s
     if current: 
         chunks.append(current)
     return chunks
+ 
 
 def render_upload_download(key_prefix="default"):
     st.subheader("📤 Upload & 📥 Download")
