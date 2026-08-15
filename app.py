@@ -3,7 +3,9 @@ import streamlit as st
 import os, io, json, re, time, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
 from groq import Groq, RateLimitError
-
+import logging
+logging.basicConfig(level=logging.INFO)
+st.sidebar.info(f"Build: V6.0.1-FIXED | VDB Chunks: {len(vector_rag.docs)}")
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 st.sidebar.caption("Build: V6.0-PRO-FULL-NCDC")
 
@@ -146,16 +148,18 @@ class VectorRAG:
 vector_rag = VectorRAG()
 def chunk_text(text, chunk_size=500): 
     sentences = re.split(r'(?<=[.!?]) +', text)
-    chunks = []; current = ""
+    chunks = []
+    current = ""
     for s in sentences:
         if len(current) + len(s) < chunk_size: 
-            current += s + " "
+            current += s + "
         else: 
             chunks.append(current)
             current = s
     if current: 
         chunks.append(current)
     return chunks
+
 def render_upload_download(key_prefix="default"):
     st.subheader("📤 Upload & 📥 Download")
     uploaded_file = st.file_uploader("Upload PDF/DOCX/TXT to add to VDB", type=["pdf", "docx", "txt"], key=f"uploader_{key_prefix}")
