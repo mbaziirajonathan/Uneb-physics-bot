@@ -403,10 +403,13 @@ def show_admin_portal():
         if st.button("Generate 50Q"):
             topics = get_mixed_topics(b_level, b_subject); paper = call_groq(f"50Q UNEB from: {topics}. Marking guide.", b_level, force_format=True); display_with_preview(paper, f"Bulk_{b_subject}_{b_level}")
     with tabs[4]:
-        st.subheader("📚 Vector DB Management")
-        st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
-        if st.button("Reset Vector DB"):
-            vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
+    st.subheader("📚 Vector DB Management")
+    st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
+
+    render_sidebar_upload() # <- ADD THIS LINE
+
+    if st.button("Reset Vector DB"):
+        vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
 
 ### 12. LOGIN ###
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.6.4")
