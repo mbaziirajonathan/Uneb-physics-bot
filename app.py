@@ -1,11 +1,11 @@
 import streamlit as st
-import os, io, json, re, time, difflib, requests, random, hashlib, threading
+import os, io, json, re, time, difflib, requests, random, hashlib, threading, pickle, numpy as np
 from datetime import datetime
 from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.4.8-FULL-RESTORE")
+st.sidebar.caption("Build: V5.6.1-RAG-UPLOAD-SIDEBAR")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -20,11 +20,13 @@ DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
 LOG_FILE = f"{DATA_PATH}/usage_log.json"
 CACHE_FILE = f"{DATA_PATH}/ai_cache.json"
 PARENTS_FILE = f"{DATA_PATH}/parents.json"
+VECTOR_FILE = f"{DATA_PATH}/vector_index.faiss"
+DOCS_FILE = f"{DATA_PATH}/vector_docs.json"
 
 def save_db(file,data):
     with open(file,"w") as f: json.dump(data,f,indent=2)
 
-for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {})]:
+for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {}), (DOCS_FILE, [])]:
     if not os.path.exists(f):
         save_db(f, default)
 
@@ -40,7 +42,6 @@ class TTLSchoolCache:
         self.threshold = similarity_threshold
         self.cache_file = CACHE_FILE
         self.cache = self.load_from_disk()
-
     def load_from_disk(self):
         if os.path.exists(self.cache_file):
             with open(self.cache_file, "r") as f:
@@ -50,23 +51,19 @@ class TTLSchoolCache:
                 if len(clean_data)!= len(data): self.save_to_disk(clean_data)
                 return clean_data
         return {}
-
     def save_to_disk(self, data=None):
         if data is None: data = self.cache
         save_db(self.cache_file, data)
-
     def _clean_text(self, text: str) -> str:
         text = text.strip().lower()
         text = re.sub(r'[^a-z0-9\s]', '', text)
         text = re.sub(r'\s+', ' ', text)
         return text
-
     def set_answer(self, question: str, answer: str):
         clean_question = self._clean_text(question)
         expire_at = time.time() + self.ttl
         self.cache[clean_question] = {"answer": answer, "expires_at": expire_at, "original_q": question}
         self.save_to_disk()
-
     def get_answer(self, question: str) -> str:
         clean_question = self._clean_text(question)
         now = time.time()
@@ -82,7 +79,6 @@ class TTLSchoolCache:
         for k in expired_keys: del self.cache[k]
         if best_match and best_score >= self.threshold: return best_match["answer"]
         self.save_to_disk(); return None
-
     def clear_cache(self): self.cache = {}; self.save_to_disk()
     def get_stats(self):
         now = time.time()
@@ -91,42 +87,35 @@ class TTLSchoolCache:
 
 def get_complexity_instructions(level):
     n = int(level[1])
-    if n <= 2: return "S1-S2 LOWER SECONDARY. Very simple language. Short sentences. Basic Ugandan examples."
-    elif n <= 4: return "S3-S4 UPPER SECONDARY. Intermediate. Explain concepts and apply. Ugandan context."
-    else: return "S5-S6 ADVANCED LEVEL. University prep. Deep analysis, derivations, detailed explanations, critical thinking."
-
+    if n <= 2: return "S1-S2: Simple. Short. Ugandan examples."
+    elif n <= 4: return "S3-S4: Intermediate. Explain + apply. Ugandan context."
+    else: return "S5-S6: Advanced. Deep analysis. Derivations."
 ai_cache = TTLSchoolCache(ttl_seconds=86400)
 
 ### 3. SECRETS ###
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
-
 if not GROQ_API_KEY:
     st.error("Missing GROQ_API_KEY. Go to Render > Environment")
     st.stop()
-
 @st.cache_resource
 def get_client(): return Groq(api_key=GROQ_API_KEY)
 client = get_client()
-
 OFFLINE_MODE = st.sidebar.toggle("🔌 OFFLINE MODE", value=False, key="toggle_offline")
-if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON")
-
+if OFFLINE_MODE: st.sidebar.warning("OFFLINE MODE ON - RAG + CACHE ONLY")
 MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA CURRICULUM ONLY.
 CORE RULES:
-1. ALWAYS answer the question asked directly first. Be smart like ChatGPT/Meta AI.
-2. ONLY use UNEB format SCENARIO, ITEM, TASK when the user asks for: 'exam', 'quiz', 'test', '50 questions', 'paper', 'bulk', 'marking guide'.
-3. For normal questions like 'give 2 examples', 'explain', 'define': Give a direct, clear answer with Ugandan examples. NO SCENARIO.
-4. S1-S2: Simple. S3-S4: Intermediate. S5-S6: Advanced, deep analysis.
-5. Always use Ugandan context. Do not hallucinate. If unsure say 'I don't have that information'."""
-
+1. Answer directly first. Use Ugandan examples.
+2. Use SCENARIO/ITEM/TASK only for exam/quiz/50q requests.
+3. S1-S2: Simple. S3-S4: Intermediate. S5-S6: Advanced.
+4. If unsure: 'I don't have that information'."""
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.4.8\nNCDC 2026 LOCKED\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.6.1\nRAG SIDEBAR ON\n📞 {CONTACT}")
 
-### 4. ALL 15 SUBJECTS NCDC S1-S6 - FULL TOPICS RESTORED ###
+### 4. ALL 15 SUBJECTS NCDC S1-S6 - KEPT 100% ###
 UNEB_CURRICULUM_MAP = {
     "Mathematics": {"S1": ["Sets","Number Bases","Integers","Fractions","Decimals"], "S2": ["Rates","Percentages","Algebra","Equations","Geometry"], "S3": ["Quadratics","Trigonometry","Probability","Statistics I","Vectors"], "S4": ["Functions","Matrices","Sequences","Logarithms","Circle Geometry"], "S5": ["Differentiation","Integration","Binomial","Complex Numbers","Mechanics I"], "S6": ["Mechanics II","Statistics III","Probability II","Linear Programming","Vectors II"]},
     "Physics": {"S1": ["Measurement","Forces","Energy","Heat","Light I"], "S2": ["Sound","Pressure","Magnetism I","Electricity I","Waves I"], "S3": ["Magnetism II","Electricity II","Heat II","Optics I","Modern Physics I"], "S4": ["Electronics","Waves II","Radioactivity","Mechanics","Thermal Physics"], "S5": ["Optics II","Current Electricity II","Gravitation","Fields","Nuclear Physics I"], "S6": ["Electric Fields","Magnetic Fields","Electromagnetic Induction","Nuclear Physics II","Electronics II"]},
@@ -145,7 +134,7 @@ UNEB_CURRICULUM_MAP = {
     "Kiswahili": {"S1": ["Alfabeti","Maneno","Sentensi","Kusoma","Kuandika"], "S2": ["Sarufi","Kusoma","Kusikia","Kuongea","Utungaji"], "S3": ["Fasihi","Utungaji","Insha","Barua","Ripoti"], "S4": ["Riwaya","Michezo","Ushairi","Maqala","Hotuba"], "S5": ["Uchambuzi","Insha","Tafsiri","Utafiti","Fasihi"], "S6": ["Tafsiri","Mjadala","Uchambuzi wa Kina","Uandishi wa Kitaaluma","Mradi"]}
 }
 
-### 5. ALL 10 PRACTICALS + AGRICULTURE RESTORED ###
+### 5. ALL 10 PRACTICALS + AGRICULTURE - KEPT 100% ###
 PRACTICAL_DATABASE = {
     "Physics": {
         "S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity g"}},
@@ -165,23 +154,92 @@ PRACTICAL_DATABASE = {
     }
 }
 
-### 6. UTILS ###
+### 6. RAG + VECTOR DB CLASS ###
+@st.cache_resource
+def load_vector_tools():
+    try:
+        import faiss
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        return faiss, model
+    except:
+        return None, None
+faiss, embedding_model = load_vector_tools()
+
+class VectorRAG:
+    def __init__(self):
+        self.index = None
+        self.docs = []
+        self.load()
+    def load(self):
+        if os.path.exists(VECTOR_FILE) and os.path.exists(DOCS_FILE):
+            self.index = faiss.read_index(VECTOR_FILE)
+            with open(DOCS_FILE, "r") as f: self.docs = json.load(f)
+    def save(self):
+        if self.index: faiss.write_index(self.index, VECTOR_FILE)
+        save_db(DOCS_FILE, self.docs)
+    def add_documents(self, texts):
+        if not embedding_model: return
+        embeddings = embedding_model.encode(texts, convert_to_numpy=True)
+        if self.index is None: self.index = faiss.IndexFlatL2(embeddings.shape[1])
+        self.index.add(embeddings)
+        self.docs.extend(texts)
+        self.save()
+    def search(self, query, k=3):
+        if not self.index or not embedding_model: return []
+        q_emb = embedding_model.encode([query], convert_to_numpy=True)
+        D, I = self.index.search(q_emb, min(k, len(self.docs)))
+        return [self.docs[i] for i in I[0]]
+
+vector_rag = VectorRAG()
+
+def chunk_text(text, chunk_size=500):
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    chunks = []; current = ""
+    for s in sentences:
+        if len(current) + len(s) < chunk_size: current += s + " "
+        else: chunks.append(current); current = s
+    if current: chunks.append(current)
+    return chunks
+
+### 7. SIDEBAR RAG UPLOAD FOR BOTH ROLES ###
+def render_sidebar_upload():
+    st.sidebar.divider()
+    st.sidebar.subheader("📚 RAG Knowledge Base")
+    if not embedding_model: st.sidebar.error("Install faiss-cpu + sentence-transformers")
+    else:
+        uploaded = st.sidebar.file_uploader("Upload PDF/TXT", type=["pdf","txt"], accept_multiple_files=True, key="sidebar_upload")
+        if st.sidebar.button("Add to Vector DB", key="btn_add_vector"):
+            if uploaded:
+                from PyPDF2 import PdfReader
+                all_text = []
+                for file in uploaded:
+                    if file.name.endswith(".pdf"):
+                        reader = PdfReader(file)
+                        text = "".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                    else:
+                        text = file.read().decode("utf-8", errors="ignore")
+                    all_text.extend(chunk_text(text))
+                vector_rag.add_documents(all_text)
+                st.sidebar.success(f"✅ Added {len(all_text)} chunks")
+        st.sidebar.caption(f"Vector DB: {len(vector_rag.docs)} chunks")
+
+render_sidebar_upload()
+
+### 8. UTILS ###
 def get_pandas(): import pandas as pd; return pd
 def get_docx(): from docx import Document; return Document
 def get_canvas(): from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; return canvas, A4
-
 def load_logs():
     with open(LOG_FILE) as f: return json.load(f)
 def save_log(entry):
     logs = load_logs(); logs.append(entry); save_db(LOG_FILE, logs)
-
 @st.cache_data
 def generate_file_bytes(content, fmt):
     if fmt == "pdf": canvas, A4 = get_canvas(); buffer = io.BytesIO(); p = canvas(buffer, pagesize=A4); p.setFont("Helvetica", 10); [p.drawString(50,800-(i*14),line[:100]) for i,line in enumerate(content.split('\n')[:90])]; p.save(); buffer.seek(0); return buffer.getvalue()
     elif fmt == "excel": pd = get_pandas(); df = pd.DataFrame({"Content": content.split('\n')}); buffer = io.BytesIO(); df.to_excel(buffer, index=False, engine='openpyxl'); buffer.seek(0); return buffer.getvalue()
     elif fmt == "html": html = f"<html><body><pre>{content}</pre></body></html>"; return html.encode()
     elif fmt == "docx": Document = get_docx(); doc = Document(); doc.add_paragraph(content); buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0); return buffer.getvalue()
-
 def get_level_group(level): return "S1-S4" if int(level[1]) <= 4 else "S5-S6"
 def get_mixed_topics(level, subject):
     level_num = int(level[1]); topics = []; weights = {level_num: 0.7}
@@ -190,7 +248,6 @@ def get_mixed_topics(level, subject):
         if f"S{l}" in UNEB_CURRICULUM_MAP[subject]:
             topics.extend(random.sample(UNEB_CURRICULUM_MAP[subject][f"S{l}"], min(2, len(UNEB_CURRICULUM_MAP[subject][f"S{l}"]))))
     return topics
-
 def display_with_preview(content, name):
     edited = st.text_area("AI Preview - EDIT BEFORE DOWNLOAD", content, height=350, key=f"preview_{name}")
     cols = st.columns(4)
@@ -198,30 +255,56 @@ def display_with_preview(content, name):
         if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
             st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}")
 
-### 7. AI CALL + ADVANCED DIAGRAM ENGINE ###
+### 9. SMART TOKEN MINIMIZER + FUNCTION CALLING ###
+def get_conversation_context():
+    if "chat_history" not in st.session_state: st.session_state.chat_history = []
+    return st.session_state.chat_history[-4:]
+def compress_prompt(prompt):
+    return re.sub(r'\s+', ' ', prompt).strip()[:2000]
+def search_notes(query): return vector_rag.search(query, k=3)
+def get_cached_answer(query): return ai_cache.get_answer(query)
+TOOLS = [
+    {"type": "function", "function": {"name": "search_notes", "description": "Search NCDC notes vector database", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+    {"type": "function", "function": {"name": "get_cached_answer", "description": "Check if answer exists in local cache", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}}
+]
 def call_groq(user_prompt, level="S1", sample="", instructions="", force_format=False):
     complexity = get_complexity_instructions(level)
-    anti_hallucination = "Stay strictly to NCDC UNEB syllabus for Uganda."
-    format_instruction = "IMPORTANT: Use UNEB format with SCENARIO, ITEM, TASK." if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper"]) else ""
-    full_instructions = f"{complexity}\n{anti_hallucination}\n{format_instruction}\n{instructions}"
-    cache_key = user_prompt + sample + full_instructions + level + str(force_format)
-    cached_response = ai_cache.get_answer(cache_key)
-    if cached_response: st.info("⚡ Loaded from Local TTL Cache. 0 Tokens used."); return cached_response
-    if OFFLINE_MODE: return "❌ OFFLINE MODE: This question not in cache. Go online once."
-    full_prompt = f"{full_instructions}\nTEACHER SAMPLE:\n{sample}\n\nUSER QUESTION:\n{user_prompt}"
+    format_instruction = "Use SCENARIO/ITEM/TASK." if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper"]) else ""
+    full_instructions = f"{complexity}\n{format_instruction}\n{instructions}"
+    cached = get_cached_answer(user_prompt)
+    if cached: st.info("⚡ Cache Hit. 0 Tokens."); return cached
+    rag_context = search_notes(user_prompt)
+    if rag_context and OFFLINE_MODE:
+        return f"📚 OFFLINE RAG:\n{chr(10).join(rag_context[:2])}"
+    if OFFLINE_MODE: return "❌ OFFLINE: Not in cache/vector. Go online."
+    context_history = get_conversation_context()
+    messages = [{"role":"system","content":MASTER_SYSTEM_PROMPT + "\n" + full_instructions}]
+    messages.extend(context_history)
+    messages.append({"role":"user","content":compress_prompt(user_prompt)})
+    if rag_context: messages.append({"role":"system","content":f"CONTEXT: {chr(10).join(rag_context[:2])}"})
+    model_to_use = AI_MODEL_FAST if len(user_prompt) < 100 else AI_MODEL_LONG
     placeholder = st.empty(); full_response = ""
-    model_to_use = AI_MODEL_LONG if "Generate 50" in user_prompt else AI_MODEL_FAST
     try:
-        stream = client.chat.completions.create(model=model_to_use, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=2500, stream=True)
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content; placeholder.markdown(full_response + "▌")
+        response = client.chat.completions.create(model=model_to_use, messages=messages, tools=TOOLS, tool_choice="auto", max_tokens=1500)
+        msg = response.choices[0].message
+        if msg.tool_calls:
+            for tool_call in msg.tool_calls:
+                if tool_call.function.name == "search_notes":
+                    args = json.loads(tool_call.function.arguments)
+                    tool_result = search_notes(args["query"])
+                    messages.append({"role":"tool","content":str(tool_result),"tool_call_id":tool_call.id})
+            response = client.chat.completions.create(model=model_to_use, messages=messages, max_tokens=1500)
+            full_response = response.choices[0].message.content
+        else:
+            full_response = msg.content
         placeholder.markdown(full_response)
     except Exception as e:
         st.error(f"AI Error: {e}")
-        res = client.chat.completions.create(model=AI_MODEL_LONG, messages=[{"role":"system","content":MASTER_SYSTEM_PROMPT},{"role":"user","content":full_prompt}], max_tokens=3000)
-        full_response = res.choices[0].message.content; st.markdown(full_response)
-    ai_cache.set_answer(cache_key, full_response); st.success("✅ Saved to Local TTL Cache for 24hrs")
+        full_response = "Error. Try again."
+    st.session_state.chat_history.append({"role":"user","content":user_prompt})
+    st.session_state.chat_history.append({"role":"assistant","content":full_response})
+    if len(st.session_state.chat_history) > 8: st.session_state.chat_history = st.session_state.chat_history[-8:]
+    ai_cache.set_answer(user_prompt, full_response); st.success("✅ Saved to Cache")
     return full_response
 
 def parse_multiple_json(text):
@@ -237,56 +320,42 @@ def parse_multiple_json(text):
         except:
             break
     return objs
-
 def generate_diagram_ai(topic, subject, level):
     cache_key = f"diagram_{sanitize(topic)}_{subject}_{level}"
     if cache_key in DIAGRAM_CACHE: return DIAGRAM_CACHE[cache_key]
-    prompt = f"""For NCDC Uganda {level} {subject} topic '{topic}', generate 2 to 3 relevant diagrams.
-Return a JSON ARRAY of objects. Each object: {{"title": "...", "mermaid": "graph TD\\nA-->B", "ascii": "A -> B"}}
-Rules: 1. Mermaid must use proper labels. 2. ASCII must be neat, <15 lines. 3. Use Ugandan examples.
-Return ONLY the JSON array. No other text."""
-    diagram_json = call_groq(prompt, level, instructions="Output ONLY JSON array. No explanation.")
+    prompt = f"For NCDC {level} {subject} '{topic}', generate 2 JSON diagrams with title,mermaid,ascii. Ugandan examples. JSON array only."
+    diagram_json = call_groq(prompt, level)
     diagrams = parse_multiple_json(diagram_json)
-    if not diagrams:
-        diagrams = [{"title": f"{topic} Overview", "ascii": f"{topic}\n [Part A]\n |\n [Part B]", "mermaid": f"graph TD\nA[{topic} Part A] --> B[{topic} Part B]"}]
+    if not diagrams: diagrams = [{"title": f"{topic} Overview", "ascii": f"{topic}\n [A]\n |\n [B]", "mermaid": f"graph TD\nA[{topic}] --> B"}]
     DIAGRAM_CACHE[cache_key] = diagrams
     return diagrams
-
 def show_diagram(topic, subject, level):
     st.subheader(f"Diagrams: {topic}")
-    with st.spinner("Generating diagrams with AI..."):
+    with st.spinner("Generating..."):
         diags = generate_diagram_ai(topic, subject, level)
     for i, diag in enumerate(diags):
-        title = diag.get('title', f"{topic} Diagram {i+1}")
+        title = diag.get('title', f"{topic} {i+1}")
         st.markdown(f"### {i+1}. {title}")
         tab1, tab2 = st.tabs(["📊 Mermaid", "📝 ASCII"])
         with tab1:
-            if diag.get("mermaid"):
-                st.markdown(f"```mermaid\n{diag['mermaid']}\n```")
-        with tab2:
-            st.code(diag.get("ascii","No ASCII available"), language="text")
+            if diag.get("mermaid"): st.markdown(f"```mermaid\n{diag['mermaid']}\n```")
+        with tab2: st.code(diag.get("ascii",""), language="text")
         st.divider()
 
-### 8. STUDENT PORTAL - 4 TABS FULL ###
+### 10. STUDENT PORTAL - 4 TABS ###
 def show_student_portal():
     st.header("📚 Student Portal - SMART MODE")
     if st.button("Logout", key="btn_logout_student"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "📖 Learn Topic", "🧪 Practicals", "🖼️ Diagram Library"])
-
     with tab1:
         st.subheader("Ask the AI Anything")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s1_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s1_level")
         difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="s1_diff")
-        ask_q = st.text_area("Ask anything. Type 'diagram:Sets' to generate diagrams", key="s1_ask")
+        ask_q = st.text_area("Ask anything. 'diagram:Sets' for diagrams", key="s1_ask")
         if st.button("Ask AI", key="s1_btn") and ask_q:
-            if ask_q.lower().startswith("diagram:"):
-                topic = ask_q.split(":")[1].strip()
-                show_diagram(topic, subject, level)
-            else:
-                ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level)
-                display_with_preview(ans, "Answer_s1")
-
+            if ask_q.lower().startswith("diagram:"): show_diagram(ask_q.split(":")[1].strip(), subject, level)
+            else: ans = call_groq(f"Difficulty: {difficulty}. {ask_q}", level); display_with_preview(ans, "Answer_s1")
     with tab2:
         st.subheader("Generate Content for a Topic")
         subject2 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s2_subj")
@@ -295,80 +364,64 @@ def show_student_portal():
         mode = st.radio("Mode", ["Theory","AOI","Practicals","Quiz","Bulk Quiz"], key="s2_mode")
         difficulty2 = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="s2_diff")
         if mode == "Theory" and st.button("Generate Notes", key="s2_btn_notes"):
-            notes = call_groq(f"Generate detailed notes on {topic2} for {level2} {subject2}. Difficulty: {difficulty2}", level2)
-            display_with_preview(notes, "Notes_s2")
+            notes = call_groq(f"Notes on {topic2} for {level2} {subject2}. {difficulty2}", level2); display_with_preview(notes, "Notes_s2")
         elif mode == "Bulk Quiz" and st.button("Generate 50Q Exam", key="s2_btn_bulk"):
-            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"Generate 50 UNEB questions from: {topics}. Difficulty: {difficulty2}", level2, force_format=True)
-            display_with_preview(exam, "BulkQuiz_s2")
-
+            topics = get_mixed_topics(level2, subject2); exam = call_groq(f"50 UNEB Qs from: {topics}. {difficulty2}", level2, force_format=True); display_with_preview(exam, "BulkQuiz_s2")
     with tab3:
-        st.subheader("🧪 Practical Experiments from DATABASE")
+        st.subheader("🧪 Practicals")
         subject3 = st.selectbox("Subject", list(PRACTICAL_DATABASE.keys()), key="s3_subj")
         level3 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s3_level")
         group = get_level_group(level3); prac_list = list(PRACTICAL_DATABASE.get(subject3, {}).get(group, {}).keys())
-        if not prac_list: st.warning("No practicals for this subject/level in DB")
+        if not prac_list: st.warning("No practicals")
         topic3 = st.selectbox("Select Practical", prac_list, key="s3_topic") if prac_list else None
         if st.button("Generate Full Practical", key="s3_btn") and topic3:
             objective = PRACTICAL_DATABASE[subject3][group][topic3]["objective"]
-            practical = call_groq(f"Generate complete UNEB practical for {topic3}. Objective: {objective}. Include apparatus, procedure, results table, safety, Ugandan context.", level3)
+            practical = call_groq(f"Full UNEB practical for {topic3}. {objective}. Apparatus, procedure, table, safety, Uganda.", level3)
             display_with_preview(practical, f"Practical_{topic3}_s3")
-
     with tab4:
-        st.subheader("🖼️ Diagram Library - AI Generated")
+        st.subheader("🖼️ Diagram Library")
         subject4 = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="s4_subj")
         level4 = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="s4_level")
         topic4 = st.selectbox("Topic", UNEB_CURRICULUM_MAP[subject4][level4], key="s4_topic")
-        if st.button("Generate Diagrams for Topic", key="s4_btn"):
-            show_diagram(topic4, subject4, level4)
+        if st.button("Generate Diagrams", key="s4_btn"): show_diagram(topic4, subject4, level4)
 
-### 9. ADMIN PORTAL - ALL 4 TABS RESTORED ###
+### 11. ADMIN PORTAL - 5 TABS ###
 def show_admin_portal():
-    st.header("🏫 Admin Portal - TEACHER DRIVEN AI")
+    st.header("🏫 Admin Portal")
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
-    tabs = st.tabs(["📊 Analytics","📖 Curriculum Editor","🧪 Practicals Editor","📤 Bulk Exam Generator"])
-
+    tabs = st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk Exam","📚 RAG KB"])
     with tabs[0]:
-        st.subheader("📊 Usage Analytics + Cache Control")
+        st.subheader("📊 Analytics")
         pd = get_pandas(); logs = load_logs(); stats = ai_cache.get_stats()
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Actions", len(logs)); col2.metric("Cache Entries", stats['total']); col3.metric("Active Cache", stats['active'])
-        if st.button("Clear Entire AI Cache", type="primary"): ai_cache.clear_cache(); DIAGRAM_CACHE.clear(); st.success("✅ Cache Cleared!"); st.rerun()
+        col1.metric("Actions", len(logs)); col2.metric("Cache", stats['total']); col3.metric("Active", stats['active'])
+        if st.button("Clear Cache"): ai_cache.clear_cache(); DIAGRAM_CACHE.clear(); st.success("Cleared!"); st.rerun()
         if logs: st.dataframe(pd.DataFrame(logs[-20:]))
-
-    with tabs[1]:
-        st.subheader("📖 NCDC Curriculum Editor")
-        edit_subj = st.selectbox("Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="admin_edit_subj")
-        st.json(UNEB_CURRICULUM_MAP[edit_subj])
-        st.info("To edit curriculum, update UNEB_CURRICULUM_MAP dict in code and redeploy")
-
-    with tabs[2]:
-        st.subheader("🧪 Practicals Database Editor")
-        edit_prac_subj = st.selectbox("Pick Subject", list(PRACTICAL_DATABASE.keys()), key="admin_edit_prac")
-        st.json(PRACTICAL_DATABASE[edit_prac_subj])
-        st.info("To add practicals, update PRACTICAL_DATABASE dict in code and redeploy")
-
+    with tabs[1]: st.subheader("📖 Curriculum"); st.json(UNEB_CURRICULUM_MAP)
+    with tabs[2]: st.subheader("🧪 Practicals"); st.json(PRACTICAL_DATABASE)
     with tabs[3]:
-        st.subheader("📤 Bulk Exam Generator")
+        st.subheader("📤 Bulk Exam")
         b_subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
         b_level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="bulk_level")
-        b_difficulty = st.selectbox("Difficulty", ["Mixed","Easy","Moderate","Hard"], key="bulk_diff")
-        if st.button("Generate 50Q Bulk Paper"):
-            topics = get_mixed_topics(b_level, b_subject)
-            paper = call_groq(f"Generate full 50 question UNEB exam paper from: {topics}. Include marking guide.", b_level, force_format=True)
-            display_with_preview(paper, f"BulkPaper_{b_subject}_{b_level}")
+        if st.button("Generate 50Q"):
+            topics = get_mixed_topics(b_level, b_subject); paper = call_groq(f"50Q UNEB from: {topics}. Marking guide.", b_level, force_format=True); display_with_preview(paper, f"Bulk_{b_subject}_{b_level}")
+    with tabs[4]:
+        st.subheader("📚 Vector DB Management")
+        st.info("You can also upload from sidebar. This is for bulk management.")
+        st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
+        if st.button("Reset Vector DB"):
+            vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
 
-### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.4.8")
+### 12. LOGIN ###
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.6.1")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
-
 if st.sidebar.button("Login", key="btn_login"):
     if user_type == "Student" and password == STUDENT_PASSWORD:
         st.session_state["role"] = "Student"; save_log({"time": str(datetime.now()), "user": "Student", "action": "Login"}); st.rerun()
     elif user_type == "Admin/Teacher" and password == ADMIN_PASSWORD:
         st.session_state["role"] = "Admin"; save_log({"time": str(datetime.now()), "user": "Admin", "action": "Login"}); st.rerun()
     elif password: st.sidebar.error("Wrong password")
-
 if st.session_state.get("role") == "Admin": show_admin_portal()
 elif st.session_state.get("role") == "Student": show_student_portal()
 else: st.info("Please login to continue")
