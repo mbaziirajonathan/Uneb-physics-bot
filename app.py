@@ -5,7 +5,7 @@ from groq import Groq, RateLimitError
 from difflib import SequenceMatcher
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V5.6.1-RAG-UPLOAD-SIDEBAR")
+st.sidebar.caption("Build: V5.6.4-LIGHT-LAZY-RAG")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -31,11 +31,9 @@ for f, default in [(LOG_FILE, []), (CACHE_FILE, {}), (PARENTS_FILE, {}), (DOCS_F
         save_db(f, default)
 
 def sanitize(s): return re.sub(r'[^a-z0-9]', '', s.lower())
-
-### 1B. DIAGRAM CACHE ###
 DIAGRAM_CACHE = {}
 
-### 2. TTL CACHE CLASS ###
+### 2. TTL CACHE CLASS - NO CHANGES ###
 class TTLSchoolCache:
     def __init__(self, ttl_seconds: int = 86400, similarity_threshold: float = 0.75):
         self.ttl = ttl_seconds
@@ -113,7 +111,7 @@ CORE RULES:
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.6.1\nRAG SIDEBAR ON\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V5.6.4\nLIGHT MODE ON\n📞 {CONTACT}")
 
 ### 4. ALL 15 SUBJECTS NCDC S1-S6 - KEPT 100% ###
 UNEB_CURRICULUM_MAP = {
@@ -136,35 +134,30 @@ UNEB_CURRICULUM_MAP = {
 
 ### 5. ALL 10 PRACTICALS + AGRICULTURE - KEPT 100% ###
 PRACTICAL_DATABASE = {
-    "Physics": {
-        "S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity g"}},
-        "S5-S6": {"RC Circuit": {"objective": "Find time constant of RC circuit"}, "Potentiometer": {"objective": "Compare emfs of two cells"}, "Wheatstone Bridge": {"objective": "Determine unknown resistance"}}
-    },
-    "Chemistry": {
-        "S1-S4": {"Acid-Base Titration": {"objective": "Determine concentration of HCl"}, "Solubility": {"objective": "Investigate effect of temperature on solubility"}},
-        "S5-S6": {"Rate of Reaction": {"objective": "Determine order of reaction"}, "Electrolysis": {"objective": "Verify Faraday's laws"}, "Organic Prep": {"objective": "Prepare ethanoic acid"}}
-    },
-    "Biology": {
-        "S1-S4": {"Microscope Use": {"objective": "Observe plant and animal cells"}, "Food Tests": {"objective": "Test for starch, proteins, lipids, reducing sugars"}},
-        "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"}, "Plasmolysis": {"objective": "Observe osmosis in onion epidermal cells"}, "Chromatography": {"objective": "Separate plant pigments"}}
-    },
-    "Agriculture": {
-        "S1-S4": {"Soil pH Test": {"objective": "Determine soil pH using indicator"}, "Seed Germination": {"objective": "Test germination percentage"}},
-        "S5-S6": {"Feed Formulation": {"objective": "Formulate poultry feed"}, "Farm Budget": {"objective": "Prepare farm enterprise budget"}}
-    }
+    "Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law V=IR"}, "Simple Pendulum": {"objective": "Determine acceleration due to gravity g"}}, "S5-S6": {"RC Circuit": {"objective": "Find time constant of RC circuit"}, "Potentiometer": {"objective": "Compare emfs of two cells"}, "Wheatstone Bridge": {"objective": "Determine unknown resistance"}}},
+    "Chemistry": {"S1-S4": {"Acid-Base Titration": {"objective": "Determine concentration of HCl"}, "Solubility": {"objective": "Investigate effect of temperature on solubility"}}, "S5-S6": {"Rate of Reaction": {"objective": "Determine order of reaction"}, "Electrolysis": {"objective": "Verify Faraday's laws"}, "Organic Prep": {"objective": "Prepare ethanoic acid"}}},
+    "Biology": {"S1-S4": {"Microscope Use": {"objective": "Observe plant and animal cells"}, "Food Tests": {"objective": "Test for starch, proteins, lipids, reducing sugars"}}, "S5-S6": {"Enzyme Activity": {"objective": "Effect of pH and temperature on amylase"}, "Plasmolysis": {"objective": "Observe osmosis in onion epidermal cells"}, "Chromatography": {"objective": "Separate plant pigments"}}},
+    "Agriculture": {"S1-S4": {"Soil pH Test": {"objective": "Determine soil pH using indicator"}, "Seed Germination": {"objective": "Test germination percentage"}}, "S5-S6": {"Feed Formulation": {"objective": "Formulate poultry feed"}, "Farm Budget": {"objective": "Prepare farm enterprise budget"}}}
 }
 
-### 6. RAG + VECTOR DB CLASS ###
-@st.cache_resource
+### 6. LAZY RAG + VECTOR DB CLASS - LOADS ONLY ON DEMAND ###
+VECTOR_READY = False
+faiss = None
+embedding_model = None
+
 def load_vector_tools():
-    try:
-        import faiss
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        return faiss, model
-    except:
-        return None, None
-faiss, embedding_model = load_vector_tools()
+    global faiss, embedding_model
+    if faiss is None:
+        try:
+            import faiss as _faiss
+            from sentence_transformers import SentenceTransformer
+            faiss = _faiss
+            embedding_model = SentenceTransformer('paraphrase-MiniLM-L3-v2') # 30MB model
+            return True
+        except Exception as e:
+            st.sidebar.error(f"RAG Disabled: {e}")
+            return False
+    return True
 
 class VectorRAG:
     def __init__(self):
@@ -173,20 +166,21 @@ class VectorRAG:
         self.load()
     def load(self):
         if os.path.exists(VECTOR_FILE) and os.path.exists(DOCS_FILE):
-            self.index = faiss.read_index(VECTOR_FILE)
+            if load_vector_tools():
+                self.index = faiss.read_index(VECTOR_FILE)
             with open(DOCS_FILE, "r") as f: self.docs = json.load(f)
     def save(self):
-        if self.index: faiss.write_index(self.index, VECTOR_FILE)
+        if self.index and faiss: faiss.write_index(self.index, VECTOR_FILE)
         save_db(DOCS_FILE, self.docs)
     def add_documents(self, texts):
-        if not embedding_model: return
+        if not load_vector_tools(): return
         embeddings = embedding_model.encode(texts, convert_to_numpy=True)
         if self.index is None: self.index = faiss.IndexFlatL2(embeddings.shape[1])
         self.index.add(embeddings)
         self.docs.extend(texts)
         self.save()
     def search(self, query, k=3):
-        if not self.index or not embedding_model: return []
+        if not load_vector_tools() or not self.index: return []
         q_emb = embedding_model.encode([query], convert_to_numpy=True)
         D, I = self.index.search(q_emb, min(k, len(self.docs)))
         return [self.docs[i] for i in I[0]]
@@ -197,19 +191,18 @@ def chunk_text(text, chunk_size=500):
     sentences = re.split(r'(?<=[.!?]) +', text)
     chunks = []; current = ""
     for s in sentences:
-        if len(current) + len(s) < chunk_size: current += s + " "
+        if len(current) + len(s) < chunk_size: current += s + "
         else: chunks.append(current); current = s
     if current: chunks.append(current)
     return chunks
 
-### 7. SIDEBAR RAG UPLOAD FOR BOTH ROLES ###
+### 7. SIDEBAR RAG UPLOAD ###
 def render_sidebar_upload():
     st.sidebar.divider()
     st.sidebar.subheader("📚 RAG Knowledge Base")
-    if not embedding_model: st.sidebar.error("Install faiss-cpu + sentence-transformers")
-    else:
-        uploaded = st.sidebar.file_uploader("Upload PDF/TXT", type=["pdf","txt"], accept_multiple_files=True, key="sidebar_upload")
-        if st.sidebar.button("Add to Vector DB", key="btn_add_vector"):
+    uploaded = st.sidebar.file_uploader("Upload PDF/TXT", type=["pdf","txt"], accept_multiple_files=True, key="sidebar_upload")
+    if st.sidebar.button("Add to Vector DB", key="btn_add_vector"):
+        with st.spinner("Loading RAG engine... 20s first time"):
             if uploaded:
                 from PyPDF2 import PdfReader
                 all_text = []
@@ -222,7 +215,7 @@ def render_sidebar_upload():
                     all_text.extend(chunk_text(text))
                 vector_rag.add_documents(all_text)
                 st.sidebar.success(f"✅ Added {len(all_text)} chunks")
-        st.sidebar.caption(f"Vector DB: {len(vector_rag.docs)} chunks")
+    st.sidebar.caption(f"Vector DB: {len(vector_rag.docs)} chunks")
 
 render_sidebar_upload()
 
@@ -255,7 +248,7 @@ def display_with_preview(content, name):
         if cols[i].button(f"📥 {fmt.upper()}", key=f"btn_dl_{name}_{fmt}"):
             st.download_button(label=f"Download {fmt.upper()}", data=generate_file_bytes(edited, fmt), file_name=f"{name}.{fmt}", mime="application/octet-stream", key=f"dl_{name}_{fmt}_{hash(edited)}")
 
-### 9. SMART TOKEN MINIMIZER + FUNCTION CALLING ###
+### 9. SMART TOKEN MINIMIZER ###
 def get_conversation_context():
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     return st.session_state.chat_history[-4:]
@@ -407,13 +400,12 @@ def show_admin_portal():
             topics = get_mixed_topics(b_level, b_subject); paper = call_groq(f"50Q UNEB from: {topics}. Marking guide.", b_level, force_format=True); display_with_preview(paper, f"Bulk_{b_subject}_{b_level}")
     with tabs[4]:
         st.subheader("📚 Vector DB Management")
-        st.info("You can also upload from sidebar. This is for bulk management.")
         st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
         if st.button("Reset Vector DB"):
             vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
 
 ### 12. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.6.1")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V5.6.4")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 if st.sidebar.button("Login", key="btn_login"):
