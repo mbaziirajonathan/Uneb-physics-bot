@@ -5,9 +5,9 @@ from datetime import datetime
 from groq import Groq, RateLimitError
 import logging
 logging.basicConfig(level=logging.INFO)
-st.sidebar.info(f"Build: V6.0.1-FIXED | VDB Chunks: {len(vector_rag.docs)}")
+
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V6.0-PRO-FULL-NCDC")
+st.sidebar.caption("Build: V6.0.1-FIXED-NCDC")
 
 ### KEEP RENDER AWAKE ###
 def keep_alive():
@@ -88,7 +88,7 @@ MASTER_SYSTEM_PROMPT = """You are DIGITAL UNEB TUTOR 2026 PRO. NCDC 2026 UGANDA 
 CONTACT = "256751040731"
 AI_MODEL_LONG = "llama-3.3-70b-versatile"
 AI_MODEL_FAST = "llama-3.1-8b-instant"
-st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V6.0\n📞 {CONTACT}")
+st.sidebar.success(f"⚠️ DIGITAL UNEB TUTOR 2026 PRO V6.0.1\n📞 {CONTACT}")
 
 ### 4. ALL 15 SUBJECTS NCDC S1-S6 - 100% KEPT ###
 UNEB_CURRICULUM_MAP = {
@@ -146,20 +146,21 @@ class VectorRAG:
         return [self.docs[i] for i in I[0]]
 
 vector_rag = VectorRAG()
-def chunk_text(text, chunk_size=500): 
+st.sidebar.info(f"Build: V6.0.1-FIXED | VDB Chunks: {len(vector_rag.docs)}") # MOVED HERE
+
+def chunk_text(text, chunk_size=500):
     sentences = re.split(r'(?<=[.!?]) +', text)
     chunks = []
     current = ""
     for s in sentences:
-        if len(current) + len(s) < chunk_size: 
-            current += s + " "  # <-- FIXED: added closing "
-        else: 
+        if len(current) + len(s) < chunk_size:
+            current += s + " "
+        else:
             chunks.append(current)
             current = s
-    if current: 
+    if current:
         chunks.append(current)
     return chunks
- 
 
 def render_upload_download(key_prefix="default"):
     st.subheader("📤 Upload & 📥 Download")
@@ -227,91 +228,37 @@ def get_cached_answer(query): return ai_cache.get_answer(query)
 TOOLS = [{"type": "function", "function": {"name": "search_notes", "description": "Search NCDC notes vector database", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}}]
 
 def call_groq(user_prompt, level="S1", instructions="", force_format=False):
-    """
-    Calls Groq with cache, RAG, and tool calling. Returns tuple: (answer, sources_used)
-    """
     complexity = get_complexity_instructions(level)
     format_instruction = "Use SCENARIO/ITEM/TASK FORMAT with headers." if force_format or any(word in user_prompt.lower() for word in ["exam", "quiz", "test", "50", "bulk", "paper"]) else ""
     full_instructions = f"{complexity}\n{format_instruction}\n{instructions}"
-    
-    # 1. CHECK CACHE FIRST
     cached = get_cached_answer(user_prompt)
-    if cached: 
-        st.info("⚡ Cache Hit. 0 Tokens used.")
-        return cached, []
-    
-    # 2. SEARCH VDB / RAG
+    if cached: st.info("⚡ Cache Hit. 0 Tokens used."); return cached, []
     rag_context = search_notes(user_prompt)
     st.sidebar.caption(f"RAG hits: {len(rag_context)} | Prompt len: {len(user_prompt)}")
-    
-    if rag_context and OFFLINE_MODE:
-        answer = f"📚 OFFLINE RAG MODE:\n\nSource: Your Uploaded Notes\n{chr(10).join(rag_context[:3])}"
-        return answer, rag_context
-        
-    if OFFLINE_MODE: 
-        return "❌ OFFLINE: Not in cache/vector. Go online to generate new content.", []
-    
-    # 3. BUILD MESSAGES FOR GROQ
+    if rag_context and OFFLINE_MODE: return f"📚 OFFLINE RAG MODE:\n{chr(10).join(rag_context[:3])}", rag_context
+    if OFFLINE_MODE: return "❌ OFFLINE: Not in cache/vector. Go online.", []
     context_history = get_conversation_context()
     messages = [{"role":"system","content":MASTER_SYSTEM_PROMPT + "\n" + full_instructions}]
-    messages.extend(context_history)
-    messages.append({"role":"user","content":compress_prompt(user_prompt)})
-    
-    # Add RAG context if found
-    if rag_context: 
-        messages.append({"role":"system","content":f"CONTEXT FROM TEACHER'S UPLOADED NOTES - CITE THIS: {chr(10).join(rag_context[:3])}"})
-    
+    messages.extend(context_history); messages.append({"role":"user","content":compress_prompt(user_prompt)})
+    if rag_context: messages.append({"role":"system","content":f"CONTEXT FROM TEACHER'S UPLOADED NOTES - CITE THIS: {chr(10).join(rag_context[:3])}"})
     model_to_use = AI_MODEL_FAST if len(user_prompt) < 100 else AI_MODEL_LONG
-    placeholder = st.empty()
-    full_response = ""
-    
-    # 4. CALL GROQ WITH TOOL CALLING
+    placeholder = st.empty(); full_response = ""
     try:
         with st.spinner(f"Thinking with {model_to_use}..."):
-            response = client.chat.completions.create(
-                model=model_to_use, 
-                messages=messages, 
-                tools=TOOLS, 
-                tool_choice="auto", 
-                max_tokens=2000,
-                temperature=0.3
-            )
+            response = client.chat.completions.create(model=model_to_use, messages=messages, tools=TOOLS, tool_choice="auto", max_tokens=2000, temperature=0.3)
             msg = response.choices[0].message
-            
-            # Handle tool calls
             if msg.tool_calls:
                 for tool_call in msg.tool_calls:
-                    if tool_call.function.name == "search_notes":
-                        args = json.loads(tool_call.function.arguments)
-                        st.sidebar.info(f"AI called tool: search_notes('{args['query']}')")
-                        tool_result = search_notes(args["query"])
-                        messages.append({"role":"tool","content":str(tool_result),"tool_call_id":tool_call.id})
-                
-                # Second call with tool results
-                response = client.chat.completions.create(model=model_to_use, messages=messages, max_tokens=2000)
-                full_response = response.choices[0].message.content
-            else:
-                full_response = msg.content
-                
+                    if tool_call.function.name == "search_notes": args = json.loads(tool_call.function.arguments); st.sidebar.info(f"AI called tool: search_notes('{args['query']}')"); tool_result = search_notes(args["query"]); messages.append({"role":"tool","content":str(tool_result),"tool_call_id":tool_call.id})
+                response = client.chat.completions.create(model=model_to_use, messages=messages, max_tokens=2000); full_response = response.choices[0].message.content
+            else: full_response = msg.content
         placeholder.markdown(full_response)
-        
-    except RateLimitError:
-        st.error("Groq Rate Limit. Try again in 10s or switch to OFFLINE MODE")
-        full_response = "Rate limit error. Please try again."
-    except Exception as e:
-        st.error(f"AI Error: {e}")
-        full_response = "Error. Try again."
-    
-    # 5. SAVE TO HISTORY + CACHE
-    st.session_state.chat_history.append({"role":"user","content":user_prompt})
-    st.session_state.chat_history.append({"role":"assistant","content":full_response})
-    if len(st.session_state.chat_history) > 8: 
-        st.session_state.chat_history = st.session_state.chat_history[-8:]
-    
-    ai_cache.set_answer(user_prompt, full_response)
-    st.success("✅ Saved to Cache for 24hrs")
+    except RateLimitError: st.error("Groq Rate Limit. Try again in 10s"); full_response = "Rate limit error."
+    except Exception as e: st.error(f"AI Error: {e}"); full_response = "Error. Try again."
+    st.session_state.chat_history.append({"role":"user","content":user_prompt}); st.session_state.chat_history.append({"role":"assistant","content":full_response})
+    if len(st.session_state.chat_history) > 8: st.session_state.chat_history = st.session_state.chat_history[-8:]
+    ai_cache.set_answer(user_prompt, full_response); st.success("✅ Saved to Cache for 24hrs")
     save_log({"time": str(datetime.now()), "user": st.session_state.get("role"), "action": "AI Query", "prompt": user_prompt[:50]})
-    
     return full_response, rag_context
 
 ### 10. STUDENT PORTAL ###
@@ -356,7 +303,7 @@ def show_admin_portal():
     if st.button("Logout", key="btn_logout_admin"): [st.session_state.pop(k) for k in list(st.session_state.keys())]; st.rerun()
     tabs = st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk Exam","📚 RAG KB","📝 Lesson/Scheme","📄 MOES Reports"])
 
-    with tabs[0]: # ANALYTICS
+    with tabs[0]:
         st.subheader("📊 Analytics"); render_upload_download("admin1")
         pd = get_pandas(); logs = load_logs(); stats = ai_cache.get_stats()
         col1, col2, col3 = st.columns(3); col1.metric("Actions", len(logs)); col2.metric("Cache", stats['total']); col3.metric("VDB Chunks", len(vector_rag.docs))
@@ -366,7 +313,7 @@ def show_admin_portal():
         if uploaded_vdb: open(VECTOR_FILE,"wb").write(uploaded_vdb.read()); st.success("VDB Restored. Refresh page")
         if logs: st.dataframe(pd.DataFrame(logs[-20:]))
 
-    with tabs[1]: # CURRICULUM SETTINGS
+    with tabs[1]:
         st.subheader("📖 Teacher Curriculum Settings"); render_upload_download("admin2")
         settings = load_teacher_settings()
         subject = st.selectbox("Pick Subject", list(UNEB_CURRICULUM_MAP.keys()), key="set_subj")
@@ -375,10 +322,9 @@ def show_admin_portal():
         if st.button("Save Curriculum Settings"):
             settings[f"{subject}_{level}"] = topics; save_teacher_settings(settings); st.success("Saved! Bulk exams will now use these topics")
 
-    with tabs[2]: # PRACTICALS
-        st.subheader("🧪 Practicals"); render_upload_download("admin3"); st.json(PRACTICAL_DATABASE)
+    with tabs[2]: st.subheader("🧪 Practicals"); render_upload_download("admin3"); st.json(PRACTICAL_DATABASE)
 
-    with tabs[3]: # BULK EXAM - USES TEACHER SETTINGS
+    with tabs[3]:
         st.subheader("📤 Bulk Exam Generator"); render_upload_download("admin4")
         settings = load_teacher_settings()
         b_subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="bulk_subj")
@@ -390,13 +336,13 @@ def show_admin_portal():
             paper, sources = call_groq(f"Generate {num_q} UNEB Qs from: {topics}. Include marking guide. Use teacher curriculum.", b_level, force_format=True)
             display_with_preview(paper, f"Bulk_{b_subject}_{b_level}", sources)
 
-    with tabs[4]: # RAG KB
+    with tabs[4]:
         st.subheader("📚 Vector DB Management")
         st.caption(f"Total chunks in DB: {len(vector_rag.docs)}")
         render_upload_download("admin5")
         if st.button("Reset Vector DB"): vector_rag.index = None; vector_rag.docs = []; vector_rag.save(); st.success("Reset done")
 
-    with tabs[5]: # LESSON/SCHEME
+    with tabs[5]:
         st.subheader("📝 Lesson Plan & Scheme of Work"); render_upload_download("admin6")
         subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP.keys()), key="ls_subj")
         level = st.selectbox("Class", [f"S{i}" for i in range(1,7)], key="ls_level")
@@ -406,9 +352,9 @@ def show_admin_portal():
             prompt = f"Generate {mode} for {level} {subject} on {topic}. Include objectives, materials, procedure, Ugandan examples. Use teacher notes if available."
             result, sources = call_groq(prompt, level); display_with_preview(result, f"{mode}_{topic}", sources)
 
-    with tabs[6]: # MOES REPORTS
+    with tabs[6]:
         st.subheader("📄 MOES Report & Report Card Generator"); render_upload_download("admin7")
-        report_type = st.radio("Report Type", ["MOES Termly Report", "Student Report Card"])
+                report_type = st.radio("Report Type", ["MOES Termly Report", "Student Report Card"])
         if report_type == "MOES Termly Report":
             school = st.text_input("School Name"); term = st.selectbox("Term", ["Term 1","Term 2","Term 3"])
             content = f"MOES REPORT {term} 2026\nSchool: {school}\nEnrolment: \nPerformance Summary: "
@@ -425,7 +371,7 @@ def show_admin_portal():
             download_all_formats(content, f"ReportCard_{student_name}_{student_class}")
 
 ### 12. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V6.0")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO - V6.0.1")
 user_type = st.sidebar.radio("Login As", ["Student", "Admin/Teacher"], key="radio_login")
 password = st.sidebar.text_input("Password", type="password", key="input_password")
 if st.sidebar.button("Login", key="btn_login"):
@@ -446,4 +392,3 @@ elif st.session_state.get("role") == "Student":
     show_student_portal()
 else: 
     st.info("Please login to continue")
-            
