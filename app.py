@@ -179,7 +179,7 @@ def show_student():
         t=st.selectbox("Topic",topics_list,key="s2t")
         c1,c2,c3=st.columns(3)
         if c1.button("Generate Notes",key="s2b"): a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",force_deep=True); display_preview(a,"s2")
-                if c2.button("Ask About Topic",key="s2q"): a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q")
+        if c2.button("Ask About Topic",key="s2q"): a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q")
         if c3.button("Topic Quiz 10Q",key="s2quiz"): a,src=call_groq_os(f"Generate 10 UNEB style questions + marking guide on {t} for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s2quiz")
     with t3:
         render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
