@@ -12,3 +12,10 @@ openpyxl
 python-multipart
 pypdf
 psutil
+
+# --- Added for Hybrid Local Server ---
+fastapi
+uvicorn
+zeroconf
+llama-cpp-python
+pydantic
