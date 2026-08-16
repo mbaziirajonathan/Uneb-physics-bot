@@ -361,38 +361,64 @@ def show_student():
     t1,t2,t3,t4,t5=st.tabs(["🔍 Smart Search","📖 Learn + Notes","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
 
     with t1:
-        render_upload("s1"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l"); q=st.text_area("Ask Anything",placeholder=f"Type question here. Click Ask for deep answer",key="s1q")
+        render_upload("s1");
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s");
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l");
+        q=st.text_area("Ask Anything",placeholder=f"Type question here. Click Ask for deep answer",key="s1q")
         c1,c2,c3=st.columns(3)
-        if c1.button("Ask AI Deep",key="s1b") and q: a,src=call_groq_os(q,l,"smart",force_deep=True); display_preview(a,"s1") # DEEP
-        if c2.button("Quick Answer",key="s1quick") and q: a,src=call_groq_os(q,l,"smart",force_deep=False); display_preview(a,"s1quick") # SHORT
-        if c3.button("Scenario Task",key="s1t") and q: a,src=call_groq_os(f"Create Scenario->Item->Task question on {q} for {l} {s}",l,"smart",force_deep=True); display_preview(a,"s1t")
+        if c1.button("Ask AI Deep",key="s1b") and q:
+            a,src=call_groq_os(q,l,"smart",force_deep=True); display_preview(a,"s1") # DEEP
+        if c2.button("Quick Answer",key="s1quick") and q:
+            a,src=call_groq_os(q,l,"smart",force_deep=False); display_preview(a,"s1quick") # SHORT
+        if c3.button("Scenario Task",key="s1t") and q:
+            a,src=call_groq_os(f"Create Scenario->Item->Task question on {q} for {l} {s}",l,"smart",force_deep=True); display_preview(a,"s1t")
 
     with t2:
-        render_upload("s2"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l"); t=st.selectbox("Topic",get_topics(s,l),key="s2t")
+        render_upload("s2")
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s")
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l")
+        topics_list = get_topics(s,l) # Safe call
+        t=st.selectbox("Topic",topics_list,key="s2t") # Will never be empty
+
         c1,c2,c3=st.columns(3)
-        if c1.button("Generate Notes",key="s2b"): a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",force_deep=True); display_preview(a,"s2") # DEEP
-        if c2.button("Ask About Topic",key="s2q"): a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q") # DEEP
-        if c3.button("Topic Quiz 10Q",key="s2quiz"): a,src=call_groq_os(f"Generate 10 UNEB style questions + marking guide on {t} for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s2quiz") # SHORT
+        if c1.button("Generate Notes",key="s2b"):
+            a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",force_deep=True); display_preview(a,"s2")
+        if c2.button("Ask About Topic",key="s2q"):
+            a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q")
+        if c3.button("Topic Quiz 10Q",key="s2quiz"):
+            a,src=call_groq_os(f"Generate 10 UNEB style questions + marking guide on {t} for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s2quiz")
 
     with t3:
-        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
+        render_upload("s3");
+        s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s");
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l");
+        p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
         c1,c2=st.columns(2)
-        if c1.button("Generate Full Practical",key="s3b") and p:
+        if c1.button("Generate Full Practical",key="s3b") and p and p!= "No Practicals for this Level":
             g="S1-S4" if int(l[1])<=4 else "S5-S6"
             obj=PRACTICAL_DATABASE[s][g][p]['objective']
             a,src=call_groq_os(f"Full NCDC practical write-up for {p}. Objective: {obj}. Include: Apparatus, Method, Observations, Calculations, Precautions, Conclusion. Use local materials. Level: {l}",l,"notes",force_deep=True); display_preview(a,"s3") # DEEP
-        if c2.button("Ask About Practical",key="s3q") and p: a,src=call_groq_os(f"Explain {p} practical for {l} per NCDC. Safety and AOI tips",l,"smart",force_deep=True); display_preview(a,"s3q") # DEEP
+        if c2.button("Ask About Practical",key="s3q") and p and p!= "No Practicals for this Level":
+            a,src=call_groq_os(f"Explain {p} practical for {l} per NCDC. Safety and AOI tips",l,"smart",force_deep=True); display_preview(a,"s3q") # DEEP
 
     with t4:
-        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t")
+        render_upload("s4");
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s");
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l");
+        t=st.selectbox("Topic",get_topics(s,l),key="s4t")
         c1,c2,c3=st.columns(3)
-        if c1.button("Generate Diagrams",key="s4b"): a,src=call_groq_os(f"2 diagrams JSON + description for {l} {s} '{t}' NCDC example",l,"smart",force_deep=False); display_preview(a,"s4") # SHORT
-        if c2.button("Ask About Diagram",key="s4q"): a,src=call_groq_os(f"How to draw and label diagram for {t} in {s} {l}. Step by step",l,"smart",force_deep=True); display_preview(a,"s4q") # DEEP
-        if c3.button("Diagram Quiz",key="s4quiz"): a,src=call_groq_os(f"5 quiz questions on labeling {t} diagram for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s4quiz") # SHORT
+        if c1.button("Generate Diagrams",key="s4b"):
+            a,src=call_groq_os(f"2 diagrams JSON + description for {l} {s} '{t}' NCDC example",l,"smart",force_deep=False); display_preview(a,"s4") # SHORT
+        if c2.button("Ask About Diagram",key="s4q"):
+            a,src=call_groq_os(f"How to draw and label diagram for {t} in {s} {l}. Step by step",l,"smart",force_deep=True); display_preview(a,"s4q") # DEEP
+        if c3.button("Diagram Quiz",key="s4quiz"):
+            a,src=call_groq_os(f"5 quiz questions on labeling {t} diagram for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s4quiz") # SHORT
 
     with t5:
         st.subheader("Research Projects")
-        render_upload("s5"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s5s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s5l")
+        render_upload("s5");
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s5s");
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s5l")
         if int(l[1]) >= 5:
             st.info("🎓 ADVANCED LEVEL RESEARCH: S5-S6. Click Ask for full 1200 word project")
             rq=st.text_area("Research Topic",placeholder="e.g. Applications of Differentiation in Drone Logistics",key="s5rq")
@@ -403,6 +429,7 @@ def show_student():
             rq=st.text_area("Research Query",placeholder="e.g. Heat transfer in solar refrigeration",key="s5rq2")
             if st.button("Ask Basic Research",key="s5rb2") and rq: # ASK BUTTON
                 a,src=call_groq_os(f"Research and summarize {rq} for {l} {s}. Simple language, Scenario-Item-Task + AOI, 3-5 key points",l,"research_s1s4",force_deep=False); display_preview(a,"s5res2")
+
 def show_admin():
     st.header("🏫 Admin Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
