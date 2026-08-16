@@ -446,6 +446,80 @@ def show_admin():
 
     with tabs[2]:
         st.subheader("Practicals"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="ps"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="pl"); p=st.selectbox("Practical",get_practicals(s,l),key="pp")
+        if st.button("Generate Practical Guide") and p and p!= "No Practicals for this Level":
+            g="S1-S4" if int(l[1])<=4 else "S5-S6"
+            obj=PRACTICAL_DATABASE[s][g][p]['objective']
+            a,src=call_groq_os(f"Generate full lab manual for {p}. Objective: {obj}. Level: {l}",l,"notes",force_deep=True); display_preview(a,"pg")
+        q=st.text_area("Ask about any practical",key="pq")
+        if st.button("Ask Practical Deep"): a,src=call_groq_os(q,"S4","smart",force_deep=True); display_preview(a,"p")
+
+    with tabs[3]:
+        st.subheader("Bulk"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="bs"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="bl"); t=st.multiselect("Topics",get_topics(s,l)); n=st.slider("Qs",10,100,50);
+        if st.button("Generate Bulk Qs"): a,src=call_groq_os(f"Generate {n} NCDC 2026 Qs + Marking guide from {t} for {l} {s}",l,"notes",force_deep=True); display_preview(a,"bulk")
+        q=st.text_area("Ask about paper setting",key="abkq")
+        if st.button("Ask Paper Setting"): a,src=call_groq_os(f"Ideas for setting {s} paper {l}. {q}",l,"smart",force_deep=True); display_preview(a,"abk")
+
+    with tabs[4]:
+        st.subheader("RAG KB"); st.metric("Chunks",len(vector_rag.docs)); render_upload("a5")
+        q=st.text_area("Ask RAG",key="ragq")
+        if st.button("Ask RAG Deep"): a,src=call_groq_os(q,"S4","smart",force_deep=True); display_preview(a,"rag")
+        if st.button("Reset RAG"): vector_rag.docs=[]; save_db(DOCS_FILE,[]); st.success("Reset")
+
+    with tabs[5]:
+        st.subheader("Lesson"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="ls"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="ll"); t=st.selectbox("Topic",get_topics(s,l),key="lt")
+        if st.button("Generate NCDC Lesson Plan"): a,src=call_groq_os(f"NCDC 40min Lesson Plan {l} {s} {t}. Competencies,Activities,Assessment,AOI,UG example",l,"notes",force_deep=True); display_preview(a,"lesson")
+        q=st.text_area("Ask teaching tips",key="alq")
+        if st.button("Ask Teaching Tips"): a,src=call_groq_os(f"Teaching tips for {t} {l}. {q}",l,"smart",force_deep=True); display_preview(a,"al")
+
+    with tabs[6]:
+        st.subheader("Reports"); n=st.number_input("Students",1,1000,100)
+        if st.button("Generate Report Cards"): a,src=call_groq_os(f"Generate {n} NCDC Report Cards with competencies and comments","S4","notes",force_deep=True); display_preview(a,"report")
+        q=st.text_area("Custom Report Task",key="rq")
+        if st.button("Ask Custom Report"): a,src=call_groq_os(q,"S4","smart",force_deep=True); display_preview(a,"ar")
+
+    with tabs[7]:
+        st.subheader("📈 Predictive"); st.metric("Status","Online" if SYS_STATE["online"] else "Offline")
+        q=st.text_area("Ask Predictor",key="prq")
+        if st.button("Ask Predictor Deep"): a,src=call_groq_os(q,"S4","smart",force_deep=True); display_preview(a,"pr")
+
+    with tabs[8]:
+        st.subheader("📝 NCDC Exam + Test Generator")
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="exs"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="exl"); t=st.multiselect("Topics",get_topics(s,l))
+        c1,c2,c3=st.columns(3)
+        if c1.button("Generate Full Exam"): a,src=call_groq_os(f"Generate full NCDC 2026 exam 100 marks for {l} {s} on {t}. Scenario-Item-Task + AOI format + Marking guide",l,"exam",force_deep=True); display_preview(a,"exam")
+        if c2.button("Generate CAT"): a,src=call_groq_os(f"Generate 30 marks NCDC CAT for {l} {s} on {t}. 1hr + Marking guide",l,"exam",force_deep=True); display_preview(a,"cat")
+        if c3.button("Generate Pop Quiz"): a,src=call_groq_os(f"Generate 10 marks NCDC pop quiz for {l} {s} on {t}. 20min",l,"quiz",force_deep=False); display_preview(a,"quiz")
+        custom=st.text_area("Custom Exam Task",placeholder="e.g. Make AOI for Physics S2 Machines")
+        if st.button("Ask Custom Exam"): a,src=call_groq_os(custom,l,"exam",force_deep=True); display_preview(a,"custom")
+
+### 10. LOGIN ###
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.7")
+with st.sidebar:
+    st.metric("RAM",f"{psutil.virtual_memory().percent}%"); st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
+    pw=st.text_input("Password",type="password")
+    c1,c2=st.columns(2)
+    if c1.button("Student") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
+    if c2.button("Admin") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
+if st.session_state.get("role")=="Admin": show_admin()
+elif st.session_state.get("role")=="Student": show_student()
+else: st.info("Login to continue")
+
+def show_admin():
+    st.header("🏫 Admin Portal")
+    if st.button("Logout"): st.session_state.clear(); st.rerun()
+    tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams"])
+
+    with tabs[0]:
+        st.subheader("Analytics"); q=st.text_area("Ask about analytics",key="aq");
+        if st.button("Ask Analytics Deep",key="ab"): a,src=call_groq_os(f"Analyze this with charts and insights: {q}", "S4","smart",force_deep=True); display_preview(a,"a")
+
+    with tabs[1]:
+        st.subheader("NCDC Curriculum"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="as"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="al"); t=st.multiselect("Topics",get_topics(s,l))
+        if st.button("Generate Scheme"): a,src=call_groq_os(f"NCDC Term Scheme for {l} {s} {t}. 2026 CBC with AOI",l,"notes",force_deep=True); display_preview(a,"scheme")
+        if st.button("Ask Curriculum Deep"): a,src=call_groq_os(f"How to teach {s} {l} per NCDC 2026. Give methods, activities, assessments",l,"smart",force_deep=True); display_preview(a,"ac")
+
+    with tabs[2]:
+        st.subheader("Practicals"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="ps"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="pl"); p=st.selectbox("Practical",get_practicals(s,l),key="pp")
         if st.button("Generate Practical Guide"):
             g="S1-S4" if int(l[1])<=4 else "S5-S6"
             obj=PRACTICAL_DATABASE[s][g][p]['objective']
