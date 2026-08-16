@@ -10,6 +10,5 @@ matplotlib
 PyMuPDF
 openpyxl
 python-multipart
-faiss-cpu
-sentence-transformers
 pypdf
+psutil
