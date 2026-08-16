@@ -16,9 +16,15 @@ ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 ENV STREAMLIT_SERVER_RUN_ON_SAVE=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
+# Tell app we are on CLOUD so it skips local LLM
+ENV DEPLOY_ENV=cloud
+
 # Install python deps first for caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install all deps EXCEPT llama-cpp-python which fails on Render
+# We use grep -v to filter it out during cloud build
+RUN pip install --no-cache-dir -r <(grep -v "llama-cpp-python" requirements.txt)
 
 # Copy app code
 COPY . .
