@@ -3,30 +3,43 @@ import streamlit as st, os, io, json, re, time, requests, random, threading, psu
 from datetime import datetime
 from groq import Groq, RateLimitError
 import logging
+try: import fcntl # for file locking on linux/render
+except: fcntl = None # windows lab pc
 logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V6.1.8-NCDC-FINAL-FIX | NCDC 2026 CBC | DEPLOY SAFE")
+st.sidebar.caption("Build: V6.1.9-NCDC-FINAL-HYBRID | NCDC 2026 CBC | DEPLOY SAFE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
 LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json"]]
-def save_db(f,d): json.dump(d, open(f,"w"), indent=2)
+
+def save_db(f,d):
+    with open(f,"w") as file:
+        if fcntl: fcntl.flock(file, fcntl.LOCK_EX) # prevent corruption on render
+        json.dump(d, file, indent=2)
+        if fcntl: fcntl.flock(file, fcntl.LOCK_UN)
+
 def load_db(f,default):
     if not os.path.exists(f): save_db(f,default)
     try: return json.load(open(f,"r"))
     except: save_db(f,default); return default
+
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{})]: load_db(f,d)
 
 ### 2. SECRETS + MODELS ###
 GROQ_API_KEY=os.getenv("GROQ_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
-if not GROQ_API_KEY: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
+IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
+if not GROQ_API_KEY and IS_CLOUD: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
 
-### 3. OS SENSORS ###
+### 3. OS SENSORS + MODE BADGE ###
+LOCAL_LLM_IP = None # Cache the discovered IP
+LAST_DISCOVERY = 0
+
 def system_check():
     try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
     except: online = False
-    return {"online": online and GROQ_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": os.getenv("RENDER","false")=="true"}
+    return {"online": online and GROQ_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": IS_CLOUD}
 
 def keep_alive():
     while True:
@@ -36,11 +49,16 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 @st.cache_resource
-def get_client(): return Groq(api_key=GROQ_API_KEY)
-client=get_client(); SYS_STATE=system_check()
+def get_client(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+SYS_STATE=system_check()
+client=get_client() if SYS_STATE["online"] else None
 AI_MODEL_LONG="llama-3.3-70b-versatile" if SYS_STATE["online"] else "offline"; AI_MODEL_SHORT="llama-3.1-8b-instant" if SYS_STATE["online"] else "offline"
 OFFLINE_MODE = not SYS_STATE["online"]
-if OFFLINE_MODE: st.sidebar.warning("🔌 OFFLINE RAG MODE")
+
+# MODE BADGE
+if SYS_STATE["online"]: mode_badge="☁️ CLOUD GROQ"
+else: mode_badge="🏫 LOCAL PHI3" if LOCAL_LLM_IP else "📴 OFFLINE RAG"
 
 ### 4. TTL CACHE ###
 class TTLSchoolCache:
@@ -79,20 +97,12 @@ PRACTICAL_DATABASE = {
     "Biology": {"S1-S4": {"Microscopy & Cell Observation": {"objective": "Prepare temporary wet mounts of onion epidermal cells and human cheek cells to observe under a light microscope."},"Food Tests": {"objective": "Perform qualitative tests for reducing sugars, starch, proteins, and lipids."},"Enzyme Action": {"objective": "Investigate the effect of temperature and catalase concentrations on the breakdown of hydrogen peroxide."},"Cell Physiology (Osmosis)": {"objective": "Demonstrate living osmosis using Irish potato cups immersed in varying concentrations of salt/sugar solutions."},"Plant & Animal Morphology": {"objective": "Examine, draw, and label external features of insects, lower plants, and simple flowers."},"Soil Ecology": {"objective": "Determine soil water-holding capacity, drainage rates, and organic matter content from different school garden plots."},"Activities of Integration (AOI)": {"objective": "Create an illustrated public health guide detailing how to break transmission vectors for local infectious pathogens."}},"S5-S6": {"Biological Dissections": {"objective": "Dissect, display, and draw the internal systems of a small mammal or amphibian."},"Advanced Plant Anatomy": {"objective": "Cut thin transverse sections of monocotyledonous and dicotyledonous stems/roots; stain and observe vascular bundles."},"Advanced Biochemistry & Food Tests": {"objective": "Quantitatively estimate vitamin C concentration or evaluate complex food mixtures using serial dilutions."},"Physiology (Respiration & Photosynthesis)": {"objective": "Measure the rate of respiration using a simple respirometer and demonstrate oxygen production during plant photosynthesis."},"Histological Slide Identification": {"objective": "Identify, draw, and annotate micro-anatomical structures from prepared slides."}}},
     "Agriculture": {"S1-S4": {"Farm Tools Identification": {"objective": "Identify, state the functions of, and practice routine maintenance on hand tools and farm implements."},"Physical & Chemical Soil Testing": {"objective": "Determine soil texture by feel, calculate soil moisture content, and measure pH using a universal indicator."},"Crop Agronomy (Nursery Bed Management)": {"objective": "Prepare, sow, water, weed, and prick out vegetables on a school garden nursery bed."},"Livestock Management Exercises": {"objective": "Identify common animal feeds, identify internal/external parasites, and practice basic poultry management steps."},"DIT Vocational Assessment Practice": {"objective": "Execute hands-on husbandry competencies aligned with Level 1 Directorate of Industrial Training requirements."},"Activities of Integration (AOI)": {"objective": "Develop a farm record-keeping framework and design a seasonal crop rotation plan for a specific plot of community land."}},"S5-S6": {"Advanced Soil Science Analysis": {"objective": "Quantitatively measure soil cation exchange capacity, total nitrogen, phosphorus levels, and mechanical soil fraction analysis."},"Agronomic Field Trials": {"objective": "Set up and track a controlled field experiment comparing crop yield responses under organic vs. inorganic fertilizer treatments."},"Animal Nutrition & Feed Formulation": {"objective": "Analyze components of animal feeding stuffs and compute balanced livestock rations using Pearson's Square method."},"Agricultural Engineering & Mechanisation": {"objective": "Analyze the mechanics, cooling, and fuel systems of a farm tractor engine and evaluate modern drip irrigation mechanics."},"Farm Economics & Management Portfolio": {"objective": "Construct balance sheets, profit & loss statements, production functions, and complete an agricultural field study research report."}}}
 }
-
-### 7. HELPER FUNCTIONS - MUST BE ABOVE show_student ###
-def get_topics(s,l):
-    """Safe getter. Never crashes."""
-    return UNEB_CURRICULUM_MAP.get(s,{}).get(l,["General Topic"])
-
+### 7. HELPER FUNCTIONS ###
+def get_topics(s,l): return UNEB_CURRICULUM_MAP.get(s,{}).get(l,["General Topic"])
 def get_practicals(s,l):
-    """Safe getter for practicals."""
     g = "S1-S4" if int(l[1])<=4 else "S5-S6"
     return list(PRACTICAL_DATABASE.get(s,{}).get(g,{}).keys()) or ["No Practicals for this Level"]
-
-def display_preview(content,name):
-    st.text_area("AI Output - EDIT",content,height=400,key=f"p{name}")
-    st.download_button("📥 Download TXT",content.encode(),f"{name}.txt")
+def display_preview(content,name): st.text_area("AI Output - EDIT",content,height=400,key=f"p{name}"); st.download_button("📥 Download TXT",content.encode(),f"{name}.txt")
 
 ### 8. LIGHT RAG ###
 class VectorRAG:
@@ -125,17 +135,14 @@ def render_upload(key="d"):
         if st.button(f"Add {len(chunk_text(text))} chunks",key=f"add{key}"):
             vector_rag.add(chunk_text(text),f.name); st.success(f"Added to RAG from {f.name}")
 
-### 9. LEVEL-SMART BRAIN ###
+### 9. LEVEL-SMART BRAIN + HYBRID LLM ###
 def get_level_rules(level):
     rules = {"S1": "Competence: Basic knowledge. Use simple language. 2-3 points. Real life UG examples. Activity of Integration style.","S2": "Competence: Understanding. 3-4 points. Introduce terms. 1 UG scenario. Basic calculations.","S3": "Competence: Skill Application. 4-5 points. Diagrams. 2 UG examples. Problem solving.","S4": "Competence: Values & Attitudes. UNEB Scenario->Item->Task format. 5-6 points. Context-rich problems.","S5": "A-Level: Analysis. 6-8 points. Derivations, case studies, critical thinking. Paper 1 & 2 split.","S6": "A-Level: Synthesis & Evaluation. 8-10 points. University prep. Research, evaluation, complex modeling."}
     return rules.get(level, rules["S4"])
 
 SYSTEM_PROMPT="""You are Senior NCDC Uganda Examiner 2026. CRITICAL RULES: 1. ANTI-HALLUCINATION: Only use CONTEXT and official NCDC topics. If not in CONTEXT say 'Per NCDC 2026 CBC I cant confirm'. 2. LEVEL LOCK: Follow LEVEL_RULES strictly. S1≠S2≠S3≠S4≠S5≠S6. 3. ASSESSMENT: For S1-S4 use Scenario-Item-Task + AOI format. For S5-S6 use Paper1 Paper2 competency frame. 4. PRACTICALS: If asked practical, use PRACTICAL_DATABASE objectives. 5. FORMAT: **Concept**:X **UG Example**:Y **Exam Tip**:Z. 6. CITATION: At end add **Sources**: [filename chunk#] **Level**: {level} 7. UG: Use Kampala,matooke,boda,busoga,nile,health center examples."""
 
-import requests
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf 
-
-LOCAL_LLM_IP = None # Cache the discovered IP
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 class MyListener(ServiceListener):
     def add_service(self, zc, type, name):
@@ -143,71 +150,59 @@ class MyListener(ServiceListener):
         info = zc.get_service_info(type, name)
         if info and info.server == "uneb-tutor-local.local.":
             LOCAL_LLM_IP = socket.inet_ntoa(info.addresses[0])
-            print(f"Discovered Local LLM at {LOCAL_LLM_IP}")
 
 def discover_local_llm(timeout=2):
-    """Tries to find uneb-tutor-local.local on LAN. Returns IP or None"""
-    global LOCAL_LLM_IP
-    if LOCAL_LLM_IP: return LOCAL_LLM_IP # use cache
+    global LOCAL_LLM_IP, LAST_DISCOVERY
+    if LOCAL_LLM_IP and time.time() - LAST_DISCOVERY < 300: return LOCAL_LLM_IP # 5min cache
     try:
-        zc = Zeroconf()
-        listener = MyListener()
-        browser = ServiceBrowser(zc, "_http._tcp.local.", listener)
-        time.sleep(timeout)
-        zc.close()
+        zc = Zeroconf(); ServiceBrowser(zc, "_http._tcp.local.", MyListener()); time.sleep(timeout); zc.close()
     except: pass
+    LAST_DISCOVERY = time.time()
     return LOCAL_LLM_IP
 
 def call_groq_api(full_prompt, mode, level):
-    """Your existing groq call. Refactored out"""
     tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
     model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
     res=client.chat.completions.create(model=model,messages=[{"role":"user","content":full_prompt}],max_tokens=tokens,temperature=0.1)
     return res.choices[0].message.content
 
 def call_groq_os(prompt,level="S4",mode="smart",force_deep=False):
-    global SYS_STATE; SYS_STATE=system_check() # 1. Check internet
+    global SYS_STATE; SYS_STATE=system_check()
     sources=vector_rag.search(prompt,3)
     context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt']}" for r in sources])
     level_rules = get_level_rules(level)
-
     instruction = "Give LONG DEEP explanation." if force_deep else "Give SHORT 2-4 point answer."
     full_prompt = f"""{SYSTEM_PROMPT}\nLEVEL:{level}\nLEVEL_RULES:{level_rules}\nINSTRUCTION:{instruction}\nCONTEXT:\n{context}\nTASK:{prompt}"""
-
     cached=ai_cache.get(full_prompt+mode+level);
     if cached: return f"[CACHED] {cached}", sources
 
-    # 2. PRIORITY 1: CLOUD GROQ
-    if SYS_STATE["online"]:
+    # PRIORITY 1: CLOUD GROQ
+    if SYS_STATE["online"] and client:
         try:
             ans = call_groq_api(full_prompt, mode, level)
             src_line = "**Sources**: " + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: NCDC 2026 CBC"
             final_ans = ans + "\n\n" + src_line + f"\n**Level**: {level} | **Mode**: CLOUD"
             ai_cache.set(full_prompt+mode+level,final_ans)
             return final_ans, sources
-        except Exception as e:
-            st.sidebar.warning(f"Cloud failed: {e}. Trying Local...")
+        except Exception as e: st.sidebar.warning(f"Cloud failed: {e}. Trying Local...")
 
-    # 3. PRIORITY 2: LOCAL LAB SERVER
+    # PRIORITY 2: LOCAL LAB SERVER
     local_ip = discover_local_llm()
     if local_ip:
         try:
             url = f"http://{local_ip}:8000/chat"
-            payload = {"messages":[{"role":"user","content":full_prompt}], "model": "phi3"}
-            res = requests.post(url, json=payload, timeout=90) # Phi3 is slower
+            payload = {"messages":[{"role":"user","content":full_prompt}]} # FIX: removed "model"
+            res = requests.post(url, json=payload, timeout=28) # FIX: 28s for render
             if res.status_code == 200:
                 ans = res.json()["message"]["content"]
                 src_line = "**Sources**: Local RAG + Phi3" + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: Phi3 Local"
                 final_ans = f"[LOCAL LAB MODE]\n{ans}\n\n{src_line}\n**Level**: {level}"
                 return final_ans, sources
-        except Exception as e:
-            st.sidebar.warning(f"Local Server failed: {e}")
+        except Exception as e: st.sidebar.warning(f"Local Server failed: {e}")
 
-    # 4. PRIORITY 3: RAG ONLY OFFLINE
-    if context:
-        return (f"[OFFLINE RAG ONLY]\nBased on uploaded NCDC notes:\n{context[:2000]}", sources)
-    else:
-        return ("[OFFLINE] No internet and Lab Server not found. Please upload NCDC notes first or start Lab PC.", [])
+    # PRIORITY 3: RAG ONLY OFFLINE
+    if context: return (f"[OFFLINE RAG ONLY]\nBased on uploaded NCDC notes:\n{context[:2000]}", sources)
+    else: return ("[OFFLINE] No internet and Lab Server not found. Please upload NCDC notes first or start Lab PC.", [])
 
 def show_student():
     st.header("📚 Student Portal")
@@ -266,7 +261,6 @@ def show_student():
             st.info("📚 LOWER SECONDARY RESEARCH: S1-S4. Click Ask for summary")
             rq=st.text_area("Research Query",placeholder="e.g. Heat transfer in solar refrigeration",key="s5rq2")
             if st.button("Ask Basic Research",key="s5rb2") and rq: a,src=call_groq_os(f"Research and summarize {rq} for {l} {s}. Simple language, Scenario-Item-Task + AOI, 3-5 key points",l,"research_s1s4",force_deep=False); display_preview(a,"s5res2")
-
 def show_admin():
     st.header("🏫 Admin Portal")
     if st.button("Logout", key="admin_logout"): st.session_state.clear(); st.rerun()
@@ -394,11 +388,13 @@ def show_admin():
 ### 10. LOGIN ###
 st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.9")
 with st.sidebar:
-    st.metric("RAM",f"{psutil.virtual_memory().percent}%"); st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
+    st.metric("RAM",f"{psutil.virtual_memory().percent}%")
+    st.metric("Mode", mode_badge)
+    st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
     pw=st.text_input("Password",type="password", key="main_login_pw")
     c1,c2=st.columns(2)
     if c1.button("Student Login",key="btn_student_login") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
     if c2.button("Admin Login",key="btn_admin_login") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
 if st.session_state.get("role")=="Admin": show_admin()
 elif st.session_state.get("role")=="Student": show_student()
-else: st.info("Login to continue")
+else: st.info("Login to continue")                
