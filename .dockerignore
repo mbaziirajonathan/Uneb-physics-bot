@@ -7,6 +7,12 @@ __pycache__
 .env
 .venv
 venv
-assets/
-*.json
+assets/  # <-- Remove this if you want assets/ in Docker. Keep if assets are huge
+*.json   # <-- Remove this if you have labels.json you need in Docker
 .DS_Store
+
+# --- Added for Local Server ---
+C:/unebserver/        # Ignore the whole local model folder if someone commits it
+*.gguf                # Don't push 2GB model to github/docker
+*.bin
+local_llm_server.log
