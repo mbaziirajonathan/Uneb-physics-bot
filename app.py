@@ -67,12 +67,19 @@ class VectorRAG:
         return [d for s,d in sorted(scored,reverse=True)[:k] if s>0]
 vector_rag=VectorRAG()
 
-def chunk_text(text,sz=500): s=re.split(r'(?<=[.!?]) +',text); chunks=[]; cur=""
-for x in s:
-    if len(cur)+len(x)<sz: cur+=x+" "
-    else: chunks.append(cur); cur=x
-if cur: chunks.append(cur)
-return chunks
+def chunk_text(text, sz=500):
+    s = re.split(r'(?<=[.!?]) +', text)
+    chunks = []
+    cur = ""
+    for x in s:
+        if len(cur) + len(x) < sz:
+            cur += x + " "
+        else:
+            chunks.append(cur)
+            cur = x
+    if cur:
+        chunks.append(cur)
+    return chunks
 
 def render_upload(key="d"):
     f=st.file_uploader("Upload PDF/DOCX/TXT",type=["pdf","docx","txt"],key=key)
