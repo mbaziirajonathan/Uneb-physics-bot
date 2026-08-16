@@ -132,35 +132,82 @@ def get_level_rules(level):
 
 SYSTEM_PROMPT="""You are Senior NCDC Uganda Examiner 2026. CRITICAL RULES: 1. ANTI-HALLUCINATION: Only use CONTEXT and official NCDC topics. If not in CONTEXT say 'Per NCDC 2026 CBC I cant confirm'. 2. LEVEL LOCK: Follow LEVEL_RULES strictly. S1≠S2≠S3≠S4≠S5≠S6. 3. ASSESSMENT: For S1-S4 use Scenario-Item-Task + AOI format. For S5-S6 use Paper1 Paper2 competency frame. 4. PRACTICALS: If asked practical, use PRACTICAL_DATABASE objectives. 5. FORMAT: **Concept**:X **UG Example**:Y **Exam Tip**:Z. 6. CITATION: At end add **Sources**: [filename chunk#] **Level**: {level} 7. UG: Use Kampala,matooke,boda,busoga,nile,health center examples."""
 
-def call_groq_os(prompt,level="S4",mode="smart",force_deep=False):
-    global SYS_STATE; SYS_STATE=system_check()
-    sources=vector_rag.search(prompt,3)
-    if not SYS_STATE["online"]:
-        if sources: ctx=chr(10).join([f"[{r['src']} c{r['chunk_id']}] {r['txt'][:300]}" for r in sources])
-        else: ctx="";
-        return (f"[OFFLINE] Based on NCDC notes:\n{ctx}", sources) if ctx else ("[OFFLINE] Upload NCDC notes first", [])
-    level_rules = get_level_rules(level)
-    if force_deep or mode in ["notes","exam","research_s5s6"]:
-        tokens=1600; use_long=True; instruction = "Give LONG DEEP explanation. 8-12 points, headings, UG examples, UNEB style."
-    elif mode=="quiz":
-        tokens=800; use_long=False; instruction = "Give 5-10 short Qs + answers only."
-    else:
-        tokens=500; use_long=False; instruction = "Give SHORT 2-4 point direct answer."
-    cached=ai_cache.get(prompt+mode+level+str(force_deep));
-    if cached: return f"[CACHED] {cached}", sources
-    context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt']}" for r in sources])
-    full=f"""{SYSTEM_PROMPT}\nLEVEL:{level}\nLEVEL_RULES:{level_rules}\nINSTRUCTION:{instruction}\nMODE:{mode}\nCONTEXT:\n{context}\nTASK:{prompt}"""
-    model=AI_MODEL_LONG if use_long else AI_MODEL_SHORT
+import requests
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf 
+
+LOCAL_LLM_IP = None # Cache the discovered IP
+
+class MyListener(ServiceListener):
+    def add_service(self, zc, type, name):
+        global LOCAL_LLM_IP
+        info = zc.get_service_info(type, name)
+        if info and info.server == "uneb-tutor-local.local.":
+            LOCAL_LLM_IP = socket.inet_ntoa(info.addresses[0])
+            print(f"Discovered Local LLM at {LOCAL_LLM_IP}")
+
+def discover_local_llm(timeout=2):
+    """Tries to find uneb-tutor-local.local on LAN. Returns IP or None"""
+    global LOCAL_LLM_IP
+    if LOCAL_LLM_IP: return LOCAL_LLM_IP # use cache
     try:
-        res=client.chat.completions.create(model=model,messages=[{"role":"user","content":full}],max_tokens=tokens,temperature=0.1)
-        ans=res.choices[0].message.content
-        if sources: src_line = "**Sources**: " + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources])
-        else: src_line = "**Sources**: NCDC 2026 CBC Master Syllabus"
-        ans = ans + "\n\n" + src_line + f"\n**Level**: {level} | **Mode**: {'DEEP' if use_long else 'SHORT'}"
-        ai_cache.set(prompt+mode+level+str(force_deep),ans)
-        save_db(LOG_FILE,load_db(LOG_FILE,[])+[{"time":str(datetime.now()),"q":prompt[:30],"level":level,"model":model,"deep":force_deep}])
-        return ans, sources
-    except Exception as e: return f"[AUTO-FIX] Error: {e}. Try again", sources
+        zc = Zeroconf()
+        listener = MyListener()
+        browser = ServiceBrowser(zc, "_http._tcp.local.", listener)
+        time.sleep(timeout)
+        zc.close()
+    except: pass
+    return LOCAL_LLM_IP
+
+def call_groq_api(full_prompt, mode, level):
+    """Your existing groq call. Refactored out"""
+    tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
+    model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
+    res=client.chat.completions.create(model=model,messages=[{"role":"user","content":full_prompt}],max_tokens=tokens,temperature=0.1)
+    return res.choices[0].message.content
+
+def call_groq_os(prompt,level="S4",mode="smart",force_deep=False):
+    global SYS_STATE; SYS_STATE=system_check() # 1. Check internet
+    sources=vector_rag.search(prompt,3)
+    context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt']}" for r in sources])
+    level_rules = get_level_rules(level)
+
+    instruction = "Give LONG DEEP explanation." if force_deep else "Give SHORT 2-4 point answer."
+    full_prompt = f"""{SYSTEM_PROMPT}\nLEVEL:{level}\nLEVEL_RULES:{level_rules}\nINSTRUCTION:{instruction}\nCONTEXT:\n{context}\nTASK:{prompt}"""
+
+    cached=ai_cache.get(full_prompt+mode+level);
+    if cached: return f"[CACHED] {cached}", sources
+
+    # 2. PRIORITY 1: CLOUD GROQ
+    if SYS_STATE["online"]:
+        try:
+            ans = call_groq_api(full_prompt, mode, level)
+            src_line = "**Sources**: " + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: NCDC 2026 CBC"
+            final_ans = ans + "\n\n" + src_line + f"\n**Level**: {level} | **Mode**: CLOUD"
+            ai_cache.set(full_prompt+mode+level,final_ans)
+            return final_ans, sources
+        except Exception as e:
+            st.sidebar.warning(f"Cloud failed: {e}. Trying Local...")
+
+    # 3. PRIORITY 2: LOCAL LAB SERVER
+    local_ip = discover_local_llm()
+    if local_ip:
+        try:
+            url = f"http://{local_ip}:8000/chat"
+            payload = {"messages":[{"role":"user","content":full_prompt}], "model": "phi3"}
+            res = requests.post(url, json=payload, timeout=90) # Phi3 is slower
+            if res.status_code == 200:
+                ans = res.json()["message"]["content"]
+                src_line = "**Sources**: Local RAG + Phi3" + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: Phi3 Local"
+                final_ans = f"[LOCAL LAB MODE]\n{ans}\n\n{src_line}\n**Level**: {level}"
+                return final_ans, sources
+        except Exception as e:
+            st.sidebar.warning(f"Local Server failed: {e}")
+
+    # 4. PRIORITY 3: RAG ONLY OFFLINE
+    if context:
+        return (f"[OFFLINE RAG ONLY]\nBased on uploaded NCDC notes:\n{context[:2000]}", sources)
+    else:
+        return ("[OFFLINE] No internet and Lab Server not found. Please upload NCDC notes first or start Lab PC.", [])
 
 def show_student():
     st.header("📚 Student Portal")
