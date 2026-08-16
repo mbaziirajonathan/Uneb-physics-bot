@@ -565,14 +565,18 @@ def show_admin():
         if c3.button("Generate Pop Quiz"): a,src=call_groq_os(f"Generate 10 marks NCDC pop quiz for {l} {s} on {t}. 20min",l,"quiz",force_deep=False); display_preview(a,"quiz")
         custom=st.text_area("Custom Exam Task",placeholder="e.g. Make AOI for Physics S2 Machines")
         if st.button("Ask Custom Exam"): a,src=call_groq_os(custom,l,"exam",force_deep=True); display_preview(a,"custom")
+
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.6")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.7")
 with st.sidebar:
     st.metric("RAM",f"{psutil.virtual_memory().percent}%"); st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
-    pw=st.text_input("Password",type="password")
+    pw=st.text_input("Password",type="password", key="main_login_pw") # ADDED UNIQUE KEY
     c1,c2=st.columns(2)
-    if c1.button("Student") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
-    if c2.button("Admin") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
+    if c1.button("Student Login",key="btn_student_login") and pw==STUDENT_PASSWORD: 
+        st.session_state.role="Student"; st.rerun()
+    if c2.button("Admin Login",key="btn_admin_login") and pw==ADMIN_PASSWORD: 
+        st.session_state.role="Admin"; st.rerun()
+
 if st.session_state.get("role")=="Admin": show_admin()
 elif st.session_state.get("role")=="Student": show_student()
 else: st.info("Login to continue")
