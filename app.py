@@ -6,20 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V6.1.0-MICRO-EDGE | NCDC COMPLIANT | 512MB SAFE")
-
-### 0. AUTONOMOUS OS SENSORS ###
-def system_check():
-    try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
-    except: online = False
-    return {"online": online and GROQ_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": os.getenv("RENDER","false")=="true"}
-
-def keep_alive():
-    while True:
-        time.sleep(840)
-        try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
-        except: pass
-threading.Thread(target=keep_alive, daemon=True).start()
+st.sidebar.caption("Build: V6.1.1-MICRO-EDGE | NCDC COMPLIANT | 512MB SAFE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
@@ -32,7 +19,31 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{})]: load_db(f,d)
 DIAGRAM_CACHE = {}
 
-### 2. TTL CACHE + OS CACHE ###
+### 2. SECRETS + MODELS - MOVED UP TO FIX BUG 1 ###
+GROQ_API_KEY=os.getenv("GROQ_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
+if not GROQ_API_KEY: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
+
+### 3. AUTONOMOUS OS SENSORS ###
+def system_check():
+    try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
+    except: online = False
+    return {"online": online and GROQ_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": os.getenv("RENDER","false")=="true"}
+
+def keep_alive():
+    while True:
+        time.sleep(840)
+        try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
+        except: pass
+threading.Thread(target=keep_alive, daemon=True).start()
+
+@st.cache_resource
+def get_client(): return Groq(api_key=GROQ_API_KEY)
+client=get_client(); SYS_STATE=system_check()
+AI_MODEL_LONG="llama-3.3-70b-versatile" if SYS_STATE["online"] else "offline"; AI_MODEL_SHORT="llama-3.1-8b-instant" if SYS_STATE["online"] else "offline"
+OFFLINE_MODE = not SYS_STATE["online"]
+if OFFLINE_MODE: st.sidebar.warning("🔌 OFFLINE RAG MODE")
+
+### 4. TTL CACHE ###
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
     def get(self,q):
@@ -43,20 +54,11 @@ class TTLSchoolCache:
     def stats(self): return {"total":len(self.cache),"active":len([1 for v in self.cache.values() if time.time()<v[1]])}
 ai_cache = TTLSchoolCache()
 
-### 3. SECRETS + MODELS ###
-GROQ_API_KEY=os.getenv("GROQ_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
-@st.cache_resource
-def get_client(): return Groq(api_key=GROQ_API_KEY)
-client=get_client(); SYS_STATE=system_check()
-AI_MODEL_LONG="llama-3.3-70b-versatile" if SYS_STATE["online"] else "offline"; AI_MODEL_SHORT="llama-3.1-8b-instant" if SYS_STATE["online"] else "offline"
-OFFLINE_MODE = not SYS_STATE["online"]
-if OFFLINE_MODE: st.sidebar.warning("🔌 OFFLINE RAG MODE")
-
-### 4. NCDC CURRICULUM + PRACTICALS ###
+### 5. NCDC CURRICULUM + PRACTICALS ###
 UNEB_CURRICULUM_MAP = {"Mathematics": {"S1": ["Sets","Number Bases"],"S2": ["Rates","Algebra"],"S3": ["Quadratics","Trigonometry"],"S4": ["Functions","Matrices"],"S5": ["Differentiation","Integration"],"S6": ["Mechanics II","Statistics III"]},"Physics": {"S1": ["Measurement","Forces"],"S4": ["Electronics","Waves II"],"S6": ["Electric Fields","Nuclear Physics II"]},"Chemistry": {"S3": ["Bonding","Organic I"],"S5": ["Kinetics III","Organic II"]},"Biology": {"S1": ["Cells","Classification"],"S4": ["Photosynthesis","Hormones I"],"S6": ["Biotechnology II","Genetics IV"]},"Agriculture": {"S1": ["Soil Formation","Crops"],"S4": ["Crop Protection","Farm Management"]},"Geography": {"S1": ["Map Reading","Weather"],"S4": ["GIS","Population Structure"]},"History": {"S1": ["Early Man","Bantu Migrations"],"S4": ["OAU","Human Rights"]},"Literature": {"S1": ["Oral Literature","Poetry"],"S4": ["African Literature"]},"CRE": {"S1": ["God and Man","Creation"],"S4": ["Christian Living"]},"ICT": {"S1": ["Computer Basics","Word"],"S4": ["Web Design","Networking"]},"Entrepreneurship": {"S1": ["Business Ideas"],"S4": ["Management","Law"]},"Art": {"S1": ["Drawing","Color"]},"Music": {"S1": ["Notes","Rhythm"]},"Luganda": {"S1": ["Ebigambo","Ennukuta"]},"Kiswahili": {"S1": ["Alfabeti","Maneno"]}}
 PRACTICAL_DATABASE = {"Physics": {"S1-S4": {"Ohm's Law": {"objective": "Verify Ohm's Law"}},"S5-S6": {"RC Circuit": {"objective": "Find time constant"}}},"Chemistry": {"S1-S4": {"Titration": {"objective": "Determine HCl"}},"S5-S6": {"Rate": {"objective": "Order of reaction"}}},"Biology": {"S1-S4": {"Microscope": {"objective": "Observe cells"}},"S5-S6": {"Enzyme": {"objective": "Effect of pH"}}},"Agriculture": {"S1-S4": {"Soil pH": {"objective": "Determine pH"}},"S5-S6": {"Feed": {"objective": "Formulate feed"}}}}
 
-### 5. LIGHT RAG - 10MB ###
+### 6. LIGHT RAG ###
 class VectorRAG:
     def __init__(self): self.docs=load_db(DOCS_FILE,[])
     def add(self,texts,fn):
@@ -68,17 +70,11 @@ class VectorRAG:
 vector_rag=VectorRAG()
 
 def chunk_text(text, sz=500):
-    s = re.split(r'(?<=[.!?]) +', text)
-    chunks = []
-    cur = ""
+    s = re.split(r'(?<=[.!?]) +', text); chunks = []; cur = ""
     for x in s:
-        if len(cur) + len(x) < sz:
-            cur += x + " "
-        else:
-            chunks.append(cur)
-            cur = x
-    if cur:
-        chunks.append(cur)
+        if len(cur) + len(x) < sz: cur += x + " "
+        else: chunks.append(cur); cur = x
+    if cur: chunks.append(cur)
     return chunks
 
 def render_upload(key="d"):
@@ -93,7 +89,7 @@ def render_upload(key="d"):
         if st.button(f"Add {len(chunk_text(text))} chunks",key=f"add{key}"):
             vector_rag.add(chunk_text(text),f.name); st.success("Added to RAG")
 
-### 6. SMART CALLER - AUTO SWITCH ###
+### 7. SMART CALLER ###
 SYSTEM_PROMPT="""You are Senior NCDC Uganda Tutor. Rules: 1.ANTI-HALLUCINATION: If not in CONTEXT say 'Per NCDC I cant confirm'. 2.LENGTH: 'define'=2 sentences. 'explain'=4 points+UG example. 3.FORMAT: **Concept**:X **UG Example**:Y **Exam Tip**:Z. 4.UG: Use Kampala,matooke,boda examples."""
 EXAMPLES="Q:Define Osmosis briefly\nA:**Concept**:Water movement. **UG Example**:Cassava swelling. **Exam Tip**:Mention membrane."
 
@@ -122,21 +118,25 @@ def display_preview(content,name):
 
 def get_group(l): return "S1-S4" if int(l[1])<=4 else "S5-S6"
 
-### 7. STUDENT PORTAL ###
+### 8. STUDENT PORTAL - FIXED INDENTATION BUG 2 ###
 def show_student():
     st.header("📚 Student Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
     t1,t2,t3,t4=st.tabs(["🔍 Smart Search","📖 Learn","🧪 Practicals","🖼️ Diagrams"])
-    with t1: render_upload("s1"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l"); q=st.text_area("Ask",key="s1q")
-    if st.button("Ask",key="s1b") and q: a,src=call_groq_os(q,l); display_preview(a,"s1")
-    with t2: render_upload("s2"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l"); t=st.selectbox("Topic",UNEB_CURRICULUM_MAP[s][l],key="s2t")
-    if st.button("Notes",key="s2b"): a,src=call_groq_os(f"Notes on {t} for {l} {s}",l); display_preview(a,"s2")
-    with t3: render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); g=get_group(l); p=st.selectbox("Practical",list(PRACTICAL_DATABASE[s][g]),key="s3p") if s in PRACTICAL_DATABASE else None
-    if st.button("Generate",key="s3b") and p: a,src=call_groq_os(f"Full UNEB practical for {p}. {PRACTICAL_DATABASE[s][g][p]['objective']}. Uganda",l); display_preview(a,"s3")
-    with t4: render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",UNEB_CURRICULUM_MAP[s][l],key="s4t")
-    if st.button("Diagram",key="s4b"): a,src=call_groq_os(f"2 diagrams JSON for {l} {s} '{t}' Ugandan example",l); display_preview(a,"s4")
+    with t1:
+        render_upload("s1"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l"); q=st.text_area("Ask",key="s1q")
+        if st.button("Ask",key="s1b") and q: a,src=call_groq_os(q,l); display_preview(a,"s1")
+    with t2:
+        render_upload("s2"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l"); t=st.selectbox("Topic",UNEB_CURRICULUM_MAP[s][l],key="s2t")
+        if st.button("Notes",key="s2b"): a,src=call_groq_os(f"Notes on {t} for {l} {s}",l); display_preview(a,"s2")
+    with t3:
+        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); g=get_group(l); p=st.selectbox("Practical",list(PRACTICAL_DATABASE[s][g]),key="s3p") if s in PRACTICAL_DATABASE else None
+        if st.button("Generate",key="s3b") and p: a,src=call_groq_os(f"Full UNEB practical for {p}. {PRACTICAL_DATABASE[s][g][p]['objective']}. Uganda",l); display_preview(a,"s3")
+    with t4:
+        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",UNEB_CURRICULUM_MAP[s][l],key="s4t")
+        if st.button("Diagram",key="s4b"): a,src=call_groq_os(f"2 diagrams JSON for {l} {s} '{t}' Ugandan example",l); display_preview(a,"s4")
 
-### 8. ADMIN PORTAL - 8 TABS ###
+### 9. ADMIN PORTAL - FIXED INDENTATION BUG 3 ###
 def show_admin():
     st.header("🏫 Admin Portal")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
@@ -157,8 +157,9 @@ def show_admin():
         t=st.multiselect("Topics",UNEB_CURRICULUM_MAP[s][l],default=settings.get(f"{s}_{l}",[]))
         n=st.slider("Qs",10,100,50);
         if st.button("Generate"): a,src=call_groq_os(f"Generate {n} UNEB Qs from {t}. Marking guide.",l); display_preview(a,"bulk")
-    with tabs[4]: st.subheader("RAG KB"); st.metric("Chunks",len(vector_rag.docs)); render_upload("a5")
-    if st.button("Reset RAG"): vector_rag.docs=[]; save_db(DOCS_FILE,[]); st.success("Reset")
+    with tabs[4]:
+        st.subheader("RAG KB"); st.metric("Chunks",len(vector_rag.docs)); render_upload("a5")
+        if st.button("Reset RAG"): vector_rag.docs=[]; save_db(DOCS_FILE,[]); st.success("Reset")
     with tabs[5]:
         st.subheader("Lesson"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="ls"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="ll"); t=st.selectbox("Topic",UNEB_CURRICULUM_MAP[s][l],key="lt")
         if st.button("Plan"): a,src=call_groq_os(f"Lesson Plan 40min NCDC {l} {s} {t}. Objectives,Activities,UG example",l); display_preview(a,"lesson")
@@ -170,8 +171,8 @@ def show_admin():
         c1.metric("Queries",len(load_db(LOG_FILE,[]))); c2.metric("Cache",ai_cache.stats()['active']); c3.metric("Status","Online" if SYS_STATE["online"] else "Offline")
         st.warning("**At-Risk: S4 Physics** - 0 practicals"); st.error("**Gap: Organic S5** - 0 notes")
 
-### 9. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.0")
+### 10. LOGIN ###
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.1")
 with st.sidebar:
     st.metric("RAM",f"{psutil.virtual_memory().percent}%"); st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
     pw=st.text_input("Password",type="password")
