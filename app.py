@@ -162,40 +162,53 @@ def call_groq_os(prompt,level="S4",mode="smart",force_deep=False):
         return ans, sources
     except Exception as e: return f"[AUTO-FIX] Error: {e}. Try again", sources
 
-### 10. STUDENT PORTAL ###
 def show_student():
     st.header("📚 Student Portal")
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
+    if st.button("Logout", key="student_logout"): st.session_state.clear(); st.rerun()
     t1,t2,t3,t4,t5=st.tabs(["🔍 Smart Search","📖 Learn + Notes","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
+
     with t1:
-        render_upload("s1"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l"); q=st.text_area("Ask Anything",placeholder=f"Type question here. Click Ask for deep answer",key="s1q")
+        st.text_input("🔎 Quick Search this Tab", key="search_t1", placeholder="Search notes, Qs, topics...")
+        render_upload("s1");
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s");
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l");
+        q=st.text_area("Ask Anything",placeholder=f"Type question here. Click Ask for deep answer",key="s1q")
         c1,c2,c3=st.columns(3)
         if c1.button("Ask AI Deep",key="s1b") and q: a,src=call_groq_os(q,l,"smart",force_deep=True); display_preview(a,"s1")
         if c2.button("Quick Answer",key="s1quick") and q: a,src=call_groq_os(q,l,"smart",force_deep=False); display_preview(a,"s1quick")
         if c3.button("Scenario Task",key="s1t") and q: a,src=call_groq_os(f"Create Scenario->Item->Task question on {q} for {l} {s}",l,"smart",force_deep=True); display_preview(a,"s1t")
+
     with t2:
-        render_upload("s2"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l")
-        topics_list = get_topics(s,l) # Safe call
-        t=st.selectbox("Topic",topics_list,key="s2t")
+        st.text_input("🔎 Quick Search this Tab", key="search_t2", placeholder="Search notes, Qs, topics...")
+        render_upload("s2")
+        s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s")
+        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l")
+        topics_list = get_topics(s,l)
+        t=st.selectbox("Topic",topics_list,key="s2t_topics") # UNIQUE KEY FIX
         c1,c2,c3=st.columns(3)
         if c1.button("Generate Notes",key="s2b"): a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",force_deep=True); display_preview(a,"s2")
         if c2.button("Ask About Topic",key="s2q"): a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q")
         if c3.button("Topic Quiz 10Q",key="s2quiz"): a,src=call_groq_os(f"Generate 10 UNEB style questions + marking guide on {t} for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s2quiz")
+
     with t3:
+        st.text_input("🔎 Quick Search this Tab", key="search_t3", placeholder="Search practicals...")
         render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
         c1,c2=st.columns(2)
         if c1.button("Generate Full Practical",key="s3b") and p and p!= "No Practicals for this Level":
-            g="S1-S4" if int(l[1])<=4 else "S5-S6"
-            obj=PRACTICAL_DATABASE[s][g][p]['objective']
+            g="S1-S4" if int(l[1])<=4 else "S5-S6"; obj=PRACTICAL_DATABASE[s][g][p]['objective']
             a,src=call_groq_os(f"Full NCDC practical write-up for {p}. Objective: {obj}. Include: Apparatus, Method, Observations, Calculations, Precautions, Conclusion. Use local materials. Level: {l}",l,"notes",force_deep=True); display_preview(a,"s3")
         if c2.button("Ask About Practical",key="s3q") and p and p!= "No Practicals for this Level": a,src=call_groq_os(f"Explain {p} practical for {l} per NCDC. Safety and AOI tips",l,"smart",force_deep=True); display_preview(a,"s3q")
+
     with t4:
-        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t")
+        st.text_input("🔎 Quick Search this Tab", key="search_t4", placeholder="Search diagrams...")
+        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t_topics") # UNIQUE KEY FIX
         c1,c2,c3=st.columns(3)
         if c1.button("Generate Diagrams",key="s4b"): a,src=call_groq_os(f"2 diagrams JSON + description for {l} {s} '{t}' NCDC example",l,"smart",force_deep=False); display_preview(a,"s4")
         if c2.button("Ask About Diagram",key="s4q"): a,src=call_groq_os(f"How to draw and label diagram for {t} in {s} {l}. Step by step",l,"smart",force_deep=True); display_preview(a,"s4q")
         if c3.button("Diagram Quiz",key="s4quiz"): a,src=call_groq_os(f"5 quiz questions on labeling {t} diagram for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s4quiz")
+
     with t5:
+        st.text_input("🔎 Quick Search this Tab", key="search_t5", placeholder="Search research topics...")
         st.subheader("Research Projects")
         render_upload("s5"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s5s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s5l")
         if int(l[1]) >= 5:
@@ -213,6 +226,7 @@ def show_admin():
     tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams"])
 
     with tabs[0]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a1", placeholder="Search analytics...")
         st.subheader("Analytics")
         q=st.text_area("Ask about analytics",key="aq")
         if st.button("Ask Analytics Deep",key="ab"):
@@ -220,10 +234,11 @@ def show_admin():
             display_preview(a,"a")
 
     with tabs[1]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a2", placeholder="Search curriculum...")
         st.subheader("NCDC Curriculum")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="as")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="al")
-        t=st.multiselect("Topics",get_topics(s,l))
+        t=st.multiselect("Topics",get_topics(s,l), key="a1_topics") # UNIQUE KEY FIX
         if st.button("Generate Scheme", key="btn_scheme"):
             a,src=call_groq_os(f"NCDC Term Scheme for {l} {s} {t}. 2026 CBC with AOI",l,"notes",force_deep=True)
             display_preview(a,"scheme")
@@ -232,13 +247,13 @@ def show_admin():
             display_preview(a,"ac")
 
     with tabs[2]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a3", placeholder="Search practicals...")
         st.subheader("Practicals")
         s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="ps")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="pl")
         p=st.selectbox("Practical",get_practicals(s,l),key="pp")
         if st.button("Generate Practical Guide", key="btn_prac_guide") and p and p!= "No Practicals for this Level":
-            g="S1-S4" if int(l[1])<=4 else "S5-S6"
-            obj=PRACTICAL_DATABASE[s][g][p]['objective']
+            g="S1-S4" if int(l[1])<=4 else "S5-S6"; obj=PRACTICAL_DATABASE[s][g][p]['objective']
             a,src=call_groq_os(f"Generate full lab manual for {p}. Objective: {obj}. Level: {l}",l,"notes",force_deep=True)
             display_preview(a,"pg")
         q=st.text_area("Ask about any practical",key="pq")
@@ -247,10 +262,11 @@ def show_admin():
             display_preview(a,"p")
 
     with tabs[3]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a4", placeholder="Search bulk Qs...")
         st.subheader("Bulk")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="bs")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="bl")
-        t=st.multiselect("Topics",get_topics(s,l))
+        t=st.multiselect("Topics",get_topics(s,l), key="a2_topics") # UNIQUE KEY FIX
         n=st.slider("Qs",10,100,50)
         if st.button("Generate Bulk Qs", key="btn_bulk"):
             a,src=call_groq_os(f"Generate {n} NCDC 2026 Qs + Marking guide from {t} for {l} {s}",l,"notes",force_deep=True)
@@ -261,6 +277,7 @@ def show_admin():
             display_preview(a,"abk")
 
     with tabs[4]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a5", placeholder="Search RAG...")
         st.subheader("RAG KB")
         st.metric("Chunks",len(vector_rag.docs))
         render_upload("a5")
@@ -272,10 +289,11 @@ def show_admin():
             vector_rag.docs=[]; save_db(DOCS_FILE,[]); st.success("Reset")
 
     with tabs[5]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a6", placeholder="Search lessons...")
         st.subheader("Lesson")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="ls")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="ll")
-        t=st.selectbox("Topic",get_topics(s,l),key="lt")
+        t=st.selectbox("Topic",get_topics(s,l),key="lt_topics") # UNIQUE KEY FIX
         if st.button("Generate NCDC Lesson Plan", key="btn_lesson"):
             a,src=call_groq_os(f"NCDC 40min Lesson Plan {l} {s} {t}. Competencies,Activities,Assessment,AOI,UG example",l,"notes",force_deep=True)
             display_preview(a,"lesson")
@@ -285,6 +303,7 @@ def show_admin():
             display_preview(a,"al")
 
     with tabs[6]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a7", placeholder="Search reports...")
         st.subheader("Reports")
         n=st.number_input("Students",1,1000,100)
         if st.button("Generate Report Cards", key="btn_report"):
@@ -296,6 +315,7 @@ def show_admin():
             display_preview(a,"ar")
 
     with tabs[7]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a8", placeholder="Search predictions...")
         st.subheader("📈 Predictive")
         st.metric("Status","Online" if SYS_STATE["online"] else "Offline")
         q=st.text_area("Ask Predictor",key="prq")
@@ -304,10 +324,11 @@ def show_admin():
             display_preview(a,"pr")
 
     with tabs[8]:
+        st.text_input("🔎 Quick Search this Tab", key="search_a9", placeholder="Search exams...")
         st.subheader("📝 NCDC Exam + Test Generator")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="exs")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="exl")
-        t=st.multiselect("Topics",get_topics(s,l))
+        t=st.multiselect("Topics",get_topics(s,l), key="a3_topics") # UNIQUE KEY FIX
         c1,c2,c3=st.columns(3)
         if c1.button("Generate Full Exam", key="btn_exam"):
             a,src=call_groq_os(f"Generate full NCDC 2026 exam 100 marks for {l} {s} on {t}. Scenario-Item-Task + AOI format + Marking guide",l,"exam",force_deep=True)
@@ -324,7 +345,7 @@ def show_admin():
             display_preview(a,"custom")
 
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.8")
+st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.9")
 with st.sidebar:
     st.metric("RAM",f"{psutil.virtual_memory().percent}%"); st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
     pw=st.text_input("Password",type="password", key="main_login_pw")
