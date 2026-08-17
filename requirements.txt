@@ -12,10 +12,7 @@ openpyxl
 python-multipart
 pypdf
 psutil
-
-# --- Added for Hybrid Local Server ---
+zeroconf
 fastapi
 uvicorn
-zeroconf
-llama-cpp-python
 pydantic
