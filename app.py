@@ -151,9 +151,10 @@ def get_level_rules(level):
 
 SYSTEM_PROMPT="""You are Senior NCDC Uganda Examiner 2026. CRITICAL RULES: 1. ANTI-HALLUCINATION: Only use CONTEXT and official NCDC topics. If not in CONTEXT say 'Per NCDC 2026 CBC I cant confirm'. 2. LEVEL LOCK: Follow LEVEL_RULES strictly. S1≠S2≠S3≠S4≠S5≠S6. 3. ASSESSMENT: For S1-S4 use Scenario-Item-Task + AOI format. For S5-S6 use Paper1 Paper2 competency frame. 4. PRACTICALS: If asked practical, use PRACTICAL_DATABASE objectives. 5. FORMAT: **Concept**:X **UG Example**:Y **Exam Tip**:Z. 6. CITATION: At end add **Sources**: [filename chunk#] **Level**: {level} 7. UG: Use Kampala,matooke,boda,busoga,nile,health center examples."""
 
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+LOCAL_LLM_IP = None # Cache the discovered IP
+LAST_DISCOVERY = 0
 
- class MyListener(ServiceListener if ZEROCONF_AVAILABLE else object):
+class MyListener(ServiceListener if ZEROCONF_AVAILABLE else object):
     def add_service(self, zc, type, name):
         global LOCAL_LLM_IP
         if not ZEROCONF_AVAILABLE: return
