@@ -3,10 +3,19 @@ import streamlit as st, os, io, json, re, time, requests, random, threading, psu
 from datetime import datetime
 from groq import Groq, RateLimitError
 import logging
+
+### ADD THIS BLOCK ###
+try:
+    from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+    ZEROCONF_AVAILABLE = True
+except ImportError:
+    ZEROCONF_AVAILABLE = False
+    ServiceBrowser = ServiceListener = Zeroconf = None
+    logging.warning("zeroconf not installed. Local LAN discovery disabled.")
+### END BLOCK ###
+
 try: import fcntl # for file locking on linux/render
 except: fcntl = None # windows lab pc
-logging.basicConfig(level=logging.INFO)
-
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
 st.sidebar.caption("Build: V6.1.9-NCDC-FINAL-HYBRID | NCDC 2026 CBC | DEPLOY SAFE")
 
@@ -144,19 +153,23 @@ SYSTEM_PROMPT="""You are Senior NCDC Uganda Examiner 2026. CRITICAL RULES: 1. AN
 
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
-class MyListener(ServiceListener):
+ class MyListener(ServiceListener if ZEROCONF_AVAILABLE else object):
     def add_service(self, zc, type, name):
         global LOCAL_LLM_IP
+        if not ZEROCONF_AVAILABLE: return
         info = zc.get_service_info(type, name)
         if info and info.server == "uneb-tutor-local.local.":
             LOCAL_LLM_IP = socket.inet_ntoa(info.addresses[0])
 
 def discover_local_llm(timeout=2):
     global LOCAL_LLM_IP, LAST_DISCOVERY
+    if not ZEROCONF_AVAILABLE: return None # Skip if not installed
+
     if LOCAL_LLM_IP and time.time() - LAST_DISCOVERY < 300: return LOCAL_LLM_IP # 5min cache
     try:
         zc = Zeroconf(); ServiceBrowser(zc, "_http._tcp.local.", MyListener()); time.sleep(timeout); zc.close()
-    except: pass
+    except Exception as e:
+        logging.error(f"Zeroconf failed: {e}")
     LAST_DISCOVERY = time.time()
     return LOCAL_LLM_IP
 
