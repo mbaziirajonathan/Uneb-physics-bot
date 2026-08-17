@@ -155,12 +155,22 @@ FORMAT: Start with **[NCDC-GENERATIVE: topic]**
 CITATION: **Proof**: [NCDC-GENERATIVE AI 2026] Based on ncdc_master_db.json {subject} Competency
 LEVEL_RULES: {level_rules}"""
 
+AI_MODEL_LONG="llama-3.3-70b-versatile"; AI_MODEL_SHORT="llama-3.1-8b-instant"
+
 def call_groq_api(full_prompt, mode, level):
     tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
     model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
     messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-    res=client.chat.completions.create(model=model,messages=messages,max_tokens=tokens,temperature=0.3,timeout=10) # 10s timeout
-    return res.choices[0].message.content
+    try:
+        res=client.chat.completions.create(model=model,messages=messages,max_tokens=tokens,temperature=0.3,timeout=10)
+        return res.choices[0].message.content
+    except Exception as e:
+        # Fallback if 8b fails, use 70b
+        if "model_not_found" in str(e):
+            st.sidebar.warning("8b model failed. Falling back to 70b...")
+            res=client.chat.completions.create(model=AI_MODEL_LONG,messages=messages,max_tokens=tokens,temperature=0.3,timeout=15)
+            return res.choices[0].message.content
+        raise e
 
 def call_groq_os(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
     chat_mem.add("user", prompt)
