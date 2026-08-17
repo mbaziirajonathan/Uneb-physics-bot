@@ -12,7 +12,3 @@ openpyxl
 python-multipart
 pypdf
 psutil
-zeroconf
-fastapi
-uvicorn
-pydantic
