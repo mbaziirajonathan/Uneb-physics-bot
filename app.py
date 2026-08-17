@@ -4,51 +4,40 @@ from datetime import datetime
 from groq import Groq, RateLimitError
 import logging
 
-### ADD THIS BLOCK ###
-try:
-    from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-    ZEROCONF_AVAILABLE = True
-except ImportError:
-    ZEROCONF_AVAILABLE = False
-    ServiceBrowser = ServiceListener = Zeroconf = None
-    logging.warning("zeroconf not installed. Local LAN discovery disabled.")
-### END BLOCK ###
-
-try: import fcntl # for file locking on linux/render
-except: fcntl = None # windows lab pc
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO", page_icon="📚", layout="wide")
-st.sidebar.caption("Build: V6.1.9-NCDC-FINAL-HYBRID | NCDC 2026 CBC | DEPLOY SAFE")
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO GENERATIVE", page_icon="🤖", layout="wide")
+st.sidebar.caption("Build: V6.2.0-GENERATIVE-ONLINE | NCDC 2026 CBC | DEMO MODE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
-LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json"]]
+LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE, MEMORY_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json","chat_memory.json"]]
 
 def save_db(f,d):
     with open(f,"w") as file:
-        if fcntl: fcntl.flock(file, fcntl.LOCK_EX) # prevent corruption on render
         json.dump(d, file, indent=2)
-        if fcntl: fcntl.flock(file, fcntl.LOCK_UN)
 
 def load_db(f,default):
     if not os.path.exists(f): save_db(f,default)
     try: return json.load(open(f,"r"))
     except: save_db(f,default); return default
 
-for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{})]: load_db(f,d)
+for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[])]: load_db(f,d)
 
 ### 2. SECRETS + MODELS ###
 GROQ_API_KEY=os.getenv("GROQ_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
 IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
-if not GROQ_API_KEY and IS_CLOUD: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
-
-### 3. OS SENSORS + MODE BADGE ###
-LOCAL_LLM_IP = None # Cache the discovered IP
-LAST_DISCOVERY = 0
+if not GROQ_API_KEY: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
 
 def system_check():
     try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
     except: online = False
-    return {"online": online and GROQ_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": IS_CLOUD}
+    return {"online": online}
+
+SYS_STATE=system_check()
+
+@st.cache_resource
+def get_client(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+client=get_client()
+AI_MODEL_LONG="llama-3.3-70b-versatile"; AI_MODEL_SHORT="llama-3.1-8b-instant"
 
 def keep_alive():
     while True:
@@ -57,19 +46,7 @@ def keep_alive():
         except: pass
 threading.Thread(target=keep_alive, daemon=True).start()
 
-@st.cache_resource
-def get_client(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
-SYS_STATE=system_check()
-client=get_client() if SYS_STATE["online"] else None
-AI_MODEL_LONG="llama-3.3-70b-versatile" if SYS_STATE["online"] else "offline"; AI_MODEL_SHORT="llama-3.1-8b-instant" if SYS_STATE["online"] else "offline"
-OFFLINE_MODE = not SYS_STATE["online"]
-
-# MODE BADGE
-if SYS_STATE["online"]: mode_badge="☁️ CLOUD GROQ"
-else: mode_badge="🏫 LOCAL PHI3" if LOCAL_LLM_IP else "📴 OFFLINE RAG"
-
-### 4. TTL CACHE ###
+### 3. TTL CACHE + CHAT MEMORY ###
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
     def get(self,q):
@@ -79,7 +56,17 @@ class TTLSchoolCache:
     def set(self,q,a): self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]; save_db(CACHE_FILE,self.cache)
 ai_cache = TTLSchoolCache()
 
-### 5. NCDC MASTER CURRICULUM ###
+class ChatMemory:
+    def __init__(self, ttl=300): self.ttl=ttl; self.mem=load_db(MEMORY_FILE,[])
+    def add(self, role, content):
+        self.mem.append({"role":role,"content":content,"time":time.time()})
+        self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]
+        save_db(MEMORY_FILE,self.mem)
+    def get_context(self):
+        return [{"role":m["role"],"content":m["content"]} for m in self.mem]
+chat_mem = ChatMemory()
+
+### 4. NCDC MASTER CURRICULUM ###
 UNEB_CURRICULUM_MAP = {
     "Physics": {"S1": ["Measurements","Density","States of Matter","Introduction to Forces","Thermometry","Heat Transfer","Rectilinear Propagation","Reflection at Plane Surfaces","Intro to Electricity Part I","Magnets"],"S2": ["Turning Effect of Forces","Machines","Work Energy and Power","Pressure","Properties of Matter","Reflection at Curved Surfaces","Wave Motion","Properties of Waves","Sound Waves","Intro to Electricity Part II","Magnetic Effect of Current"],"S3": ["Refraction of Light","Lenses","Linear Motion","Newton's Laws of Motion","Friction","Current Electricity","Force on a Conductor","Quantity of Heat"],"S4": ["Domestic Electricity","Electromagnetic Induction","Modern Physics Electronics","Modern Physics Radioactivity"],"S5": ["Fields I","Current","Advanced Mechanics","Waves II","Thermal Physics"],"S6": ["Electric Fields","Nuclear Physics II","Quantum Physics","AC Circuits","Astrophysics"]},
     "Mathematics": {"S1": ["Number Bases & Systems","Working with Fractions","Decimals and Percentages","Integers and Directed Numbers","Sets and Venn Diagrams","Introduction to Geometry","Algebra Expressions & Formulae","Equations and Inequalities","Coordinates and Linear Graphs"],"S2": ["Ratios Proportions & Scale","Sequences and Number Patterns","Length Area and Volume","Mapping and Functions","Graphs of Quadratic Functions","Vectors in a 2D Plane","Transformation Geometry","Business Mathematics","Data Handling & Statistics"],"S3": ["Matrices & Transformations","Simultaneous Linear Equations","Pythagoras Theorem & Intro Trig","Quadratic Equations","Loci and Geometric Constructions","Further Vectors and Gradients","Probability Theory","Circles and Circle Theorems","Logarithms and Indices"],"S4": ["Linear Programming","Three-Dimensional Geometry","Advanced Business Calculations","Trigonometry Non-Right Triangles","Advanced Statistical Dispersion","Revision & Synthesis"],"S5": ["Surds Indices Logarithmic Functions","Quadratic Theory","Permutations and Combinations","Binomial Theorem","Partial Fractions","Matrices and Determinants 3x3","Compound Multiple Angle Formulae","Trigonometric Equations","Straight Line Circle","Limits and Continuity","Differentiation","Integration Techniques","Complex Numbers","Vectors in 3D","Statics","Kinematics","Probability","Numerical Methods"],"S6": ["Conic Sections","Applications of Differentiation","Definite Integrals Volume of Revolution","De Moivre Theorem","Equations of lines and planes 3D","Kinetics","Discrete Random Variables","Continuous Distributions","Newton-Raphson method","Numerical Integration"]},
@@ -99,21 +86,21 @@ UNEB_CURRICULUM_MAP = {
     "Kiswahili": {"S1": ["Alfabeti ya Kiswahili, Matamshi na Tahajia Sahihi", "Aina za Maneno na Miundo ya Sentensi Rahisi", "Mazungumzo, Salamu na Utambulisho wa Awali"],"S2": ["Sarufi ya Kiswahili (Ngeli za Nomino na Unyambulishaji)", "Uandishi wa Insha na Barua (Zikiwemo za Kiofisi)", "Ufahamu na Ufupisho wa Maandishi Mbalimbali"],"S3": ["Fasihi Simulizi (Hadithi, Methali, Vitendawili, na Nyimbo)", "Uandishi wa Insha za Kitaaluma na Ripoti", "Uchambuzi wa Magazeti, Habari na Mawasiliano katika Jamii"],"S4": ["Fasihi Andishi (Uchambuzi wa Riwaya, Tamthilia na Ushairi)", "Tafsiri ya Matini na Ukalimani wa Msingi", "Maandalizi ya Mtihani na Mikakati ya Mawasiliano ya Kimataifa"],"S5": ["Sarufi Ngumu na Fasihi ya Kiswahili kwa Kiwango cha Juu", "Nadharia za Tafsiri na Ukalimani wa Kitaalamu"],"S6": ["Uchambuzi wa Kina wa Kazi za Fasihi na Uhakiki", "Ukuaji wa Kiswahili, Lugha za Kibantu na Isimu Jamii"]}
 }
 
-### 6. PRACTICAL_DATABASE ###
 PRACTICAL_DATABASE = {
     "Physics": {"S1-S4": {"Measurements & Density": {"objective": "Determine density of regular and irregular solids using local materials and displacement methods."},"Mechanics (Hooke's Law)": {"objective": "Verify Hooke's Law using local extension springs and determine the spring constant."},"Mechanics (Moments)": {"objective": "Verify the principle of moments using a meter rule pivot setup."},"Heat Transfer": {"objective": "Investigate mechanisms of conduction, convection, and radiation using everyday school items."},"Light (Reflection)": {"objective": "Verify laws of reflection and determine the position of virtual images in plane mirrors."},"Light (Refraction)": {"objective": "Determine the refractive index of a glass block using pin-tracing methods."},"Current Electricity": {"objective": "Construct simple series and parallel circuits; verify Ohm's Law using ammeters and voltmeters."},"Waves & Sound": {"objective": "Determine the speed of sound in air using resonant tuning forks and air columns."},"Activities of Integration (AOI)": {"objective": "Design a functional solar cooker or simple water heater using locally sourced insulative materials."}},"S5-S6": {"Advanced Mechanics": {"objective": "Determine the acceleration due to gravity (g) using a simple pendulum and a rigid bar pendulum with error analysis."},"Surface Tension & Viscosity": {"objective": "Determine the coefficient of viscosity of a liquid using terminal velocity of a falling sphere."},"Advanced Optics (Lenses)": {"objective": "Determine the focal length of convex lenses and concave mirrors using u-v and displacement methods."},"Advanced Optics (Prism)": {"objective": "Determine the refractive index of glass using a spectrometer or pin-tracing through a triangular prism."},"Advanced Electricity (Potentiometer)": {"objective": "Measure internal resistance of a cell and calibrate an ammeter using a potentiometer wire setup."},"Advanced Electricity (Bridge Circuits)": {"objective": "Determine unknown resistance and temperature coefficient of resistance using a Metre Bridge."},"RC Circuits": {"objective": "Investigate the charging and discharging of a capacitor to calculate the circuit time constant."},"Magnetic Fields": {"objective": "Determine the horizontal component of the Earth's magnetic field using a deflection magnetometer."}}},
     "Chemistry": {"S1-S4": {"Separation of Mixtures": {"objective": "Separate components of sand, salt, and ink using filtration, evaporation, and simple paper chromatography."},"States of Matter": {"objective": "Investigate heating and cooling curves of naphthalene or water to establish melting and boiling points."},"Acids, Bases & Indicators": {"objective": "Prepare a natural pH indicator from red cabbage or plant flower extracts and test household solutions."},"Volumetric Analysis (Introductory)": {"objective": "Perform basic acid-base titrations using hydrochloric acid and sodium hydroxide with phenolphthalein."},"Rates of Reaction": {"objective": "Investigate the effect of concentration and temperature changes on the reaction rate between sodium thiosulfate and hydrochloric acid."},"Chemical Tests for Gases": {"objective": "Produce and identify oxygen, hydrogen, and carbon dioxide gases using charcoal, splints, and limewater."},"Activities of Integration (AOI)": {"objective": "Develop a small-scale prototype filter to treat turbid/hard water from local community sources."}},"S5-S6": {"Volumetric Quantitative Analysis": {"objective": "Perform double titrations, back titrations, and redox titrations using KMnO4, Fe2+ salts, and sodium thiosulfate iodine systems."},"Qualitative Inorganic Analysis": {"objective": "Systematically identify cations and anions via semi-micro analysis."},"Thermochemistry": {"objective": "Determine the enthalpy of neutralization of an acid-base reaction and enthalpy of displacement of copper by zinc."},"Chemical Kinetics": {"objective": "Determine the order of reaction and activation energy for the reaction between hydrogen peroxide and iodide ions."},"Equilibrium & Partition Coefficient": {"objective": "Determine the partition coefficient of ethanoic acid or iodine between water and an organic solvent."}}},
     "Biology": {"S1-S4": {"Microscopy & Cell Observation": {"objective": "Prepare temporary wet mounts of onion epidermal cells and human cheek cells to observe under a light microscope."},"Food Tests": {"objective": "Perform qualitative tests for reducing sugars, starch, proteins, and lipids."},"Enzyme Action": {"objective": "Investigate the effect of temperature and catalase concentrations on the breakdown of hydrogen peroxide."},"Cell Physiology (Osmosis)": {"objective": "Demonstrate living osmosis using Irish potato cups immersed in varying concentrations of salt/sugar solutions."},"Plant & Animal Morphology": {"objective": "Examine, draw, and label external features of insects, lower plants, and simple flowers."},"Soil Ecology": {"objective": "Determine soil water-holding capacity, drainage rates, and organic matter content from different school garden plots."},"Activities of Integration (AOI)": {"objective": "Create an illustrated public health guide detailing how to break transmission vectors for local infectious pathogens."}},"S5-S6": {"Biological Dissections": {"objective": "Dissect, display, and draw the internal systems of a small mammal or amphibian."},"Advanced Plant Anatomy": {"objective": "Cut thin transverse sections of monocotyledonous and dicotyledonous stems/roots; stain and observe vascular bundles."},"Advanced Biochemistry & Food Tests": {"objective": "Quantitatively estimate vitamin C concentration or evaluate complex food mixtures using serial dilutions."},"Physiology (Respiration & Photosynthesis)": {"objective": "Measure the rate of respiration using a simple respirometer and demonstrate oxygen production during plant photosynthesis."},"Histological Slide Identification": {"objective": "Identify, draw, and annotate micro-anatomical structures from prepared slides."}}},
     "Agriculture": {"S1-S4": {"Farm Tools Identification": {"objective": "Identify, state the functions of, and practice routine maintenance on hand tools and farm implements."},"Physical & Chemical Soil Testing": {"objective": "Determine soil texture by feel, calculate soil moisture content, and measure pH using a universal indicator."},"Crop Agronomy (Nursery Bed Management)": {"objective": "Prepare, sow, water, weed, and prick out vegetables on a school garden nursery bed."},"Livestock Management Exercises": {"objective": "Identify common animal feeds, identify internal/external parasites, and practice basic poultry management steps."},"DIT Vocational Assessment Practice": {"objective": "Execute hands-on husbandry competencies aligned with Level 1 Directorate of Industrial Training requirements."},"Activities of Integration (AOI)": {"objective": "Develop a farm record-keeping framework and design a seasonal crop rotation plan for a specific plot of community land."}},"S5-S6": {"Advanced Soil Science Analysis": {"objective": "Quantitatively measure soil cation exchange capacity, total nitrogen, phosphorus levels, and mechanical soil fraction analysis."},"Agronomic Field Trials": {"objective": "Set up and track a controlled field experiment comparing crop yield responses under organic vs. inorganic fertilizer treatments."},"Animal Nutrition & Feed Formulation": {"objective": "Analyze components of animal feeding stuffs and compute balanced livestock rations using Pearson's Square method."},"Agricultural Engineering & Mechanisation": {"objective": "Analyze the mechanics, cooling, and fuel systems of a farm tractor engine and evaluate modern drip irrigation mechanics."},"Farm Economics & Management Portfolio": {"objective": "Construct balance sheets, profit & loss statements, production functions, and complete an agricultural field study research report."}}}
 }
-### 7. HELPER FUNCTIONS ###
+
+### 5. HELPER FUNCTIONS ###
 def get_topics(s,l): return UNEB_CURRICULUM_MAP.get(s,{}).get(l,["General Topic"])
 def get_practicals(s,l):
     g = "S1-S4" if int(l[1])<=4 else "S5-S6"
     return list(PRACTICAL_DATABASE.get(s,{}).get(g,{}).keys()) or ["No Practicals for this Level"]
-def display_preview(content,name): st.text_area("AI Output - EDIT",content,height=400,key=f"p{name}"); st.download_button("📥 Download TXT",content.encode(),f"{name}.txt")
+def display_preview(content,name): st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}"); st.download_button("📥 Download",content.encode(),f"{name}.txt")
 
-### 8. LIGHT RAG ###
+### 6. LIGHT RAG ###
 class VectorRAG:
     def __init__(self): self.docs=load_db(DOCS_FILE,[])
     def add(self,texts,fn):
@@ -133,7 +120,7 @@ def chunk_text(text, sz=500):
     return chunks
 
 def render_upload(key="d"):
-    f=st.file_uploader("Upload PDF/DOCX/TXT",type=["pdf","docx","txt"],key=key)
+    f=st.file_uploader("Upload PDF/DOCX/TXT NCDC Notes",type=["pdf","docx","txt"],key=key)
     if f:
         text=""
         try:
@@ -142,273 +129,206 @@ def render_upload(key="d"):
             else: text=f.getvalue().decode("utf-8")
         except Exception as e: st.error(e); return
         if st.button(f"Add {len(chunk_text(text))} chunks",key=f"add{key}"):
-            vector_rag.add(chunk_text(text),f.name); st.success(f"Added to RAG from {f.name}")
+            vector_rag.add(chunk_text(text),f.name); st.success(f"Added to RAG")
 
-### 9. LEVEL-SMART BRAIN + HYBRID LLM ###
+### 7. GENERATIVE BRAIN - INVENT ON ASK ###
+def detect_complexity(prompt):
+    p = prompt.lower()
+    if any(x in p for x in ["define","what is","list"]): return "S1-S2"
+    if any(x in p for x in ["explain","how","why"]): return "S3-S4"
+    if any(x in p for x in ["derive","evaluate","research","design"]): return "S5-S6"
+    return "S4"
+
 def get_level_rules(level):
-    rules = {"S1": "Competence: Basic knowledge. Use simple language. 2-3 points. Real life UG examples. Activity of Integration style.","S2": "Competence: Understanding. 3-4 points. Introduce terms. 1 UG scenario. Basic calculations.","S3": "Competence: Skill Application. 4-5 points. Diagrams. 2 UG examples. Problem solving.","S4": "Competence: Values & Attitudes. UNEB Scenario->Item->Task format. 5-6 points. Context-rich problems.","S5": "A-Level: Analysis. 6-8 points. Derivations, case studies, critical thinking. Paper 1 & 2 split.","S6": "A-Level: Synthesis & Evaluation. 8-10 points. University prep. Research, evaluation, complex modeling."}
+    rules = {"S1": "Basic knowledge. 2-3 points. Simple UG examples. Activity of Integration.","S2": "Understanding. 3-4 points. 1 UG scenario.","S3": "Skill Application. 4-5 points. Diagrams. Problem solving.","S4": "Values. Scenario->Item->Task format + AOI.","S5": "Analysis. 6-8 points. Derivations, case studies.","S6": "Synthesis. 8-10 points. Research, evaluation."}
     return rules.get(level, rules["S4"])
 
-SYSTEM_PROMPT="""You are Senior NCDC Uganda Examiner 2026. CRITICAL RULES: 1. ANTI-HALLUCINATION: Only use CONTEXT and official NCDC topics. If not in CONTEXT say 'Per NCDC 2026 CBC I cant confirm'. 2. LEVEL LOCK: Follow LEVEL_RULES strictly. S1≠S2≠S3≠S4≠S5≠S6. 3. ASSESSMENT: For S1-S4 use Scenario-Item-Task + AOI format. For S5-S6 use Paper1 Paper2 competency frame. 4. PRACTICALS: If asked practical, use PRACTICAL_DATABASE objectives. 5. FORMAT: **Concept**:X **UG Example**:Y **Exam Tip**:Z. 6. CITATION: At end add **Sources**: [filename chunk#] **Level**: {level} 7. UG: Use Kampala,matooke,boda,busoga,nile,health center examples."""
+SYSTEM_PROMPT_OFFICIAL="""You are DIGITAL UNEB TUTOR 2026. PRIMARY RULE: ONLY USE NCDC DATABASE TOPICS + RAG CONTEXT. NO USA CURRICULUM.
+IF TOPIC NOT FOUND: Say "Per NCDC 2026 this topic is not in the syllabus. Click 'Invent/Extend' to generate NCDC-style content."
+CITATION: **Proof**: ncdc_master_db.json {subject} {level} + RAG [files]
+LEVEL_RULES: {level_rules}
+TUTOR MODE: Be friendly. Ask 1 follow-up question. Use Kampala,boda,Nile,matooke examples."""
 
-LOCAL_LLM_IP = None # Cache the discovered IP
-LAST_DISCOVERY = 0
-
-class MyListener(ServiceListener if ZEROCONF_AVAILABLE else object):
-    def add_service(self, zc, type, name):
-        global LOCAL_LLM_IP
-        if not ZEROCONF_AVAILABLE: return
-        info = zc.get_service_info(type, name)
-        if info and info.server == "uneb-tutor-local.local.":
-            LOCAL_LLM_IP = socket.inet_ntoa(info.addresses[0])
-
-def discover_local_llm(timeout=2):
-    global LOCAL_LLM_IP, LAST_DISCOVERY
-    if not ZEROCONF_AVAILABLE: return None # Skip if not installed
-
-    if LOCAL_LLM_IP and time.time() - LAST_DISCOVERY < 300: return LOCAL_LLM_IP # 5min cache
-    try:
-        zc = Zeroconf(); ServiceBrowser(zc, "_http._tcp.local.", MyListener()); time.sleep(timeout); zc.close()
-    except Exception as e:
-        logging.error(f"Zeroconf failed: {e}")
-    LAST_DISCOVERY = time.time()
-    return LOCAL_LLM_IP
+SYSTEM_PROMPT_GENERATIVE="""You are DIGITAL UNEB TUTOR 2026 - INVENT MODE ACTIVATED.
+RULE: Invent NEW topic RELATED to NCDC 2026 {subject} {level}. Must be Ugandan context. NO USA.
+FORMAT: Start with **[NCDC-GENERATIVE: topic]**
+CITATION: **Proof**: [NCDC-GENERATIVE AI 2026] Based on ncdc_master_db.json {subject} Competency
+LEVEL_RULES: {level_rules}"""
 
 def call_groq_api(full_prompt, mode, level):
     tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
     model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
-    res=client.chat.completions.create(model=model,messages=[{"role":"user","content":full_prompt}],max_tokens=tokens,temperature=0.1)
+    messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
+    res=client.chat.completions.create(model=model,messages=messages,max_tokens=tokens,temperature=0.3,timeout=10) # 10s timeout
     return res.choices[0].message.content
 
-def call_groq_os(prompt,level="S4",mode="smart",force_deep=False):
-    global SYS_STATE; SYS_STATE=system_check()
+def call_groq_os(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
+    chat_mem.add("user", prompt)
+    detected_level = detect_complexity(prompt) if level=="Auto" else level
     sources=vector_rag.search(prompt,3)
     context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt']}" for r in sources])
-    level_rules = get_level_rules(level)
-    instruction = "Give LONG DEEP explanation." if force_deep else "Give SHORT 2-4 point answer."
-    full_prompt = f"""{SYSTEM_PROMPT}\nLEVEL:{level}\nLEVEL_RULES:{level_rules}\nINSTRUCTION:{instruction}\nCONTEXT:\n{context}\nTASK:{prompt}"""
-    cached=ai_cache.get(full_prompt+mode+level);
+
+    topic_exists = any(prompt.lower() in t.lower() for t in get_topics(subject, detected_level))
+    level_rules = get_level_rules(detected_level)
+
+    if allow_invent and not topic_exists and len(sources)==0:
+        sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level)
+    else:
+        sys_prompt = SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules, subject=subject, level=detected_level)
+
+    full_prompt = f"""{sys_prompt}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCONTEXT:\n{context}\nTASK:{prompt}"""
+
+    cached=ai_cache.get(full_prompt+mode+detected_level+str(allow_invent));
     if cached: return f"[CACHED] {cached}", sources
 
-    # PRIORITY 1: CLOUD GROQ
-    if SYS_STATE["online"] and client:
-        try:
-            ans = call_groq_api(full_prompt, mode, level)
-            src_line = "**Sources**: " + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: NCDC 2026 CBC"
-            final_ans = ans + "\n\n" + src_line + f"\n**Level**: {level} | **Mode**: CLOUD"
-            ai_cache.set(full_prompt+mode+level,final_ans)
-            return final_ans, sources
-        except Exception as e: st.sidebar.warning(f"Cloud failed: {e}. Trying Local...")
+    try:
+        ans = call_groq_api(full_prompt, mode, detected_level)
+        chat_mem.add("assistant", ans)
+        src_line = "**Proof**: ncdc_master_db.json + " + ", ".join([f"{r['src']}" for r in sources]) if sources else "**Proof**: [NCDC-GENERATIVE AI 2026]"
+        final_ans = ans + "\n\n" + src_line + f"\n**Level**: {detected_level} | **Mode**: CLOUD"
+        ai_cache.set(full_prompt+mode+detected_level+str(allow_invent),final_ans)
+        return final_ans, sources
+    except Exception as e:
+        return f"[ERROR] Groq timeout. Please retry. {e}", sources
 
-    # PRIORITY 2: LOCAL LAB SERVER
-    local_ip = discover_local_llm()
-    if local_ip:
-        try:
-            url = f"http://{local_ip}:8000/chat"
-            payload = {"messages":[{"role":"user","content":full_prompt}]} # FIX: removed "model"
-            res = requests.post(url, json=payload, timeout=28) # FIX: 28s for render
-            if res.status_code == 200:
-                ans = res.json()["message"]["content"]
-                src_line = "**Sources**: Local RAG + Phi3" + ", ".join([f"{r['src']} c{r['chunk_id']}" for r in sources]) if sources else "**Sources**: Phi3 Local"
-                final_ans = f"[LOCAL LAB MODE]\n{ans}\n\n{src_line}\n**Level**: {level}"
-                return final_ans, sources
-        except Exception as e: st.sidebar.warning(f"Local Server failed: {e}")
-
-    # PRIORITY 3: RAG ONLY OFFLINE
-    if context: return (f"[OFFLINE RAG ONLY]\nBased on uploaded NCDC notes:\n{context[:2000]}", sources)
-    else: return ("[OFFLINE] No internet and Lab Server not found. Please upload NCDC notes first or start Lab PC.", [])
-
+### 8. STUDENT PORTAL - LOOPED GENERATIVE LOGIC ###
 def show_student():
-    st.header("📚 Student Portal")
+    st.header("🤖 Student Portal - Generative Demo")
     if st.button("Logout", key="student_logout"): st.session_state.clear(); st.rerun()
-    t1,t2,t3,t4,t5=st.tabs(["🔍 Smart Search","📖 Learn + Notes","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
+    t1,t2,t3,t4,t5=st.tabs(["💬 Chat Tutor","📖 Learn + Notes","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
 
     with t1:
-        st.text_input("🔎 Quick Search this Tab", key="search_t1", placeholder="Search notes, Qs, topics...")
+        st.text_input("🔎 Search", key="search_t1")
         render_upload("s1");
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s1s");
-        l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s1l");
-        q=st.text_area("Ask Anything",placeholder=f"Type question here. Click Ask for deep answer",key="s1q")
-        c1,c2,c3=st.columns(3)
-        if c1.button("Ask AI Deep",key="s1b") and q: a,src=call_groq_os(q,l,"smart",force_deep=True); display_preview(a,"s1")
-        if c2.button("Quick Answer",key="s1quick") and q: a,src=call_groq_os(q,l,"smart",force_deep=False); display_preview(a,"s1quick")
-        if c3.button("Scenario Task",key="s1t") and q: a,src=call_groq_os(f"Create Scenario->Item->Task question on {q} for {l} {s}",l,"smart",force_deep=True); display_preview(a,"s1t")
+        l=st.selectbox("Class",["Auto Detect"]+[f"S{i}" for i in range(1,7)],key="s1l");
+        q=st.text_area("Ask Anything",placeholder="Ask follow-up. It remembers last 5min",key="s1q")
+        c1,c2=st.columns(2)
+        lvl = "Auto" if l=="Auto Detect" else l
+        if c1.button("Ask Official NCDC",key="s1b") and q: a,src=call_groq_os(q,lvl,"smart",s, False); display_preview(a,"s1")
+        if c2.button("Invent/Extend Topic",key="s1gen") and q: a,src=call_groq_os(q,lvl,"smart",s, True); display_preview(a,"s1gen")
 
     with t2:
-        st.text_input("🔎 Quick Search this Tab", key="search_t2", placeholder="Search notes, Qs, topics...")
+        st.text_input("🔎 Search", key="search_t2")
         render_upload("s2")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s2s")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s2l")
-        topics_list = get_topics(s,l)
-        t=st.selectbox("Topic",topics_list,key="s2t_topics") # UNIQUE KEY FIX
+        t=st.selectbox("Topic",get_topics(s,l),key="s2t_topics")
         c1,c2,c3=st.columns(3)
-        if c1.button("Generate Notes",key="s2b"): a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",force_deep=True); display_preview(a,"s2")
-        if c2.button("Ask About Topic",key="s2q"): a,src=call_groq_os(f"Explain {t} for {l} {s} using NCDC competency",l,"smart",force_deep=True); display_preview(a,"s2q")
-        if c3.button("Topic Quiz 10Q",key="s2quiz"): a,src=call_groq_os(f"Generate 10 UNEB style questions + marking guide on {t} for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s2quiz")
+        if c1.button("Generate Notes From DB",key="s2b"): a,src=call_groq_os(f"Detailed NCDC notes on {t} for {l} {s}. Follow 2026 syllabus depth",l,"notes",s, False); display_preview(a,"s2")
+        if c2.button("Quiz Me",key="s2q"): a,src=call_groq_os(f"Be my tutor. Ask me 5 UNEB questions on {t} for {l} {s} one by one",l,"smart",s, False); display_preview(a,"s2q")
+        if c3.button("Invent Related Topic",key="s2gen"): a,src=call_groq_os(f"Invent new NCDC topic related to {t} for {l} {s} that is useful but not in syllabus",l,"notes",s, True); display_preview(a,"s2gen")
 
     with t3:
-        st.text_input("🔎 Quick Search this Tab", key="search_t3", placeholder="Search practicals...")
-        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
+        st.text_input("🔎 Search", key="search_t3")
+        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="s3s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s3l"); p=st.selectbox("Practical",get_practicals(s,l)+["Invent Basic Practical"],key="s3p")
         c1,c2=st.columns(2)
-        if c1.button("Generate Full Practical",key="s3b") and p and p!= "No Practicals for this Level":
+        if c1.button("Teach Practical From DB",key="s3b") and p and p!= "Invent Basic Practical":
             g="S1-S4" if int(l[1])<=4 else "S5-S6"; obj=PRACTICAL_DATABASE[s][g][p]['objective']
-            a,src=call_groq_os(f"Full NCDC practical write-up for {p}. Objective: {obj}. Include: Apparatus, Method, Observations, Calculations, Precautions, Conclusion. Use local materials. Level: {l}",l,"notes",force_deep=True); display_preview(a,"s3")
-        if c2.button("Ask About Practical",key="s3q") and p and p!= "No Practicals for this Level": a,src=call_groq_os(f"Explain {p} practical for {l} per NCDC. Safety and AOI tips",l,"smart",force_deep=True); display_preview(a,"s3q")
+            a,src=call_groq_os(f"Full NCDC practical write-up for {p}. Objective: {obj}. Include: Apparatus, Method, Observations, Precautions. Level: {l}",l,"notes",s, False); display_preview(a,"s3")
+        if c2.button("Invent Basic Practical",key="s3gen") and p: a,src=call_groq_os(f"Invent a basic practical for {l} {s} using bottles, phone, wire, local materials. Teach step by step",l,"notes",s, True); display_preview(a,"s3gen")
 
     with t4:
-        st.text_input("🔎 Quick Search this Tab", key="search_t4", placeholder="Search diagrams...")
-        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t_topics") # UNIQUE KEY FIX
-        c1,c2,c3=st.columns(3)
-        if c1.button("Generate Diagrams",key="s4b"): a,src=call_groq_os(f"2 diagrams JSON + description for {l} {s} '{t}' NCDC example",l,"smart",force_deep=False); display_preview(a,"s4")
-        if c2.button("Ask About Diagram",key="s4q"): a,src=call_groq_os(f"How to draw and label diagram for {t} in {s} {l}. Step by step",l,"smart",force_deep=True); display_preview(a,"s4q")
-        if c3.button("Diagram Quiz",key="s4quiz"): a,src=call_groq_os(f"5 quiz questions on labeling {t} diagram for {l} {s}",l,"quiz",force_deep=False); display_preview(a,"s4quiz")
+        st.text_input("🔎 Search", key="search_t4")
+        render_upload("s4"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s4s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t_topics")
+        c1,c2=st.columns(2)
+        if c1.button("Explain Diagram From DB",key="s4b"): a,src=call_groq_os(f"How to draw and label diagram for {t} in {s} {l}. Step by step with NCDC terms",l,"smart",s, False); display_preview(a,"s4")
+        if c2.button("Invent Diagram Task",key="s4gen"): a,src=call_groq_os(f"Invent a new diagram activity for {t} in {s} {l} using local examples",l,"smart",s, True); display_preview(a,"s4gen")
 
     with t5:
-        st.text_input("🔎 Quick Search this Tab", key="search_t5", placeholder="Search research topics...")
+        st.text_input("🔎 Search", key="search_t5")
         st.subheader("Research Projects")
         render_upload("s5"); s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="s5s"); l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="s5l")
-        if int(l[1]) >= 5:
-            st.info("🎓 ADVANCED LEVEL RESEARCH: S5-S6. Click Ask for full 1200 word project")
-            rq=st.text_area("Research Topic",placeholder="e.g. Applications of Differentiation in Drone Logistics",key="s5rq")
-            if st.button("Ask Research Project",key="s5rb") and rq: a,src=call_groq_os(f"Full NCDC research project on {rq} for {l} {s}. Include: Background, Methodology, Analysis, Conclusion, References. 1200 words",l,"research_s5s6",force_deep=True); display_preview(a,"s5res")
-        else:
-            st.info("📚 LOWER SECONDARY RESEARCH: S1-S4. Click Ask for summary")
-            rq=st.text_area("Research Query",placeholder="e.g. Heat transfer in solar refrigeration",key="s5rq2")
-            if st.button("Ask Basic Research",key="s5rb2") and rq: a,src=call_groq_os(f"Research and summarize {rq} for {l} {s}. Simple language, Scenario-Item-Task + AOI, 3-5 key points",l,"research_s1s4",force_deep=False); display_preview(a,"s5res2")
+        rq=st.text_area("Research Topic",placeholder="e.g. How can solar power help boda riders",key="s5rq")
+        c1,c2=st.columns(2)
+        if c1.button("Research From DB",key="s5rb") and rq: a,src=call_groq_os(f"Research project on {rq} for {l} {s}. Use NCDC competency",l,"research_s5s6" if int(l[1])>=5 else "research_s1s4",s, False); display_preview(a,"s5res")
+        if c2.button("Invent Research Idea",key="s5gen") and rq: a,src=call_groq_os(f"Invent new NCDC research project topic related to {rq} for {l} {s}",l,"research_s5s6" if int(l[1])>=5 else "research_s1s4",s, True); display_preview(a,"s5gen")
+
+### 9. ADMIN PORTAL - LOOPED GENERATIVE LOGIC ###
 def show_admin():
-    st.header("🏫 Admin Portal")
+    st.header("🏫 Admin Portal - Generative Demo")
     if st.button("Logout", key="admin_logout"): st.session_state.clear(); st.rerun()
     tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams"])
 
     with tabs[0]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a1", placeholder="Search analytics...")
-        st.subheader("Analytics")
         q=st.text_area("Ask about analytics",key="aq")
-        if st.button("Ask Analytics Deep",key="ab"):
-            a,src=call_groq_os(f"Analyze this with charts and insights: {q}", "S4","smart",force_deep=True)
-            display_preview(a,"a")
+        c1,c2=st.columns(2)
+        if c1.button("Ask Official",key="ab"): a,src=call_groq_os(q, "S4","smart","General", False); display_preview(a,"a")
+        if c2.button("Invent Insight",key="abgen"): a,src=call_groq_os(q, "S4","smart","General", True); display_preview(a,"agen")
 
     with tabs[1]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a2", placeholder="Search curriculum...")
-        st.subheader("NCDC Curriculum")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="as")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="al")
-        t=st.multiselect("Topics",get_topics(s,l), key="a1_topics") # UNIQUE KEY FIX
-        if st.button("Generate Scheme", key="btn_scheme"):
-            a,src=call_groq_os(f"NCDC Term Scheme for {l} {s} {t}. 2026 CBC with AOI",l,"notes",force_deep=True)
-            display_preview(a,"scheme")
-        if st.button("Ask Curriculum Deep", key="btn_curri"):
-            a,src=call_groq_os(f"How to teach {s} {l} per NCDC 2026. Give methods, activities, assessments",l,"smart",force_deep=True)
-            display_preview(a,"ac")
+        t=st.multiselect("Topics",get_topics(s,l), key="a1_topics")
+        c1,c2=st.columns(2)
+        if c1.button("Generate Scheme From DB", key="btn_scheme"): a,src=call_groq_os(f"NCDC Term Scheme for {l} {s} {t}. 2026 CBC with AOI",l,"notes",s, False); display_preview(a,"scheme")
+        if c2.button("Invent New Unit", key="btn_curri"): a,src=call_groq_os(f"Invent new NCDC unit for {s} {l} related to {t}",l,"smart",s, True); display_preview(a,"ac")
 
     with tabs[2]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a3", placeholder="Search practicals...")
-        st.subheader("Practicals")
         s=st.selectbox("Subject",list(PRACTICAL_DATABASE),key="ps")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="pl")
-        p=st.selectbox("Practical",get_practicals(s,l),key="pp")
-        if st.button("Generate Practical Guide", key="btn_prac_guide") and p and p!= "No Practicals for this Level":
-            g="S1-S4" if int(l[1])<=4 else "S5-S6"; obj=PRACTICAL_DATABASE[s][g][p]['objective']
-            a,src=call_groq_os(f"Generate full lab manual for {p}. Objective: {obj}. Level: {l}",l,"notes",force_deep=True)
+        p=st.selectbox("Practical",get_practicals(s,l)+["Invent Practical"],key="pp")
+        if st.button("Generate Practical Guide", key="btn_prac_guide"):
+            if p == "Invent Practical": a,src=call_groq_os(f"Invent full lab manual for new {l} {s} practical",l,"notes",s, True)
+            else: g="S1-S4" if int(l[1])<=4 else "S5-S6"; obj=PRACTICAL_DATABASE[s][g][p]['objective']; a,src=call_groq_os(f"Generate full lab manual for {p}. Objective: {obj}. Level: {l}",l,"notes",s, False)
             display_preview(a,"pg")
-        q=st.text_area("Ask about any practical",key="pq")
-        if st.button("Ask Practical Deep", key="btn_prac_ask"):
-            a,src=call_groq_os(q,"S4","smart",force_deep=True)
-            display_preview(a,"p")
 
     with tabs[3]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a4", placeholder="Search bulk Qs...")
-        st.subheader("Bulk")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="bs")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="bl")
-        t=st.multiselect("Topics",get_topics(s,l), key="a2_topics") # UNIQUE KEY FIX
+        t=st.multiselect("Topics",get_topics(s,l), key="a2_topics")
         n=st.slider("Qs",10,100,50)
         if st.button("Generate Bulk Qs", key="btn_bulk"):
-            a,src=call_groq_os(f"Generate {n} NCDC 2026 Qs + Marking guide from {t} for {l} {s}",l,"notes",force_deep=True)
+            a,src=call_groq_os(f"Generate {n} NCDC 2026 Qs + Marking guide from {t} for {l} {s}",l,"notes",s, False)
             display_preview(a,"bulk")
-        q=st.text_area("Ask about paper setting",key="abkq")
-        if st.button("Ask Paper Setting", key="btn_paper"):
-            a,src=call_groq_os(f"Ideas for setting {s} paper {l}. {q}",l,"smart",force_deep=True)
-            display_preview(a,"abk")
 
     with tabs[4]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a5", placeholder="Search RAG...")
-        st.subheader("RAG KB")
-        st.metric("Chunks",len(vector_rag.docs))
+        st.metric("RAG Chunks",len(vector_rag.docs))
         render_upload("a5")
         q=st.text_area("Ask RAG",key="ragq")
-        if st.button("Ask RAG Deep", key="btn_rag"):
-            a,src=call_groq_os(q,"S4","smart",force_deep=True)
+        if st.button("Ask RAG", key="btn_rag"):
+            a,src=call_groq_os(q,"S4","smart","General", False)
             display_preview(a,"rag")
-        if st.button("Reset RAG", key="btn_reset"):
-            vector_rag.docs=[]; save_db(DOCS_FILE,[]); st.success("Reset")
 
     with tabs[5]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a6", placeholder="Search lessons...")
-        st.subheader("Lesson")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="ls")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="ll")
-        t=st.selectbox("Topic",get_topics(s,l),key="lt_topics") # UNIQUE KEY FIX
+        t=st.selectbox("Topic",get_topics(s,l),key="lt_topics")
         if st.button("Generate NCDC Lesson Plan", key="btn_lesson"):
-            a,src=call_groq_os(f"NCDC 40min Lesson Plan {l} {s} {t}. Competencies,Activities,Assessment,AOI,UG example",l,"notes",force_deep=True)
+            a,src=call_groq_os(f"NCDC 40min Lesson Plan {l} {s} {t}. Competencies,Activities,Assessment,AOI,UG example",l,"notes",s, False)
             display_preview(a,"lesson")
-        q=st.text_area("Ask teaching tips",key="alq")
-        if st.button("Ask Teaching Tips", key="btn_teach"):
-            a,src=call_groq_os(f"Teaching tips for {t} {l}. {q}",l,"smart",force_deep=True)
-            display_preview(a,"al")
 
     with tabs[6]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a7", placeholder="Search reports...")
-        st.subheader("Reports")
         n=st.number_input("Students",1,1000,100)
         if st.button("Generate Report Cards", key="btn_report"):
-            a,src=call_groq_os(f"Generate {n} NCDC Report Cards with competencies and comments","S4","notes",force_deep=True)
+            a,src=call_groq_os(f"Generate {n} NCDC Report Cards with competencies and comments","S4","notes","General", False)
             display_preview(a,"report")
-        q=st.text_area("Custom Report Task",key="rq")
-        if st.button("Ask Custom Report", key="btn_custom_report"):
-            a,src=call_groq_os(q,"S4","smart",force_deep=True)
-            display_preview(a,"ar")
 
     with tabs[7]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a8", placeholder="Search predictions...")
-        st.subheader("📈 Predictive")
-        st.metric("Status","Online" if SYS_STATE["online"] else "Offline")
         q=st.text_area("Ask Predictor",key="prq")
-        if st.button("Ask Predictor Deep", key="btn_predict"):
-            a,src=call_groq_os(q,"S4","smart",force_deep=True)
+        if st.button("Ask Predictor", key="btn_predict"):
+            a,src=call_groq_os(q,"S4","smart","General", False)
             display_preview(a,"pr")
 
     with tabs[8]:
-        st.text_input("🔎 Quick Search this Tab", key="search_a9", placeholder="Search exams...")
-        st.subheader("📝 NCDC Exam + Test Generator")
         s=st.selectbox("Subject",list(UNEB_CURRICULUM_MAP),key="exs")
         l=st.selectbox("Class",[f"S{i}" for i in range(1,7)],key="exl")
-        t=st.multiselect("Topics",get_topics(s,l), key="a3_topics") # UNIQUE KEY FIX
-        c1,c2,c3=st.columns(3)
-        if c1.button("Generate Full Exam", key="btn_exam"):
-            a,src=call_groq_os(f"Generate full NCDC 2026 exam 100 marks for {l} {s} on {t}. Scenario-Item-Task + AOI format + Marking guide",l,"exam",force_deep=True)
+        t=st.multiselect("Topics",get_topics(s,l), key="a3_topics")
+        if st.button("Generate Full NCDC Exam", key="btn_exam"):
+            a,src=call_groq_os(f"Generate full NCDC 2026 exam 100 marks for {l} {s} on {t}. Scenario-Item-Task + AOI format + Marking guide",l,"exam",s, False)
             display_preview(a,"exam")
-        if c2.button("Generate CAT", key="btn_cat"):
-            a,src=call_groq_os(f"Generate 30 marks NCDC CAT for {l} {s} on {t}. 1hr + Marking guide",l,"exam",force_deep=True)
-            display_preview(a,"cat")
-        if c3.button("Generate Pop Quiz", key="btn_quiz"):
-            a,src=call_groq_os(f"Generate 10 marks NCDC pop quiz for {l} {s} on {t}. 20min",l,"quiz",force_deep=False)
-            display_preview(a,"quiz")
-        custom=st.text_area("Custom Exam Task",placeholder="e.g. Make AOI for Physics S2 Machines")
-        if st.button("Ask Custom Exam", key="btn_custom_exam"):
-            a,src=call_groq_os(custom,l,"exam",force_deep=True)
-            display_preview(a,"custom")
 
 ### 10. LOGIN ###
-st.title("🎓 DIGITAL UNEB TUTOR 2026 PRO V6.1.9")
+st.title("🤖 DIGITAL UNEB TUTOR 2026 PRO V6.2.0 GENERATIVE")
 with st.sidebar:
     st.metric("RAM",f"{psutil.virtual_memory().percent}%")
-    st.metric("Mode", mode_badge)
-    st.metric("Internet","Online" if SYS_STATE["online"] else "Offline")
+    st.metric("Mode","☁️ CLOUD GROQ" if SYS_STATE["online"] else "📴 OFFLINE")
+    st.metric("Memory", f"{len(chat_mem.mem)} msgs")
     pw=st.text_input("Password",type="password", key="main_login_pw")
     c1,c2=st.columns(2)
     if c1.button("Student Login",key="btn_student_login") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
     if c2.button("Admin Login",key="btn_admin_login") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
 if st.session_state.get("role")=="Admin": show_admin()
 elif st.session_state.get("role")=="Student": show_student()
-else: st.info("Login to continue")                
+else: st.info("Login to continue. Demo: Student=1234 Admin=admin123")
+ 
