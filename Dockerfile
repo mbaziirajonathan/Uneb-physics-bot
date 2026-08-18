@@ -2,13 +2,14 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# Runtime deps for PyMuPDF, pillow, matplotlib, python-docx, reportlab
+# Runtime deps for PyMuPDF, pillow, matplotlib, python-docx, reportlab, pypdf
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    gcc \ 
+    gcc \
+    poppler-utils \ # ADDED: for better PDF text extraction
     && rm -rf /var/lib/apt/lists/*
 
 # Streamlit settings for Render
@@ -16,7 +17,7 @@ ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 ENV STREAMLIT_SERVER_RUN_ON_SAVE=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-# Tell app this is CLOUD so it skips local LLM and uses OPENAI
+# Tell app this is CLOUD so it skips local LLM and uses OPENROUTER
 ENV DEPLOY_ENV=cloud
 
 # Install python deps
