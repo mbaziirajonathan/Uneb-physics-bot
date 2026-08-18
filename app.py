@@ -17,7 +17,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.1-GENERATIVE-OPENROUTER"
+APP_TITLE = "UNEB AI TUTOR V6.4.2-GENERATIVE-LLAMA-FREE"
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
@@ -28,11 +28,11 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config
+# OpenRouter Config - CONFIRMED 100% FREE AUG 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "deepseek/deepseek-chat-v3-0324:free"
-AI_MODEL_SHORT = "qwen/qwen2.5-72b-instruct:free"
-AI_MODEL_BACKUP = "meta-llama/llama-3.1-8b-instruct:free"
+AI_MODEL_LONG = "meta-llama/llama-3.1-405b-instruct:free" # Smartest. 50 req/day free
+AI_MODEL_SHORT = "qwen/qwen2.5-72b-instruct:free" # Best for Math/Science
+AI_MODEL_BACKUP = "google/gemma-2-9b-it:free" # Fastest backup
 
 # Passwords
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
@@ -57,7 +57,7 @@ PRACTICAL_DATABASE = {
 
 # ================== SYSTEM PROMPTS - 100% KEPT ==================
 SYSTEM_PROMPT_OFFICIAL = """You are UNEB AI Tutor. Use ONLY Ugandan NCDC Curriculum 2026 CBC.
-Rules: 1. Be accurate. 2. Use Ugandan examples: boda, matoke, hydroelectric dams. 
+Rules: 1. Be accurate. 2. Use Ugandan examples: boda, matoke, hydroelectric dams.
 3. For S3-S6 Science, include practical steps. 4. Language: Simple English.
 5. Never refuse. If unsure, say "Based on NCDC syllabus"."""
 
@@ -114,27 +114,29 @@ def get_client():
 def ai_call(prompt, system_prompt, model=AI_MODEL_LONG):
     client = get_client()
     if not client: return "ERROR: Missing OPENROUTER_API_KEY in Render Environment"
-    
+
     cache_key = hashlib.md5((prompt + system_prompt + model).encode()).hexdigest()
     if cache_key in ai_cache: return ai_cache[cache_key] + " [CACHED]"
-    
-    try:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-            temperature=0.7, max_tokens=1500
-        )
-        answer = resp.choices[0].message.content
-        ai_cache[cache_key] = answer
-        save_cache()
-        return answer
-    except Exception as e:
-        if "429" in str(e): # Rate limit, try backup
-            try:
-                resp = client.chat.completions.create(model=AI_MODEL_BACKUP, messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
-                return resp.choices[0].message.content + " [BACKUP MODEL]"
-            except: return f"API Error: Rate limited. Try again in 1 hour."
-        return f"API Error: {e}"
+
+    models_to_try = [model, AI_MODEL_SHORT, AI_MODEL_BACKUP]
+
+    for m in models_to_try:
+        try:
+            resp = client.chat.completions.create(
+                model=m,
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+                temperature=0.7, max_tokens=1500
+            )
+            answer = resp.choices[0].message.content
+            ai_cache[cache_key] = answer
+            save_cache()
+            return answer + f" [Model: {m}]"
+        except Exception as e:
+            if "429" in str(e): continue # Rate limit, try next
+            if "404" in str(e): continue # Model down, try next
+            return f"API Error: {e}"
+
+    return "All free models are rate limited. Try again in 1 hour or add $10 credits to OpenRouter for 1000/day"
 
 # ================== UTILS - 100% KEPT ==================
 def chunk_text(text, max_chars=3000): return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
@@ -152,22 +154,21 @@ def display_preview(text):
 # ================== STUDENT UI - 100% KEPT + FIXED ==================
 def show_student():
     st.title("🎓 Student Portal")
-    
-    # FIX: Ensure student_name exists before using it
+
     if 'student_name' not in st.session_state:
         st.session_state.student_name = "Student"
-    
+
     col1, col2 = st.columns(2)
     with col1:
-        subject = st.selectbox("Subject", ["Mathematics", "Physics", "Chemistry", "Biology", "Geography", "History"])
+        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP["S1"].keys()))
     with col2:
         level = st.selectbox("Level", ["S1", "S2", "S3", "S4", "S5", "S6"])
-    
+
     query = st.text_area("Ask any question", placeholder="e.g. Explain Newton's 3rd Law with Ugandan example")
-    
+
     if st.button("Get Answer", type="primary"):
         if query:
-            with st.spinner("Thinking..."):
+            with st.spinner("Thinking with Llama 405B..."):
                 log_usage(st.session_state.student_name, query)
                 rag_results = rag.search(query)
                 context = "\n".join([r['text'] for r in rag_results])
@@ -181,7 +182,7 @@ def show_student():
 def show_admin():
     st.title("👨‍🏫 Admin Portal")
     tab1, tab2, tab3, tab4 = st.tabs(["Upload Docs", "View Logs", "Manage Cache", "Curriculum"])
-    
+
     with tab1:
         uploaded_file = st.file_uploader("Upload PDF/DOCX/TXT")
         if uploaded_file:
@@ -190,16 +191,16 @@ def show_admin():
             if st.button("Add to Knowledge Base"):
                 rag.add_document(text, uploaded_file.name)
                 st.success("Added to RAG!")
-    
+
     with tab2:
         if os.path.exists(LOG_FILE):
             with open(LOG_FILE, 'r') as f: logs = json.load(f)
             st.dataframe(pd.DataFrame(logs[-50:]))
-    
+
     with tab3:
         st.write(f"Cache size: {len(ai_cache)} items")
         if st.button("Clear Cache"): ai_cache.clear(); save_cache(); st.success("Cleared")
-    
+
     with tab4:
         st.json(UNEB_CURRICULUM_MAP)
 
@@ -212,19 +213,20 @@ with st.sidebar:
     st.write(f"**RAM:** {psutil.virtual_memory().percent}%")
     st.write(f"**Mode:** ☁️ CLOUD OPENROUTER")
     st.write(f"**Memory:** {len(chat_mem)} msgs")
-    
+
     if OPENROUTER_API_KEY: st.write(f"**Model:** {AI_MODEL_LONG}")
     else: st.error("Missing OPENROUTER_API_KEY")
-    
+    st.caption("Free Tier: 50 requests/day")
+
     password = st.text_input("Password", type="password")
-    
+
     if st.button("Student Login"):
         if password == STUDENT_PASSWORD:
             st.session_state.role = "Student"
-            st.session_state.student_name = "Student" # FIX: Set name on login
+            st.session_state.student_name = "Student"
             st.rerun()
         else: st.error("Wrong password")
-    
+
     if st.button("Admin Login"):
         if password == ADMIN_PASSWORD:
             st.session_state.role = "Admin"
@@ -236,5 +238,5 @@ if st.session_state.get("role") == "Student":
 elif st.session_state.get("role") == "Admin":
     show_admin()
 else:
-    st.title("Welcome to UNEB AI Tutor V6.4.1")
+    st.title("Welcome to UNEB AI Tutor V6.4.2")
     st.write("Login on the left to start")
