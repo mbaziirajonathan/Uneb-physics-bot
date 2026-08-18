@@ -2,30 +2,47 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+*.egg-info
+*.egg
+
+# Git
 .git
 .gitignore
-.env
-.venv
-venv
-.DS_Store
 
-# Keep assets if you need logo/css. Delete this line if assets > 100MB
+# Env files - NEVER push keys to github
+.env
+.env.local
+
+# Python venv
+.venv
+venv/
+env/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local assets - comment this if you have logo/css < 50MB
 assets/
 
-# Keep these JSON files - your app needs them: cache, memory, vector_docs
-# *.json
-
-# Local LLM stuff - must ignore for free tier
+# Local LLM - must ignore for free tier
 *.gguf
 *.bin
+*.safetensors
 C:/unebserver/
 local_llm_server.log
+models/
 
 # Dev stuff we don't need in cloud
 .devcontainer/
 Dockerfile.local
 README.md
-
-# ADDED FOR OPENAI/CLOUD
 *.md
-data/           # if you have local /data folder, let Render Disk handle it
+
+# IMPORTANT: Keep these so your app starts clean
+# DO NOT IGNORE: *.json 
+# Your app creates: usage_log.json, ai_cache.json, vector_docs.json, chat_memory.json
+# Render Disk at /data will handle persistence
+
+# Local data folder - Render will use /data disk instead
+data/
