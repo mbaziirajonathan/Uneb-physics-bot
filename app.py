@@ -28,12 +28,11 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config - VERIFIED FREE SLUGS AUG 2026
+# OpenRouter Config - PATCHED AUG 18 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "meta-llama/llama-3.3-70b-instruct:free" # Primary - Highest quota
-AI_MODEL_SHORT = "qwen/qwen2.5-72b-instruct:free" # Backup 1 - Math
-AI_MODEL_BACKUP = "google/gemma-4-31b-it:free" # Backup 2 - Teaching
-
+AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Only healthy one
+AI_MODEL_SHORT = "deepseek/deepseek-r1:free" # Best math backup - VERIFIED
+AI_MODEL_BACKUP = "meta-llama/llama-3.1-405b-instruct:free" # Old reliable - VERIFIED
 ALL_MODELS = [AI_MODEL_LONG, AI_MODEL_SHORT, AI_MODEL_BACKUP]
 
 # Passwords
