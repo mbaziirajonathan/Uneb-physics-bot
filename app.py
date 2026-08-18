@@ -155,22 +155,40 @@ FORMAT: Start with **[NCDC-GENERATIVE: topic]**
 CITATION: **Proof**: [NCDC-GENERATIVE AI 2026] Based on ncdc_master_db.json {subject} Competency
 LEVEL_RULES: {level_rules}"""
 
-AI_MODEL_LONG="llama-3.3-70b-versatile"; AI_MODEL_SHORT="llama-3.1-8b-instant"
-
 def call_groq_api(full_prompt, mode, level):
+    # Updated for Aug 2026 Groq API - llama-3.3 removed
+    AI_MODEL_LONG="llama-3.1-70b-versatile" # 128k context, for notes/exams/research
+    AI_MODEL_SHORT="llama-3.1-8b-instant" # Fast, for chat/quiz
+    AI_MODEL_BACKUP="gemma2-9b-it" # Backup if llama fails
+
     tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
-    model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
+    primary_model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
+
     messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-    try:
-        res=client.chat.completions.create(model=model,messages=messages,max_tokens=tokens,temperature=0.3,timeout=10)
-        return res.choices[0].message.content
-    except Exception as e:
-        # Fallback if 8b fails, use 70b
-        if "model_not_found" in str(e):
-            st.sidebar.warning("8b model failed. Falling back to 70b...")
-            res=client.chat.completions.create(model=AI_MODEL_LONG,messages=messages,max_tokens=tokens,temperature=0.3,timeout=15)
+
+    # Try primary, then long, then backup
+    for attempt_model in [primary_model, AI_MODEL_LONG, AI_MODEL_BACKUP]:
+        try:
+            res=client.chat.completions.create(
+                model=attempt_model,
+                messages=messages,
+                max_tokens=tokens,
+                temperature=0.3,
+                timeout=15
+            )
+            if attempt_model!= primary_model:
+                st.sidebar.warning(f"Model fallback: Using {attempt_model}")
             return res.choices[0].message.content
-        raise e
+
+        except Exception as e:
+            err_str = str(e).lower()
+            if "model_not_found" in err_str or "404" in err_str:
+                st.sidebar.caption(f"{attempt_model} unavailable, trying next...")
+                continue # try next model
+            else:
+                raise e # real error like rate limit, timeout
+
+    raise Exception("All Groq models failed. Check GROQ_API_KEY, billing, and internet.")
 
 def call_groq_os(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
     chat_mem.add("user", prompt)
