@@ -5,11 +5,7 @@ numpy
 pillow
 requests
 python-docx
-reportlab
-matplotlib
 PyMuPDF
-openpyxl
-python-multipart
 pypdf
 psutil
 python-dotenv
