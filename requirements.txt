@@ -12,3 +12,4 @@ openpyxl
 python-multipart
 pypdf
 psutil
+python-dotenv
