@@ -17,7 +17,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.5-DIAGNOSTIC"
+APP_TITLE = "UNEB AI TUTOR V6.4.6-OPENROUTER"
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
@@ -28,18 +28,22 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config - PATCHED AUG 18 2026
+# OpenRouter Config - PATCHED AUG 19 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Only healthy one
-AI_MODEL_SHORT = "deepseek/deepseek-r1:free" # Best math backup - VERIFIED
-AI_MODEL_BACKUP = "meta-llama/llama-3.1-405b-instruct:free" # Old reliable - VERIFIED
-ALL_MODELS = [AI_MODEL_LONG, AI_MODEL_SHORT, AI_MODEL_BACKUP]
+AI_MODEL = os.getenv("AI_MODEL", "deepseek/deepseek-chat:free") # Read from Render
+
+# Free models that work on OpenRouter right now
+ALL_MODELS = [
+    "deepseek/deepseek-chat:free",
+    "meta-llama/llama-3.1-8b-instruct:free", 
+    "google/gemma-2-9b-it:free"
+]
 
 # Passwords
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-# ================== NCDC CURRICULUM & PRACTICALS - 100% KEPT ==================
+# ================== NCDC CURRICULUM & PRACTICALS ==================
 UNEB_CURRICULUM_MAP = {
     "S1": {"Mathematics": ["Sets", "Numbers", "Algebra"], "Physics": ["Measurements", "Density", "Forces"], "Chemistry": ["Introduction", "Air and Combustion"], "Biology": ["Introduction", "Cell Structure"]},
     "S2": {"Mathematics": ["Quadratic Equations", "Trigonometry"], "Physics": ["Current Electricity", "Waves"], "Chemistry": ["Atomic Structure", "Acids Bases"], "Biology": ["Nutrition", "Respiration"]},
@@ -56,8 +60,9 @@ PRACTICAL_DATABASE = {
 }
 
 # ================== SYSTEM PROMPTS ==================
-SYSTEM_PROMPT_GENERATIVE = """You are UNEB AI Tutor Generative Mode. Explain ANY topic but prioritize Ugandan context.
-Be helpful, accurate, and teach step-by-step like a Ugandan teacher. Use headings and examples."""
+SYSTEM_PROMPT_GENERATIVE = """You are UNEB AI Tutor. You teach students in Uganda following NCDC curriculum.
+Explain step-by-step like a Ugandan teacher. Use simple English, examples, and headings.
+Subject: {subject} | Level: {level}"""
 
 # ================== RAG + CACHE + MEMORY ==================
 class VectorRAG:
@@ -104,62 +109,48 @@ def log_usage(user, query):
 
 # ================== KEY & MODEL HEALTH CHECKS ==================
 def check_api_key():
-    """Returns: status, message"""
     if not OPENROUTER_API_KEY:
         return "BROKEN", "ERROR: OPENROUTER_API_KEY not found in Environment Variables"
     if len(OPENROUTER_API_KEY) < 20 or not OPENROUTER_API_KEY.startswith("sk-or-"):
         return "BROKEN", f"ERROR: API Key format invalid. Should start with 'sk-or-'. Yours: {OPENROUTER_API_KEY[:10]}..."
     return "OK", "API Key Loaded"
 
-def test_model_health(model_id):
-    """Quick test call to see if model is up"""
-    client = get_client()
-    if not client: return "NO_KEY"
-    try:
-        client.chat.completions.create(
-            model=model_id,
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=1
-        )
-        return "HEALTHY"
-    except Exception as e:
-        err = str(e)
-        if "429" in err: return "RATE_LIMITED"
-        if "404" in err or "400" in err: return "INVALID_ID"
-        return f"ERROR: {err[:50]}"
-
 def get_client():
     if not OPENROUTER_API_KEY: return None
-    return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
+    return OpenAI(
+        base_url="https://openrouter.ai/api/v1", 
+        api_key=OPENROUTER_API_KEY,
+        default_headers={
+            "HTTP-Referer": "https://uneb-tutor.onrender.com", # Required by OpenRouter
+            "X-Title": "UNEB AI Tutor",
+        }
+    )
 
-def ai_call(prompt, system_prompt):
-    """Main AI call with full diagnostics"""
-    # 1. KEY CHECK
+def ai_call(prompt, system_prompt, subject, level):
     key_status, key_msg = check_api_key()
     if key_status == "BROKEN":
-        return f"🔴 API KEY FAILURE\n\n{key_msg}"
+        return f"🔴 API KEY FAILURE\n{key_msg}"
 
     client = get_client()
+    system_prompt = system_prompt.format(subject=subject, level=level)
     cache_key = hashlib.md5((prompt + system_prompt).encode()).hexdigest()
     if cache_key in ai_cache: return ai_cache[cache_key] + " [CACHED]"
 
     last_error = ""
-    models_tried = []
+    models_to_try = [AI_MODEL] + [m for m in ALL_MODELS if m!= AI_MODEL]
 
-    # 2. TRY ALL MODELS
-    for m in ALL_MODELS:
-        models_tried.append(m)
+    for m in models_to_try:
         try:
-            st.sidebar.write(f"⏳ Trying: `{m.split('/')[-1]}`") # Show which model is trying
+            st.sidebar.write(f"⏳ Trying: `{m.split('/')[-1]}`")
             resp = client.chat.completions.create(
                 model=m,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-                temperature=0.7, max_tokens=2000
+                temperature=0.7, max_tokens=1500
             )
             answer = resp.choices[0].message.content
             ai_cache[cache_key] = answer
             save_cache()
-            return f"{answer}\n\n---\n✅ *Success with: `{m}`*" # Show which model worked
+            return f"{answer}\n\n---\n✅ *Powered by: `{m}`*"
 
         except Exception as e:
             err_str = str(e)
@@ -171,21 +162,18 @@ def ai_call(prompt, system_prompt):
                 st.sidebar.error(f"❌ {m.split('/')[-1]}: Invalid Model ID")
                 continue
             else:
-                st.sidebar.error(f"❌ {m.split('/')[-1]}: {err_str[:50]}")
+                st.sidebar.error(f"❌ {m.split('/')[-1]}: {err_str[:80]}")
                 continue
 
-    # 3. ALL FAILED
     return f"""🔴 ALL MODELS FAILED
 
-**Tried:** {', '.join([m.split('/')[-1] for m in models_tried])}
+**Tried:** {', '.join([m.split('/')[-1] for m in models_to_try])}
 **Last Error:** {last_error}
 
 **Diagnosis:**
-1. If error = 429: You hit 50/day limit. Wait 1 hour or add $10 to OpenRouter.
-2. If error = 400/404: Model ID is wrong.
-3. If error = API Key: Key is invalid or revoked.
-
-Check `openrouter.ai/activity` to see who used your key."""
+1. If 429: Free tier limit hit. Wait 1 hour.
+2. If 400/401: Check API key in Render.
+3. Check activity: https://openrouter.ai/activity"""
 
 # ================== UTILS ==================
 def render_upload(uploaded_file):
@@ -206,16 +194,16 @@ def show_student():
     with col1: subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP["S1"].keys()))
     with col2: level = st.selectbox("Level", ["S1", "S2", "S3", "S4", "S5", "S6"])
 
-    query = st.text_area("Ask any question", placeholder="e.g. Define Physics S1")
+    query = st.text_area("Ask any question", placeholder="e.g. Explain Photosynthesis S2")
 
     if st.button("Get Answer", type="primary"):
         if query:
-            with st.spinner("Running diagnostics..."):
+            with st.spinner("Thinking..."):
                 log_usage(st.session_state.student_name, query)
                 rag_results = rag.search(query)
                 context = "\n".join([r['text'] for r in rag_results])
-                prompt = f"Context: {context}\n\nQuestion: {query}\nSubject: {subject}\nLevel: {level}\nUse Ugandan examples."
-                answer = ai_call(prompt, SYSTEM_PROMPT_GENERATIVE)
+                prompt = f"Context from notes: {context}\n\nQuestion: {query}\nAnswer like a Ugandan teacher with examples."
+                answer = ai_call(prompt, SYSTEM_PROMPT_GENERATIVE, subject, level)
                 st.success(answer)
                 if st.session_state.student_name not in chat_mem: chat_mem[st.session_state.student_name] = []
                 chat_mem[st.session_state.student_name].append({"q": query, "a": answer})
@@ -231,15 +219,9 @@ def show_admin():
         if key_status == "OK": st.success(key_msg)
         else: st.error(key_msg)
 
-        st.subheader("2. Model Health Check")
-        if st.button("Run Health Check on All 3 Models"):
-            for model in ALL_MODELS:
-                with st.spinner(f"Testing {model}..."):
-                    status = test_model_health(model)
-                    if status == "HEALTHY": st.success(f"✅ {model}: HEALTHY")
-                    elif status == "RATE_LIMITED": st.warning(f"⚠️ {model}: RATE LIMITED - Hit 50/day")
-                    elif status == "INVALID_ID": st.error(f"❌ {model}: INVALID MODEL ID")
-                    else: st.error(f"❌ {model}: {status}")
+        st.subheader("2. Current Model")
+        st.code(AI_MODEL)
+        st.caption("Change this in Render > Environment Variables > AI_MODEL")
 
         st.subheader("3. Cache & Data")
         st.write(f"Cache Items: {len(ai_cache)}")
@@ -272,10 +254,10 @@ with st.sidebar:
     if key_status == "OK": st.success("🔑 API Key: OK")
     else: st.error("🔑 API Key: BROKEN")
 
-    st.write("**Models Loaded:**")
-    for m in ALL_MODELS: st.caption(f"- {m.split('/')[-1]}")
+    st.write("**Active Model:**")
+    st.caption(AI_MODEL)
 
-    st.caption("Free Tier: 50 requests/day per model")
+    st.caption("Free Tier: Rate limited")
 
     password = st.text_input("Password", type="password")
     if st.button("Student Login"):
@@ -290,5 +272,5 @@ if st.session_state.get("role") == "Student":
 elif st.session_state.get("role") == "Admin":
     show_admin()
 else:
-    st.title("Welcome to UNEB AI Tutor V6.4.5")
+    st.title("Welcome to UNEB AI Tutor V6.4.6")
     st.write("Go to Admin > System Health to diagnose API issues")
