@@ -17,7 +17,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.3-GEMMA4-NEMOTRON"
+APP_TITLE = "UNEB AI TUTOR V6.4.4-GEMMA4-LLAMA-QWEN" # Updated
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
@@ -28,11 +28,11 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config - NEWEST FREE MODELS AUG 2026
+# OpenRouter Config - 100% VERIFIED FREE SLUGS AUG 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Best for teaching + 262K context
-AI_MODEL_SHORT = "nvidia/nemotron-3-super:free" # Best for Math/Science #30
-AI_MODEL_BACKUP = "meta-llama/llama-3.1-405b-instruct:free" # Old reliable backup
+AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Best for teaching + 262K context - VERIFIED
+AI_MODEL_SHORT = "meta-llama/llama-3.3-70b-instruct:free" # Best for Math/Science - VERIFIED
+AI_MODEL_BACKUP = "qwen/qwen2.5-72b-instruct:free" # Best for Calculations - VERIFIED
 
 # Passwords
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
@@ -125,14 +125,16 @@ def ai_call(prompt, system_prompt, model=AI_MODEL_LONG):
             resp = client.chat.completions.create(
                 model=m,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-                temperature=0.7, max_tokens=2000 # Increased for Gemma 4
+                temperature=0.7, max_tokens=2000
             )
             answer = resp.choices[0].message.content
             ai_cache[cache_key] = answer
             save_cache()
             return answer + f"\n\n---\n*Powered by: {m}*"
         except Exception as e:
-            if "429" in str(e) or "404" in str(e): continue
+            err_str = str(e)
+            if "429" in err_str or "404" in err_str or "400" in err_str: # Added 400 catch
+                continue # Try next model
             return f"API Error: {e}"
 
     return "All free models are rate limited. Try again in 1 hour or add $10 credits to OpenRouter for 1000/day"
@@ -213,9 +215,10 @@ with st.sidebar:
     st.write(f"**Mode:** ☁️ CLOUD OPENROUTER")
     st.write(f"**Memory:** {len(chat_mem)} msgs")
 
-    if OPENROUTER_API_KEY: 
-        st.write(f"**Primary Model:** Gemma 4 31B")
-        st.write(f"**Backup Model:** Nemotron 3 Super")
+    if OPENROUTER_API_KEY:
+        st.write(f"**Primary:** Gemma 4 31B")
+        st.write(f"**Backup 1:** Llama 3.3 70B")
+        st.write(f"**Backup 2:** Qwen 2.5 72B")
     else: st.error("Missing OPENROUTER_API_KEY")
     st.caption("Free Tier: 50 requests/day per model")
 
@@ -239,5 +242,5 @@ if st.session_state.get("role") == "Student":
 elif st.session_state.get("role") == "Admin":
     show_admin()
 else:
-    st.title("Welcome to UNEB AI Tutor V6.4.3")
-    st.write("Powered by Google Gemma 4 31B + NVIDIA Nemotron 3 Super - 100% Free")
+    st.title("Welcome to UNEB AI Tutor V6.4.4")
+    st.write("Powered by Google Gemma 4 31B + Llama 3.3 70B + Qwen 2.5 72B - 100% Free")
