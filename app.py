@@ -17,7 +17,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.2-GENERATIVE-LLAMA-FREE"
+APP_TITLE = "UNEB AI TUTOR V6.4.3-GEMMA4-NEMOTRON"
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
@@ -28,11 +28,11 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config - CONFIRMED 100% FREE AUG 2026
+# OpenRouter Config - NEWEST FREE MODELS AUG 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "meta-llama/llama-3.1-405b-instruct:free" # Smartest. 50 req/day free
-AI_MODEL_SHORT = "qwen/qwen2.5-72b-instruct:free" # Best for Math/Science
-AI_MODEL_BACKUP = "google/gemma-2-9b-it:free" # Fastest backup
+AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Best for teaching + 262K context
+AI_MODEL_SHORT = "nvidia/nemotron-3-super:free" # Best for Math/Science #30
+AI_MODEL_BACKUP = "meta-llama/llama-3.1-405b-instruct:free" # Old reliable backup
 
 # Passwords
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
@@ -62,7 +62,7 @@ Rules: 1. Be accurate. 2. Use Ugandan examples: boda, matoke, hydroelectric dams
 5. Never refuse. If unsure, say "Based on NCDC syllabus"."""
 
 SYSTEM_PROMPT_GENERATIVE = """You are UNEB AI Tutor Generative Mode. You can explain ANY topic in the world, but prioritize Ugandan context.
-Be helpful, accurate, and teach step-by-step like a Ugandan teacher."""
+Be helpful, accurate, and teach step-by-step like a Ugandan teacher. Use headings, bullet points, and examples."""
 
 # ================== RAG + CACHE + MEMORY - 100% KEPT ==================
 class VectorRAG:
@@ -125,15 +125,14 @@ def ai_call(prompt, system_prompt, model=AI_MODEL_LONG):
             resp = client.chat.completions.create(
                 model=m,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-                temperature=0.7, max_tokens=1500
+                temperature=0.7, max_tokens=2000 # Increased for Gemma 4
             )
             answer = resp.choices[0].message.content
             ai_cache[cache_key] = answer
             save_cache()
-            return answer + f" [Model: {m}]"
+            return answer + f"\n\n---\n*Powered by: {m}*"
         except Exception as e:
-            if "429" in str(e): continue # Rate limit, try next
-            if "404" in str(e): continue # Model down, try next
+            if "429" in str(e) or "404" in str(e): continue
             return f"API Error: {e}"
 
     return "All free models are rate limited. Try again in 1 hour or add $10 credits to OpenRouter for 1000/day"
@@ -168,11 +167,11 @@ def show_student():
 
     if st.button("Get Answer", type="primary"):
         if query:
-            with st.spinner("Thinking with Llama 405B..."):
+            with st.spinner("Thinking with Gemma 4 31B..."):
                 log_usage(st.session_state.student_name, query)
                 rag_results = rag.search(query)
                 context = "\n".join([r['text'] for r in rag_results])
-                prompt = f"Context from past uploads: {context}\n\nQuestion: {query}\nSubject: {subject}\nLevel: {level}"
+                prompt = f"Context from past uploads: {context}\n\nQuestion: {query}\nSubject: {subject}\nLevel: {level}\nUse Ugandan examples."
                 answer = ai_call(prompt, SYSTEM_PROMPT_GENERATIVE)
                 st.success(answer)
                 if st.session_state.student_name not in chat_mem: chat_mem[st.session_state.student_name] = []
@@ -190,7 +189,7 @@ def show_admin():
             display_preview(text)
             if st.button("Add to Knowledge Base"):
                 rag.add_document(text, uploaded_file.name)
-                st.success("Added to RAG!")
+                st.success("Added to RAG! Gemma 4 can now use 262K context")
 
     with tab2:
         if os.path.exists(LOG_FILE):
@@ -214,9 +213,11 @@ with st.sidebar:
     st.write(f"**Mode:** ☁️ CLOUD OPENROUTER")
     st.write(f"**Memory:** {len(chat_mem)} msgs")
 
-    if OPENROUTER_API_KEY: st.write(f"**Model:** {AI_MODEL_LONG}")
+    if OPENROUTER_API_KEY: 
+        st.write(f"**Primary Model:** Gemma 4 31B")
+        st.write(f"**Backup Model:** Nemotron 3 Super")
     else: st.error("Missing OPENROUTER_API_KEY")
-    st.caption("Free Tier: 50 requests/day")
+    st.caption("Free Tier: 50 requests/day per model")
 
     password = st.text_input("Password", type="password")
 
@@ -238,5 +239,5 @@ if st.session_state.get("role") == "Student":
 elif st.session_state.get("role") == "Admin":
     show_admin()
 else:
-    st.title("Welcome to UNEB AI Tutor V6.4.2")
-    st.write("Login on the left to start")
+    st.title("Welcome to UNEB AI Tutor V6.4.3")
+    st.write("Powered by Google Gemma 4 31B + NVIDIA Nemotron 3 Super - 100% Free")
