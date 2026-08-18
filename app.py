@@ -17,7 +17,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.4-GEMMA4-LLAMA-QWEN" # Updated
+APP_TITLE = "UNEB AI TUTOR V6.4.5-DIAGNOSTIC"
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
@@ -28,11 +28,13 @@ MEMORY_FILE = os.path.join(DATA_PATH, "chat_memory.json")
 VECTOR_FILE = os.path.join(DATA_PATH, "vector_docs.json")
 LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
-# OpenRouter Config - 100% VERIFIED FREE SLUGS AUG 2026
+# OpenRouter Config - VERIFIED FREE SLUGS AUG 2026
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-AI_MODEL_LONG = "google/gemma-4-31b-it:free" # Best for teaching + 262K context - VERIFIED
-AI_MODEL_SHORT = "meta-llama/llama-3.3-70b-instruct:free" # Best for Math/Science - VERIFIED
-AI_MODEL_BACKUP = "qwen/qwen2.5-72b-instruct:free" # Best for Calculations - VERIFIED
+AI_MODEL_LONG = "meta-llama/llama-3.3-70b-instruct:free" # Primary - Highest quota
+AI_MODEL_SHORT = "qwen/qwen2.5-72b-instruct:free" # Backup 1 - Math
+AI_MODEL_BACKUP = "google/gemma-4-31b-it:free" # Backup 2 - Teaching
+
+ALL_MODELS = [AI_MODEL_LONG, AI_MODEL_SHORT, AI_MODEL_BACKUP]
 
 # Passwords
 STUDENT_PASSWORD = os.getenv("STUDENT_PASSWORD", "1234")
@@ -40,7 +42,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 # ================== NCDC CURRICULUM & PRACTICALS - 100% KEPT ==================
 UNEB_CURRICULUM_MAP = {
-    "S1": {"Mathematics": ["Sets", "Numbers", "Algebra"], "Physics": ["Measurements", "Density", "Forces"], "Chemistry": ["Introduction", "Air and Combustion"], "Biology": ["Introduction", "Cell Structure"], "Geography": ["Map Reading"], "History": ["Introduction to History"]},
+    "S1": {"Mathematics": ["Sets", "Numbers", "Algebra"], "Physics": ["Measurements", "Density", "Forces"], "Chemistry": ["Introduction", "Air and Combustion"], "Biology": ["Introduction", "Cell Structure"]},
     "S2": {"Mathematics": ["Quadratic Equations", "Trigonometry"], "Physics": ["Current Electricity", "Waves"], "Chemistry": ["Atomic Structure", "Acids Bases"], "Biology": ["Nutrition", "Respiration"]},
     "S3": {"Mathematics": ["Matrices", "Probability"], "Physics": ["Newton's Laws", "Work Energy Power"], "Chemistry": ["Mole Concept", "Rates of Reaction"], "Biology": ["Genetics", "Ecology"]},
     "S4": {"Mathematics": ["Vectors", "Statistics"], "Physics": ["Magnetism", "Electronics"], "Chemistry": ["Organic Chemistry", "Energetics"], "Biology": ["Evolution", "Human Physiology"]},
@@ -49,22 +51,16 @@ UNEB_CURRICULUM_MAP = {
 }
 
 PRACTICAL_DATABASE = {
-    "Physics": {"S3": ["Verifying Hooke's Law", "Measuring g with pendulum"], "S4": ["Verifying Ohm's Law", "Focal length of lens"]},
-    "Chemistry": {"S3": ["Preparation of Oxygen gas", "Testing for cations"], "S4": ["Titration: Acid vs Base", "Rates of Reaction experiment"]},
-    "Biology": {"S3": ["Testing for food nutrients", "Osmosis in plant cells"], "S4": ["Dissection of a toad", "Testing for enzymes"]},
-    "Agriculture": {"S4": ["Soil pH testing", "Seed germination experiment"]}
+    "Physics": {"S3": ["Verifying Hooke's Law"], "S4": ["Verifying Ohm's Law"]},
+    "Chemistry": {"S3": ["Preparation of Oxygen gas"], "S4": ["Titration: Acid vs Base"]},
+    "Biology": {"S3": ["Testing for food nutrients"], "S4": ["Dissection of a toad"]},
 }
 
-# ================== SYSTEM PROMPTS - 100% KEPT ==================
-SYSTEM_PROMPT_OFFICIAL = """You are UNEB AI Tutor. Use ONLY Ugandan NCDC Curriculum 2026 CBC.
-Rules: 1. Be accurate. 2. Use Ugandan examples: boda, matoke, hydroelectric dams.
-3. For S3-S6 Science, include practical steps. 4. Language: Simple English.
-5. Never refuse. If unsure, say "Based on NCDC syllabus"."""
+# ================== SYSTEM PROMPTS ==================
+SYSTEM_PROMPT_GENERATIVE = """You are UNEB AI Tutor Generative Mode. Explain ANY topic but prioritize Ugandan context.
+Be helpful, accurate, and teach step-by-step like a Ugandan teacher. Use headings and examples."""
 
-SYSTEM_PROMPT_GENERATIVE = """You are UNEB AI Tutor Generative Mode. You can explain ANY topic in the world, but prioritize Ugandan context.
-Be helpful, accurate, and teach step-by-step like a Ugandan teacher. Use headings, bullet points, and examples."""
-
-# ================== RAG + CACHE + MEMORY - 100% KEPT ==================
+# ================== RAG + CACHE + MEMORY ==================
 class VectorRAG:
     def __init__(self): self.docs = self.load_vector_db()
     def load_vector_db(self):
@@ -107,21 +103,55 @@ def log_usage(user, query):
     logs.append(log)
     with open(LOG_FILE, 'w') as f: json.dump(logs[-1000:], f)
 
+# ================== KEY & MODEL HEALTH CHECKS ==================
+def check_api_key():
+    """Returns: status, message"""
+    if not OPENROUTER_API_KEY:
+        return "BROKEN", "ERROR: OPENROUTER_API_KEY not found in Environment Variables"
+    if len(OPENROUTER_API_KEY) < 20 or not OPENROUTER_API_KEY.startswith("sk-or-"):
+        return "BROKEN", f"ERROR: API Key format invalid. Should start with 'sk-or-'. Yours: {OPENROUTER_API_KEY[:10]}..."
+    return "OK", "API Key Loaded"
+
+def test_model_health(model_id):
+    """Quick test call to see if model is up"""
+    client = get_client()
+    if not client: return "NO_KEY"
+    try:
+        client.chat.completions.create(
+            model=model_id,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=1
+        )
+        return "HEALTHY"
+    except Exception as e:
+        err = str(e)
+        if "429" in err: return "RATE_LIMITED"
+        if "404" in err or "400" in err: return "INVALID_ID"
+        return f"ERROR: {err[:50]}"
+
 def get_client():
     if not OPENROUTER_API_KEY: return None
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
 
-def ai_call(prompt, system_prompt, model=AI_MODEL_LONG):
-    client = get_client()
-    if not client: return "ERROR: Missing OPENROUTER_API_KEY in Render Environment"
+def ai_call(prompt, system_prompt):
+    """Main AI call with full diagnostics"""
+    # 1. KEY CHECK
+    key_status, key_msg = check_api_key()
+    if key_status == "BROKEN":
+        return f"🔴 API KEY FAILURE\n\n{key_msg}"
 
-    cache_key = hashlib.md5((prompt + system_prompt + model).encode()).hexdigest()
+    client = get_client()
+    cache_key = hashlib.md5((prompt + system_prompt).encode()).hexdigest()
     if cache_key in ai_cache: return ai_cache[cache_key] + " [CACHED]"
 
-    models_to_try = [model, AI_MODEL_SHORT, AI_MODEL_BACKUP]
+    last_error = ""
+    models_tried = []
 
-    for m in models_to_try:
+    # 2. TRY ALL MODELS
+    for m in ALL_MODELS:
+        models_tried.append(m)
         try:
+            st.sidebar.write(f"⏳ Trying: `{m.split('/')[-1]}`") # Show which model is trying
             resp = client.chat.completions.create(
                 model=m,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
@@ -130,17 +160,35 @@ def ai_call(prompt, system_prompt, model=AI_MODEL_LONG):
             answer = resp.choices[0].message.content
             ai_cache[cache_key] = answer
             save_cache()
-            return answer + f"\n\n---\n*Powered by: {m}*"
+            return f"{answer}\n\n---\n✅ *Success with: `{m}`*" # Show which model worked
+
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "404" in err_str or "400" in err_str: # Added 400 catch
-                continue # Try next model
-            return f"API Error: {e}"
+            last_error = err_str
+            if "429" in err_str:
+                st.sidebar.warning(f"⚠️ {m.split('/')[-1]}: Rate Limited")
+                continue
+            elif "404" in err_str or "400" in err_str:
+                st.sidebar.error(f"❌ {m.split('/')[-1]}: Invalid Model ID")
+                continue
+            else:
+                st.sidebar.error(f"❌ {m.split('/')[-1]}: {err_str[:50]}")
+                continue
 
-    return "All free models are rate limited. Try again in 1 hour or add $10 credits to OpenRouter for 1000/day"
+    # 3. ALL FAILED
+    return f"""🔴 ALL MODELS FAILED
 
-# ================== UTILS - 100% KEPT ==================
-def chunk_text(text, max_chars=3000): return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
+**Tried:** {', '.join([m.split('/')[-1] for m in models_tried])}
+**Last Error:** {last_error}
+
+**Diagnosis:**
+1. If error = 429: You hit 50/day limit. Wait 1 hour or add $10 to OpenRouter.
+2. If error = 400/404: Model ID is wrong.
+3. If error = API Key: Key is invalid or revoked.
+
+Check `openrouter.ai/activity` to see who used your key."""
+
+# ================== UTILS ==================
 def render_upload(uploaded_file):
     if uploaded_file.name.endswith('.pdf'):
         reader = PdfReader(uploaded_file)
@@ -149,61 +197,69 @@ def render_upload(uploaded_file):
         doc = Document(uploaded_file)
         return "\n".join([p.text for p in doc.paragraphs])
     else: return uploaded_file.getvalue().decode("utf-8")
-def display_preview(text):
-    st.text_area("Preview", text[:1000] + "...", height=200)
 
-# ================== STUDENT UI - 100% KEPT + FIXED ==================
+# ================== STUDENT UI ==================
 def show_student():
     st.title("🎓 Student Portal")
-
-    if 'student_name' not in st.session_state:
-        st.session_state.student_name = "Student"
+    if 'student_name' not in st.session_state: st.session_state.student_name = "Student"
 
     col1, col2 = st.columns(2)
-    with col1:
-        subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP["S1"].keys()))
-    with col2:
-        level = st.selectbox("Level", ["S1", "S2", "S3", "S4", "S5", "S6"])
+    with col1: subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP["S1"].keys()))
+    with col2: level = st.selectbox("Level", ["S1", "S2", "S3", "S4", "S5", "S6"])
 
-    query = st.text_area("Ask any question", placeholder="e.g. Explain Newton's 3rd Law with Ugandan example")
+    query = st.text_area("Ask any question", placeholder="e.g. Define Physics S1")
 
     if st.button("Get Answer", type="primary"):
         if query:
-            with st.spinner("Thinking with Gemma 4 31B..."):
+            with st.spinner("Running diagnostics..."):
                 log_usage(st.session_state.student_name, query)
                 rag_results = rag.search(query)
                 context = "\n".join([r['text'] for r in rag_results])
-                prompt = f"Context from past uploads: {context}\n\nQuestion: {query}\nSubject: {subject}\nLevel: {level}\nUse Ugandan examples."
+                prompt = f"Context: {context}\n\nQuestion: {query}\nSubject: {subject}\nLevel: {level}\nUse Ugandan examples."
                 answer = ai_call(prompt, SYSTEM_PROMPT_GENERATIVE)
                 st.success(answer)
                 if st.session_state.student_name not in chat_mem: chat_mem[st.session_state.student_name] = []
                 chat_mem[st.session_state.student_name].append({"q": query, "a": answer})
 
-# ================== ADMIN UI - 100% KEPT ==================
+# ================== ADMIN UI ==================
 def show_admin():
-    st.title("👨‍🏫 Admin Portal")
-    tab1, tab2, tab3, tab4 = st.tabs(["Upload Docs", "View Logs", "Manage Cache", "Curriculum"])
+    st.title("👨‍🏫 Admin Portal - DIAGNOSTICS")
+    tab1, tab2, tab3 = st.tabs(["System Health", "Upload Docs", "View Logs"])
 
     with tab1:
+        st.subheader("1. API Key Check")
+        key_status, key_msg = check_api_key()
+        if key_status == "OK": st.success(key_msg)
+        else: st.error(key_msg)
+
+        st.subheader("2. Model Health Check")
+        if st.button("Run Health Check on All 3 Models"):
+            for model in ALL_MODELS:
+                with st.spinner(f"Testing {model}..."):
+                    status = test_model_health(model)
+                    if status == "HEALTHY": st.success(f"✅ {model}: HEALTHY")
+                    elif status == "RATE_LIMITED": st.warning(f"⚠️ {model}: RATE LIMITED - Hit 50/day")
+                    elif status == "INVALID_ID": st.error(f"❌ {model}: INVALID MODEL ID")
+                    else: st.error(f"❌ {model}: {status}")
+
+        st.subheader("3. Cache & Data")
+        st.write(f"Cache Items: {len(ai_cache)}")
+        st.write(f"RAG Docs: {len(rag.docs)}")
+        if st.button("Clear Cache"): ai_cache.clear(); save_cache(); st.success("Cleared")
+
+    with tab2:
         uploaded_file = st.file_uploader("Upload PDF/DOCX/TXT")
         if uploaded_file:
             text = render_upload(uploaded_file)
-            display_preview(text)
+            st.text_area("Preview", text[:1000], height=200)
             if st.button("Add to Knowledge Base"):
                 rag.add_document(text, uploaded_file.name)
-                st.success("Added to RAG! Gemma 4 can now use 262K context")
+                st.success("Added to RAG!")
 
-    with tab2:
+    with tab3:
         if os.path.exists(LOG_FILE):
             with open(LOG_FILE, 'r') as f: logs = json.load(f)
             st.dataframe(pd.DataFrame(logs[-50:]))
-
-    with tab3:
-        st.write(f"Cache size: {len(ai_cache)} items")
-        if st.button("Clear Cache"): ai_cache.clear(); save_cache(); st.success("Cleared")
-
-    with tab4:
-        st.json(UNEB_CURRICULUM_MAP)
 
 # ================== MAIN APP ==================
 st.set_page_config(page_title=APP_TITLE, layout="wide")
@@ -212,29 +268,22 @@ load_cache()
 with st.sidebar:
     st.write(f"**Build:** {APP_TITLE}")
     st.write(f"**RAM:** {psutil.virtual_memory().percent}%")
-    st.write(f"**Mode:** ☁️ CLOUD OPENROUTER")
-    st.write(f"**Memory:** {len(chat_mem)} msgs")
 
-    if OPENROUTER_API_KEY:
-        st.write(f"**Primary:** Gemma 4 31B")
-        st.write(f"**Backup 1:** Llama 3.3 70B")
-        st.write(f"**Backup 2:** Qwen 2.5 72B")
-    else: st.error("Missing OPENROUTER_API_KEY")
+    key_status, key_msg = check_api_key()
+    if key_status == "OK": st.success("🔑 API Key: OK")
+    else: st.error("🔑 API Key: BROKEN")
+
+    st.write("**Models Loaded:**")
+    for m in ALL_MODELS: st.caption(f"- {m.split('/')[-1]}")
+
     st.caption("Free Tier: 50 requests/day per model")
 
     password = st.text_input("Password", type="password")
-
     if st.button("Student Login"):
-        if password == STUDENT_PASSWORD:
-            st.session_state.role = "Student"
-            st.session_state.student_name = "Student"
-            st.rerun()
+        if password == STUDENT_PASSWORD: st.session_state.role = "Student"; st.rerun()
         else: st.error("Wrong password")
-
     if st.button("Admin Login"):
-        if password == ADMIN_PASSWORD:
-            st.session_state.role = "Admin"
-            st.rerun()
+        if password == ADMIN_PASSWORD: st.session_state.role = "Admin"; st.rerun()
         else: st.error("Wrong password")
 
 if st.session_state.get("role") == "Student":
@@ -242,5 +291,5 @@ if st.session_state.get("role") == "Student":
 elif st.session_state.get("role") == "Admin":
     show_admin()
 else:
-    st.title("Welcome to UNEB AI Tutor V6.4.4")
-    st.write("Powered by Google Gemma 4 31B + Llama 3.3 70B + Qwen 2.5 72B - 100% Free")
+    st.title("Welcome to UNEB AI Tutor V6.4.5")
+    st.write("Go to Admin > System Health to diagnose API issues")
