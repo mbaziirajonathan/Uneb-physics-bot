@@ -2,12 +2,13 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# Runtime deps only for PyMuPDF, pillow, matplotlib, reportlab
+# Runtime deps for PyMuPDF, pillow, matplotlib, python-docx, reportlab
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
+    gcc \ 
     && rm -rf /var/lib/apt/lists/*
 
 # Streamlit settings for Render
@@ -15,7 +16,7 @@ ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 ENV STREAMLIT_SERVER_RUN_ON_SAVE=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-# Tell app this is CLOUD so it skips local LLM and uses GROQ
+# Tell app this is CLOUD so it skips local LLM and uses OPENAI
 ENV DEPLOY_ENV=cloud
 
 # Install python deps
