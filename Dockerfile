@@ -3,13 +3,14 @@ FROM python:3.11.9-slim
 WORKDIR /app
 
 # Runtime deps for PyMuPDF, pillow, matplotlib, python-docx, reportlab, pypdf
+# poppler-utils added for better PDF text extraction
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
     gcc \
-    poppler-utils \ # ADDED: for better PDF text extraction
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Streamlit settings for Render
