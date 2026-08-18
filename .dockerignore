@@ -12,8 +12,8 @@ venv
 # Keep assets if you need logo/css. Delete this line if assets > 100MB
 assets/
 
-# Keep labels.json if app needs it. Delete this line if it's just data
-*.json
+# Keep these JSON files - your app needs them: cache, memory, vector_docs
+# *.json
 
 # Local LLM stuff - must ignore for free tier
 *.gguf
@@ -25,3 +25,7 @@ local_llm_server.log
 .devcontainer/
 Dockerfile.local
 README.md
+
+# ADDED FOR OPENAI/CLOUD
+*.md
+data/           # if you have local /data folder, let Render Disk handle it
