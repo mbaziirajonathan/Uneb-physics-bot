@@ -1,11 +1,11 @@
 from difflib import SequenceMatcher
 import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib
 from datetime import datetime
-from groq import Groq, RateLimitError
+from openai import OpenAI, RateLimitError # CHANGED: Groq -> OpenAI
 import logging
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 PRO GENERATIVE", page_icon="🤖", layout="wide")
-st.sidebar.caption("Build: V6.2.0-GENERATIVE-ONLINE | NCDC 2026 CBC | DEMO MODE")
+st.sidebar.caption("Build: V6.3.0-GENERATIVE-OPENAI | NCDC 2026 CBC | DEMO MODE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", ".")
@@ -23,9 +23,10 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[])]: load_db(f,d)
 
 ### 2. SECRETS + MODELS ###
-GROQ_API_KEY=os.getenv("GROQ_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
+OPENAI_API_KEY=os.getenv("OPENAI_API_KEY","") # CHANGED: GROQ -> OPENAI
+STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
 IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
-if not GROQ_API_KEY: st.error("Missing GROQ_API_KEY in Render Environment"); st.stop()
+if not OPENAI_API_KEY: st.error("Missing OPENAI_API_KEY in Render Environment"); st.stop() # CHANGED
 
 def system_check():
     try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
@@ -35,9 +36,11 @@ def system_check():
 SYS_STATE=system_check()
 
 @st.cache_resource
-def get_client(): return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+def get_client(): return OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None # CHANGED
 client=get_client()
-AI_MODEL_LONG="llama-3.3-70b-versatile"; AI_MODEL_SHORT="llama-3.1-8b-instant"
+AI_MODEL_LONG="gpt-4o-mini" # CHANGED: Best value for notes
+AI_MODEL_SHORT="gpt-4o-mini" # CHANGED: Fast for chat
+AI_MODEL_BACKUP="gpt-4o" # CHANGED: Smartest for heavy stuff
 
 def keep_alive():
     while True:
@@ -155,11 +158,11 @@ FORMAT: Start with **[NCDC-GENERATIVE: topic]**
 CITATION: **Proof**: [NCDC-GENERATIVE AI 2026] Based on ncdc_master_db.json {subject} Competency
 LEVEL_RULES: {level_rules}"""
 
-def call_groq_api(full_prompt, mode, level):
-    # MODELS UPDATED 2026-08-18 FROM YOUR SCREENSHOT
-    AI_MODEL_LONG="llama-3.3-70b" # MULTILINGUAL - Notes/Exams
-    AI_MODEL_SHORT="gpt-oss-20b" # MULTILINGUAL - Chat/Quiz Fast
-    AI_MODEL_BACKUP="gpt-oss-120b" # MULTILINGUAL - Heavy lifting
+def call_groq_api(full_prompt, mode, level): # Kept name so we don't break 50 calls
+    # MODELS UPDATED FOR OPENAI
+    AI_MODEL_LONG="gpt-4o-mini" # Best for notes/exams
+    AI_MODEL_SHORT="gpt-4o-mini" # Fast for chat/quiz
+    AI_MODEL_BACKUP="gpt-4o" # Smartest
 
     tokens=1600 if mode in ["notes","exam","research_s5s6"] else 800 if mode=="quiz" else 500
     primary_model=AI_MODEL_LONG if tokens==1600 else AI_MODEL_SHORT
@@ -168,7 +171,7 @@ def call_groq_api(full_prompt, mode, level):
 
     for attempt_model in [primary_model, AI_MODEL_LONG, AI_MODEL_BACKUP]:
         try:
-            res=client.chat.completions.create(
+            res=client.chat.completions.create( # CHANGED: OpenAI syntax
                 model=attempt_model,
                 messages=messages,
                 max_tokens=tokens,
@@ -187,7 +190,7 @@ def call_groq_api(full_prompt, mode, level):
             else:
                 raise e
 
-    raise Exception("All Groq models failed. Check https://console.groq.com")
+    raise Exception("All OpenAI models failed. Check billing at https://platform.openai.com/account/billing")
 
 def call_groq_os(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
     chat_mem.add("user", prompt)
@@ -212,11 +215,11 @@ def call_groq_os(prompt,level="S4",mode="smart",subject="General", allow_invent=
         ans = call_groq_api(full_prompt, mode, detected_level)
         chat_mem.add("assistant", ans)
         src_line = "**Proof**: ncdc_master_db.json + " + ", ".join([f"{r['src']}" for r in sources]) if sources else "**Proof**: [NCDC-GENERATIVE AI 2026]"
-        final_ans = ans + "\n\n" + src_line + f"\n**Level**: {detected_level} | **Mode**: CLOUD"
+        final_ans = ans + "\n\n" + src_line + f"\n**Level**: {detected_level} | **Mode**: CLOUD OPENAI"
         ai_cache.set(full_prompt+mode+detected_level+str(allow_invent),final_ans)
         return final_ans, sources
     except Exception as e:
-        return f"[ERROR] Groq timeout. Please retry. {e}", sources
+        return f"[ERROR] OpenAI timeout. Please retry. {e}", sources
 
 ### 8. STUDENT PORTAL - LOOPED GENERATIVE LOGIC ###
 def show_student():
@@ -346,10 +349,10 @@ def show_admin():
             display_preview(a,"exam")
 
 ### 10. LOGIN ###
-st.title("🤖 DIGITAL UNEB TUTOR 2026 PRO V6.2.0 GENERATIVE")
+st.title("🤖 DIGITAL UNEB TUTOR 2026 PRO V6.3.0 GENERATIVE OPENAI")
 with st.sidebar:
     st.metric("RAM",f"{psutil.virtual_memory().percent}%")
-    st.metric("Mode","☁️ CLOUD GROQ" if SYS_STATE["online"] else "📴 OFFLINE")
+    st.metric("Mode","☁️ CLOUD OPENAI" if SYS_STATE["online"] else "📴 OFFLINE")
     st.metric("Memory", f"{len(chat_mem.mem)} msgs")
     pw=st.text_input("Password",type="password", key="main_login_pw")
     c1,c2=st.columns(2)
