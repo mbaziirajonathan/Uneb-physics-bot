@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib
+import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib, tiktoken
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime
@@ -9,15 +9,17 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
+# LAZY LOAD HEAVY LIBS - Prevents crash on Render free 512MB
+numpy = None
+faiss = None
+SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-st.sidebar.caption("Build: V7.3.2-MERGED | NCDC 2026 CBC | AUTO PRACTICAL LINK")
+st.sidebar.caption("Build: V7.3.3-TOKEN-ECONOMY | FULL DB RESTORED")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
+if not os.path.exists(DATA_PATH) or not os.access(DATA_PATH, os.W_OK): DATA_PATH = "/tmp"
 os.makedirs(DATA_PATH, exist_ok=True)
 os.makedirs("models", exist_ok=True)
 
@@ -38,10 +40,41 @@ def load_db(f,default):
 
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[])]: load_db(f,d)
 
-### 2. LOAD MASTER DATABASE - MERGED WITH YOUR DATA ###
+### 2. TOKEN ECONOMICS ENGINE ###
+class TokenEconomist:
+    def __init__(self):
+        try: self.enc = tiktoken.get_encoding("cl100k_base")
+        except: self.enc = None
+        self.TOKEN_BUDGET = 3500
+        self.PRESERVED_MEMORY_TOKENS = 400
+
+    def count_tokens(self, text):
+        return len(self.enc.encode(text)) if self.enc else len(text)//4
+
+    def auto_quantize(self, rag_chunks, prompt, system_prompt):
+        available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
+        if available < 500: available = 500
+        compressed_rag = []
+        used = 0
+        for chunk in rag_chunks:
+            chunk_tokens = self.count_tokens(chunk['txt'])
+            if used + chunk_tokens < available:
+                compressed_rag.append(chunk)
+                used += chunk_tokens
+            else: break
+        model = "google/gemini-2.5-flash"
+        if used > 3000: model = "google/gemini-2.0-flash-lite"
+        return compressed_rag, model
+
+    def compress_memory(self, messages):
+        if len(messages) <= 4: return messages
+        return messages[-4:]
+
+token_econ = TokenEconomist()
+
+### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS RESTORED ###
 @st.cache_data
 def load_master_db():
-    # YOUR FULL MERGED DATABASE HERE
     default_db = {
       "theory": {
         "Physics": {"S1": {"topics": ["Measurements","Density","States of Matter","Introduction to Forces","Thermometry","Heat Transfer","Rectilinear Propagation","Reflection at Plane Surfaces","Intro to Electricity Part I","Magnets"], "competency": "Basic knowledge. Observe, Measure, Classify. AOI: Home safety"}, "S2": {"topics": ["Turning Effect of Forces","Machines","Work Energy and Power","Pressure","Properties of Matter","Reflection at Curved Surfaces","Wave Motion","Properties of Waves","Sound Waves","Intro to Electricity Part II","Magnetic Effect of Current"], "competency": "Understanding. Interpret, Explain. AOI: Simple machines"}, "S3": {"topics": ["Refraction of Light","Lenses","Linear Motion","Newton's Laws of Motion","Friction","Current Electricity","Force on a Conductor","Quantity of Heat"], "competency": "Skill Application. Apply laws, Solve problems"}, "S4": {"topics": ["Domestic Electricity","Electromagnetic Induction","Modern Physics Electronics","Modern Physics Radioactivity"], "competency": "Values & Attitudes. Scenario-Item-Task. AOI: Community projects"}, "S5": {"topics": ["Fields I","Current","Advanced Mechanics","Waves II","Thermal Physics"], "competency": "Analysis. Derivations, Paper 1 & 2 split"}, "S6": {"topics": ["Electric Fields","Nuclear Physics II","Quantum Physics","AC Circuits","Astrophysics"], "competency": "Synthesis & Evaluation. Research, University prep"}},
@@ -76,16 +109,17 @@ PRACTICALS_DB = NCDC_DB["practicals"]
 SUBJECTS = list(THEORY_DB.keys())
 CLASSES = [f"S{i}" for i in range(1,7)]
 
-### 3. SECRETS + MODELS ###
+### 4. SECRETS + MODELS ###
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
 IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
 if not OPENROUTER_API_KEY and IS_CLOUD: st.error("Missing OPENROUTER_API_KEY in Render Environment Variables"); st.stop()
 
-### 4. SYSTEM CHECK ###
+### 5. SYSTEM CHECK ###
 def system_check():
     try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
     except: online = False
-    return {"online": online and OPENROUTER_API_KEY!= "", "ram_ok": psutil.virtual_memory().percent < 80, "render": IS_CLOUD}
+    ram = psutil.virtual_memory().percent
+    return {"online": online and OPENROUTER_API_KEY!= "", "ram_ok": ram < 85, "render": IS_CLOUD, "ram": ram}
 
 def keep_alive():
     while True:
@@ -97,15 +131,22 @@ threading.Thread(target=keep_alive, daemon=True).start()
 @st.cache_resource
 def get_client(): return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
 @st.cache_resource
-def get_embedder(): return SentenceTransformer('all-MiniLM-L6-v2')
+def get_embedder():
+    global SentenceTransformer
+    if SentenceTransformer is None: from sentence_transformers import SentenceTransformer
+    return SentenceTransformer('all-MiniLM-L6-v2')
+@st.cache_resource
+def get_faiss():
+    global faiss, numpy
+    if faiss is None: import faiss
+    if numpy is None: import numpy as np
+    return faiss, np
 
 SYS_STATE=system_check()
 client=get_client() if SYS_STATE["online"] else None
-embedder=get_embedder()
-AI_MODEL="google/gemini-2.5-flash"
-mode_badge="☁️ CLOUD OPENROUTER" if SYS_STATE["online"] else "📴 OFFLINE RAG"
+mode_badge=f"☁️ CLOUD OPENROUTER | RAM:{SYS_STATE['ram']:.0f}%"
 
-### 5. TTL CACHE + CHAT MEMORY ###
+### 6. TTL CACHE + CHAT MEMORY ###
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
     def get(self,q):
@@ -116,16 +157,17 @@ class TTLSchoolCache:
 ai_cache = TTLSchoolCache()
 
 class ChatMemory:
-    def __init__(self, ttl=300): self.ttl=ttl; self.mem=load_db(MEMORY_FILE,[])
+    def __init__(self, ttl=600): self.ttl=ttl; self.mem=load_db(MEMORY_FILE,[])
     def add(self, role, content):
         self.mem.append({"role":role,"content":content,"time":time.time()})
         self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]
         save_db(MEMORY_FILE,self.mem)
     def get_context(self):
-        return [{"role":m["role"],"content":m["content"]} for m in self.mem]
+        compressed = token_econ.compress_memory(self.mem)
+        return [{"role":m["role"],"content":m["content"]} for m in compressed]
 chat_mem = ChatMemory()
 
-### 6. HELPER FUNCTIONS + AUTO PRACTICAL LINK ###
+### 7. HELPER FUNCTIONS ###
 def get_topics(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("topics",["General Topic"])
 def get_competency(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("competency","General")
 def get_practicals(s,l):
@@ -135,43 +177,47 @@ def get_practical_obj(s,l,p):
     g = "S1-S4" if int(l[1])<=4 else "S5-S6"
     return PRACTICALS_DB.get(s,{}).get(g,{}).get(p,{}).get("objective","")
 def get_related_practicals(s,l,topic):
-    # NEW: Auto link topic to practical
     g = "S1-S4" if int(l[1])<=4 else "S5-S6"
     related = []
     for p_name, p_data in PRACTICALS_DB.get(s,{}).get(g,{}).items():
         if SequenceMatcher(None, topic.lower(), p_name.lower()).ratio() > 0.4 or topic.lower() in p_data["objective"].lower():
             related.append(f"**{p_name}**: {p_data['objective']} | *Apparatus: {p_data['apparatus']}*")
-    return "\n".join(related) if related else "No direct practical found for this topic."
+    return "\n".join(related) if related else ""
 
 def display_preview(content,name): st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}"); st.download_button("📥 Download",content.encode(),f"{name}.txt")
 
-### 7. FAISS RAG ###
+### 8. FAISS RAG ###
 class VectorRAG:
     def __init__(self):
         self.docs=load_db(DOCS_FILE,[])
         self.index = None
-        if os.path.exists(FAISS_FILE): self.index = faiss.read_index(FAISS_FILE)
+        if os.path.exists(FAISS_FILE):
+            faiss, np = get_faiss()
+            self.index = faiss.read_index(FAISS_FILE)
         self._rebuild_if_needed()
     def _rebuild_if_needed(self):
         if len(self.docs) > 0 and (self.index is None or self.index.ntotal!= len(self.docs)):
+            faiss, np = get_faiss(); embedder = get_embedder()
             with st.spinner("Building FAISS Index..."):
-                embeddings = embedder.encode([d['txt'] for d in self.docs], show_progress_bar=True)
+                embeddings = embedder.encode([d['txt'] for d in self.docs])
                 self.index = faiss.IndexFlatL2(384)
                 self.index.add(np.array(embeddings).astype('float32'))
                 faiss.write_index(self.index, FAISS_FILE)
     def add(self,texts,fn):
+        faiss, np = get_faiss(); embedder = get_embedder()
         new_docs = [{"src":fn,"chunk_id":i,"txt":t[:1200]} for i,t in enumerate(texts)]
         self.docs.extend(new_docs); save_db(DOCS_FILE,self.docs)
         embeddings = embedder.encode([d['txt'] for d in new_docs])
         if self.index is None: self.index = faiss.IndexFlatL2(384)
         self.index.add(np.array(embeddings).astype('float32')); faiss.write_index(self.index, FAISS_FILE)
-    def search(self,q,k=4):
+    def search(self,q,k=3):
         if self.index is None or self.index.ntotal == 0: return []
+        faiss, np = get_faiss(); embedder = get_embedder()
         q_vec = embedder.encode([q]); D, I = self.index.search(np.array(q_vec).astype('float32'), k)
         return [self.docs[i] for i in I[0] if i < len(self.docs)]
 vector_rag=VectorRAG()
 
-def chunk_text(text, sz=500):
+def chunk_text(text, sz=350):
     s = re.split(r'(?<=[.!?]) +', text); chunks = []; cur = ""
     for x in s:
         if len(cur) + len(x) < sz: cur += x + " "
@@ -191,13 +237,13 @@ def render_upload(key="d"):
         if st.button(f"Add {len(chunk_text(text))} chunks to RAG",key=f"add{key}"):
             vector_rag.add(chunk_text(text),f.name); st.success(f"Added to FAISS RAG")
 
-### 8. BRAIN ###
+### 9. BRAIN ###
 def detect_complexity(prompt):
     p = prompt.lower()
-    if any(x in p for x in ["define","what is","list"]): return "S1-S2"
-    if any(x in p for x in ["explain","how","why"]): return "S3-S4"
-    if any(x in p for x in ["derive","evaluate","research","design"]): return "S5-S6"
-    return "S4"
+    if any(x in p for x in ["define","what is","list"]): return "S1-S2", 300
+    if any(x in p for x in ["explain","how","why"]): return "S3-S4", 600
+    if any(x in p for x in ["derive","evaluate","research","design","exam"]): return "S5-S6", 1200
+    return "S4", 600
 
 def get_level_rules(level):
     rules = {"S1": "Basic knowledge. 2-3 points. Simple UG examples.","S2": "Understanding. 3-4 points. 1 UG scenario.","S3": "Skill Application. 4-5 points. Diagrams.","S4": "Values. Scenario->Item->Task format.","S5": "Analysis. 6-8 points. Derivations.","S6": "Synthesis. 8-10 points. Research."}
@@ -218,19 +264,17 @@ RULE 3: Use Ugandan context only. Cite: **Proof**: [NCDC-GENERATIVE AI 2026]
 RULE 4: {level_rules}
 """
 
-def call_openrouter_api(full_prompt):
-    tokens=1800 if "research" in full_prompt or "exam" in full_prompt else 600
-    messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-    res=client.chat.completions.create(model=AI_MODEL,messages=messages,max_tokens=tokens,temperature=0.2)
+def call_openrouter_api(messages, model, max_tokens):
+    res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
     return res.choices[0].message.content
 
 def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
     global SYS_STATE; SYS_STATE=system_check()
     chat_mem.add("user", prompt)
-    detected_level = detect_complexity(prompt) if level=="Auto" else level
+    detected_level, max_resp_tokens = detect_complexity(prompt) if level=="Auto" else (level, 600)
 
-    sources=vector_rag.search(prompt,4)
-    rag_context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt']}" for r in sources])
+    sources=vector_rag.search(prompt,3)
+    rag_context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt'][:400]}" for r in sources])
 
     topic_exists = False
     competency = get_competency(subject, detected_level)
@@ -243,44 +287,51 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
                 break
 
     level_rules = get_level_rules(detected_level)
-    practical_link = get_related_practicals(subject, detected_level, prompt) # NEW
-    if practical_link: full_prompt_addon = f"\nRELATED PRACTICAL: {practical_link}"
-    else: full_prompt_addon = ""
+    practical_link = get_related_practicals(subject, detected_level, prompt)
 
     if allow_invent and not topic_exists and len(sources)==0:
         sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level)
     else:
         sys_prompt = SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules, subject=subject, level=detected_level)
 
+    # AUTO QUANTIZATION
+    compressed_sources, AI_MODEL = token_econ.auto_quantize(sources, prompt, sys_prompt)
+    compressed_rag = "\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt'][:400]}" for r in compressed_sources])
+    compressed_mem = chat_mem.get_context()
+
     full_prompt = f"""{sys_prompt}
 LEVEL:{detected_level}
 SUBJECT:{subject}
 COMPETENCY:{competency}
-RAG_CONTEXT:\n{rag_context}
+RAG_CONTEXT:\n{compressed_rag}
 DATABASE_TOPICS: {get_topics(subject, detected_level)}
-{practical_link}
+PRACTICAL:{practical_link}
 TASK:{prompt}"""
 
-    cached=ai_cache.get(full_prompt+mode+detected_level+str(allow_invent));
-    if cached: return f"[CACHED] {cached}", sources, detected_level
+    cached=ai_cache.get(full_prompt+AI_MODEL+mode+detected_level+str(allow_invent));
+    if cached: return f"[CACHED 0 TOKENS] {cached}", sources, detected_level
 
-    # PRIORITY 1: OPENROUTER CLOUD ONLY
     if SYS_STATE["online"] and client:
         try:
-            ans = call_openrouter_api(full_prompt)
+            messages = compressed_mem + [{"role":"user","content":full_prompt}]
+            tokens_used = token_econ.count_tokens(str(messages))
+            st.sidebar.metric("Tokens Used", f"{tokens_used}/{token_econ.TOKEN_BUDGET}")
+            st.sidebar.metric("Model", AI_MODEL)
+
+            ans = call_openrouter_api(messages, AI_MODEL, max_resp_tokens)
             chat_mem.add("assistant", ans)
-            src_line = "**Proof**: DB ncdc_master_db.json + " + ", ".join([f"{r['src']}" for r in sources]) if sources else "**Proof**: [NCDC-GENERATIVE AI 2026]"
+            src_line = "**Proof**: DB ncdc_master_db.json + " + ", ".join([f"{r['src']}" for r in compressed_sources]) if compressed_sources else "**Proof**: [NCDC-GENERATIVE AI 2026]"
             final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level} | **Mode**: CLOUD"
-            ai_cache.set(full_prompt+mode+detected_level+str(allow_invent),final_ans)
+            ai_cache.set(full_prompt+AI_MODEL+mode+detected_level+str(allow_invent),final_ans)
             return final_ans, sources, detected_level
         except Exception as e: st.sidebar.error(f"Cloud failed: {e}")
 
-    if rag_context: return (f"[OFFLINE RAG]\n**Proof**: {rag_context[:1000]}", sources, detected_level)
+    if rag_context: return (f"[OFFLINE RAG]\n**Proof**: {rag_context[:500]}", sources, detected_level)
     else: return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
 
 ### 9. STUDENT PORTAL ###
 def show_student():
-    st.header("🧠 Digital Tutor - VDB Memory Active")
+    st.header("🧠 Digital Tutor - Token Economy Active")
     if st.button("Logout", key="student_logout"): st.session_state.clear(); st.rerun()
     t1,t2,t3,t4,t5=st.tabs(["💬 Chat","📖 Learn","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
 
@@ -370,11 +421,12 @@ def show_admin():
         if st.button("Exam"): a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False); display_preview(a,"exam")
 
 ### 11. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - VDB MEMORY")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - TOKEN ECONOMY")
 with st.sidebar:
-    st.metric("RAM",f"{psutil.virtual_memory().percent}%")
+    st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
     st.metric("Mode", mode_badge)
     st.metric("Memory", f"{len(chat_mem.mem)} msgs")
+    st.metric("Tokens", f"Budget: {token_econ.TOKEN_BUDGET}")
     pw=st.text_input("Password",type="password", key="main_login_pw")
     c1,c2=st.columns(2)
     if c1.button("Student Login",key="btn_student_login") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
