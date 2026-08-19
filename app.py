@@ -23,7 +23,7 @@ faiss = None
 SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-st.sidebar.caption("Build: V7.3.3-TOKEN-ECONOMY | FULL DB RESTORED")
+st.sidebar.caption("Build: V7.3.5-NDEJJE-QC-SIT | FULL 18 SUBJECTS + QC")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -43,45 +43,74 @@ def save_db(f,d):
 
 def load_db(f,default):
     if not os.path.exists(f): save_db(f,default)
-    try: return json.load(open(f,"r", encoding='utf-8'))
-    except: save_db(f,default); return default
+    try:
+        with open(f,"r", encoding='utf-8') as file:
+            return json.load(file)
+    except:
+        save_db(f,default); return default
 
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[])]: load_db(f,d)
 
 ### 2. TOKEN ECONOMICS ENGINE ###
 class TokenEconomist:
     def __init__(self):
-        if TIKTOKEN_AVAILABLE: 
+        if TIKTOKEN_AVAILABLE:
             self.enc = tiktoken.get_encoding("cl100k_base")
-        else: 
+        else:
             self.enc = None
         self.TOKEN_BUDGET = 3500
         self.PRESERVED_MEMORY_TOKENS = 400
-
     def count_tokens(self, text):
         if self.enc: return len(self.enc.encode(text))
-        return len(text)//4 # rough fallback
-
+        return len(text)//4
     def auto_quantize(self, rag_chunks, prompt, system_prompt):
         available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
         if available < 500: available = 500
-        compressed_rag = []
-        used = 0
+        compressed_rag = []; used = 0
         for chunk in rag_chunks:
             chunk_tokens = self.count_tokens(chunk['txt'])
             if used + chunk_tokens < available:
-                compressed_rag.append(chunk)
-                used += chunk_tokens
+                compressed_rag.append(chunk); used += chunk_tokens
             else: break
         model = "google/gemini-2.5-flash"
         if used > 3000: model = "google/gemini-2.0-flash-lite"
         return compressed_rag, model
-
     def compress_memory(self, messages):
         if len(messages) <= 4: return messages
         return messages[-4:]
-
 token_econ = TokenEconomist()
+
+### 2B. UGANDAN TEACHER + SIT + QC + SECTORS ENGINE ###
+class NCDC2026Engine:
+    SECTORS = {"health": "Hospitals, Nursing, Public Health","agriculture": "Farming, Vet, Agro-processing","engineering": "Civil, Electrical, Mechanical","economics": "Business, Banking, SACCOs","accounts": "Bookkeeping, Auditing","research": "UNEB, Universities, NARO","geology": "Mining, Water, Construction"}
+    SUBJECT_SECTORS = {"Physics": ["engineering","health","agriculture"],"Chemistry": ["health","agriculture","engineering"],"Biology": ["health","agriculture"],"Mathematics": ["economics","accounts","engineering"],"Agriculture": ["agriculture","economics"],"Geography": ["geology","agriculture"],"Entrepreneurship": ["economics","accounts"],"ICT": ["research","engineering"]}
+    def get_sectors(self, subject): return [f"**{s.title()}**: {self.SECTORS[s]}" for s in self.SUBJECT_SECTORS.get(subject, ["research"])]
+    def generate_sit(self, subject, level, topic): return f"**NCDC 2026 SIT**\n**SCENARIO**: Ugandan community in {random.choice(['Gulu','Mbale','Mbarara','Wakiso'])} has problem with {topic}.\n**ITEM**: LC1 gives you data/equipment.\n**TASK**: 1. Apply {topic} 2. Show working 3. State 2 local challenges + solutions."
+    def get_applications(self, subject, topic): return f"Use {topic} in: {', '.join(self.SUBJECT_SECTORS.get(subject, ['research']))}"
+    def generate_10_sit(self, subject, level, topics): return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**\nEach with: Scenario, Item, Task, 10 mark marking guide."
+
+class UgandanTeacher:
+    def get_style_rules(self, subject, level, topic):
+        is_science = subject in ["Physics","Chemistry","Biology","Mathematics","Agriculture"]
+        level_num = int(level[1]); sectors = "\n".join(ncdc_engine.get_sectors(subject)); sit = ncdc_engine.generate_sit(subject, level, topic); apps = ncdc_engine.get_applications(subject, topic)
+        if level_num <= 2: return f"TEACHING STYLE: SIMPLE UGANDAN TEACHER\n1. 4 bullets. 1 Local example: boda, posho, market.\n2. WHERE YOU CAN USE THIS:\n{sectors}\n3. End: 'Do you understand, student?'"
+        if is_science and level_num >= 3: return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE. Explain WHY scientifically.\nRULE 2: REAL APPLICATIONS: {apps}\nRULE 3: SECTORS YOU CAN HELP:\n{sectors}\nRULE 4: {sit}\nRULE 5: Use Ugandan context only."
+        return f"TEACHING STYLE: NCDC HUMANITIES TEACHER\n1. Cause -> Effect -> Impact\n2. SECTORS:\n{sectors}\n3. {sit}"
+    def format_answer(self, raw, subject, level): return raw
+
+class QCExaminer:
+    def mark_answer(self, student_answer, correct_answer, subject, level):
+        total=10; feedback=[]; is_science = subject in ["Physics","Chemistry","Biology","Mathematics"]
+        if is_science and "=" in correct_answer and "=" not in student_answer: total-=2; feedback.append("❌ -2: Missing Formula. State it first.")
+        if is_science and int(level[1])>=3 and not all(s.lower() in student_answer.lower() for s in ["Define","Substitute","Calculate"]): total-=4; feedback.append("❌ -4: Missed working steps: Define, Substitute, Calculate")
+        if is_science and not any(u in student_answer for u in ["N","m","s","J","kg","mol","dm3"]): total-=1; feedback.append("❌ -1: Missing Units. UNEB deducts 1 mark.")
+        fundamentals = {"Physics": ["Force","Energy"],"Chemistry": ["Mole","Reaction"],"Biology": ["Cell","Enzyme"]}
+        for fund in fundamentals.get(subject,[]):
+            if fund.lower() in correct_answer.lower() and fund.lower() not in student_answer.lower(): total-=1; feedback.append(f"❌ -1: Missed core concept: '{fund}'")
+        total=max(0,total); grade="A - Distinction" if total>=8 else "B - Credit" if total>=6 else "C - Revise"
+        return f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n\n**TEACHER FEEDBACK**:\n" + "\n".join(feedback) if feedback else f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n**Feedback**: Excellent work. No errors."
+
+ncdc_engine = NCDC2026Engine(); teacher_style = UgandanTeacher(); qc_examiner = QCExaminer()
 
 ### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS RESTORED ###
 @st.cache_data
@@ -120,82 +149,68 @@ PRACTICALS_DB = NCDC_DB["practicals"]
 SUBJECTS = list(THEORY_DB.keys())
 CLASSES = [f"S{i}" for i in range(1,7)]
 
-### 4. SECRETS + MODELS ###
+### 4-6. SECRETS, SYSTEM CHECK, CACHE ###
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY",""); STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234"); ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
 IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
-if not OPENROUTER_API_KEY and IS_CLOUD: st.error("Missing OPENROUTER_API_KEY in Render Environment Variables"); st.stop()
-
-### 5. SYSTEM CHECK ###
 def system_check():
     try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
     except: online = False
-    ram = psutil.virtual_memory().percent
-    return {"online": online and OPENROUTER_API_KEY!= "", "ram_ok": ram < 85, "render": IS_CLOUD, "ram": ram}
-
+    ram = psutil.virtual_memory().percent; return {"online": online and OPENROUTER_API_KEY!= "", "ram": ram}
 def keep_alive():
-    while True:
-        time.sleep(840)
-        try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
-        except: pass
+    while True: time.sleep(840);
+    try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
+    except: pass
 threading.Thread(target=keep_alive, daemon=True).start()
-
 @st.cache_resource
 def get_client(): return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
 @st.cache_resource
-def get_embedder():
-    global SentenceTransformer
-    if SentenceTransformer is None: from sentence_transformers import SentenceTransformer
-    return SentenceTransformer('all-MiniLM-L6-v2')
+def get_embedder(): global SentenceTransformer;
+if SentenceTransformer is None: from sentence_transformers import SentenceTransformer; return SentenceTransformer('all-MiniLM-L6-v2')
 @st.cache_resource
-def get_faiss():
-    global faiss, numpy
-    if faiss is None: import faiss
-    if numpy is None: import numpy as np
-    return faiss, np
-
-SYS_STATE=system_check()
-client=get_client() if SYS_STATE["online"] else None
-mode_badge=f"☁️ CLOUD OPENROUTER | RAM:{SYS_STATE['ram']:.0f}%"
-
-### 6. TTL CACHE + CHAT MEMORY ###
+def get_faiss(): global faiss, numpy;
+if faiss is None: import faiss;
+if numpy is None: import numpy as np; return faiss, np
+SYS_STATE=system_check(); client=get_client() if SYS_STATE["online"] else None; mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%"
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
-    def get(self,q):
-        k=hashlib.sha256(q.encode()).hexdigest();
-        if k in self.cache and time.time()<self.cache[k][1]: return self.cache[k][0]
-        return None
+    def get(self,q): k=hashlib.sha256(q.encode()).hexdigest();
+    if k in self.cache and time.time()<self.cache[k][1]: return self.cache[k][0]; return None
     def set(self,q,a): self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]; save_db(CACHE_FILE,self.cache)
 ai_cache = TTLSchoolCache()
-
 class ChatMemory:
     def __init__(self, ttl=600): self.ttl=ttl; self.mem=load_db(MEMORY_FILE,[])
-    def add(self, role, content):
-        self.mem.append({"role":role,"content":content,"time":time.time()})
-        self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]
-        save_db(MEMORY_FILE,self.mem)
-    def get_context(self):
-        compressed = token_econ.compress_memory(self.mem)
-        return [{"role":m["role"],"content":m["content"]} for m in compressed]
+    def add(self, role, content): self.mem.append({"role":role,"content":content,"time":time.time()}); self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]; save_db(MEMORY_FILE,self.mem)
+    def get_context(self): compressed = token_econ.compress_memory(self.mem); return [{"role":m["role"],"content":m["content"]} for m in compressed]
 chat_mem = ChatMemory()
 
 ### 7. HELPER FUNCTIONS ###
 def get_topics(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("topics",["General Topic"])
 def get_competency(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("competency","General")
-def get_practicals(s,l):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    return list(PRACTICALS_DB.get(s,{}).get(g,{}).keys()) or ["No Practicals for this Level"]
-def get_practical_obj(s,l,p):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    return PRACTICALS_DB.get(s,{}).get(g,{}).get(p,{}).get("objective","")
+def get_practicals(s,l): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return list(PRACTICALS_DB.get(s,{}).get(g,{}).keys()) or ["No Practicals"]
+def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return PRACTICALS_DB.get(s,{}).get(g,{}).get(p,{}).get("objective","")
 def get_related_practicals(s,l,topic):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    related = []
+    g = "S1-S4" if int(l[1])<=4 else "S5-S6"; related = []
     for p_name, p_data in PRACTICALS_DB.get(s,{}).get(g,{}).items():
         if SequenceMatcher(None, topic.lower(), p_name.lower()).ratio() > 0.4 or topic.lower() in p_data["objective"].lower():
             related.append(f"**{p_name}**: {p_data['objective']} | *Apparatus: {p_data['apparatus']}*")
     return "\n".join(related) if related else ""
 
-def display_preview(content,name): st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}"); st.download_button("📥 Download",content.encode(),f"{name}.txt")
+def topic_exists_in_db(prompt, subject, level):
+    prompt_l = prompt.lower(); g = "S1-S4" if int(level[1])<=4 else "S5-S6"
+    for s in SUBJECTS:
+        for l in CLASSES:
+            if any(x.lower() in prompt_l for x in get_topics(s,l)): return True, s, l
+    for p_name in PRACTICALS_DB.get(subject,{}).get(g,{}).keys():
+        if p_name.lower() in prompt_l: return True, subject, level
+    return False, subject, level
+
+def display_preview(content,name,s,l):
+    st.session_state.current_subject=s; st.session_state.current_level=l
+    st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}")
+    student_ans = st.text_area("✍️ Paste your answer for QC Marking", key=f"mark{name}")
+    c1,c2,c3=st.columns(3)
+    if c1.button("📥 Download",key=f"d{name}"): st.download_button("Download",content.encode(),f"{name}.txt",key=f"dl{name}")
+    if c2.button("🔍 QC Mark My Answer",key=f"qc{name}") and student_ans: st.success(qc_examiner.mark_answer(student_ans, content, s, l))
 
 ### 8. FAISS RAG ###
 class VectorRAG:
@@ -251,197 +266,114 @@ def render_upload(key="d"):
 ### 9. BRAIN ###
 def detect_complexity(prompt):
     p = prompt.lower()
-    if any(x in p for x in ["define","what is","list"]): return "S1-S2", 300
-    if any(x in p for x in ["explain","how","why"]): return "S3-S4", 600
-    if any(x in p for x in ["derive","evaluate","research","design","exam"]): return "S5-S6", 1200
+    if any(x in p for x in ["define","what is","list"]): return "S1", 300
+    if any(x in p for x in ["explain","how","why"]): return "S4", 600
+    if any(x in p for x in ["derive","evaluate","research","design","exam"]): return "S6", 1200
     return "S4", 600
 
 def get_level_rules(level):
-    rules = {"S1": "Basic knowledge. 2-3 points. Simple UG examples.","S2": "Understanding. 3-4 points. 1 UG scenario.","S3": "Skill Application. 4-5 points. Diagrams.","S4": "Values. Scenario->Item->Task format.","S5": "Analysis. 6-8 points. Derivations.","S6": "Synthesis. 8-10 points. Research."}
+    rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
     return rules.get(level, rules["S4"])
 
-SYSTEM_PROMPT_OFFICIAL="""You are DIGITAL UNEB TUTOR 2026. PRIMARY SOURCE: ncdc_master_db.json + RAG Context.
-RULE 1: ONLY ANSWER FROM PROVIDED DATABASE TOPICS AND RAG CONTEXT.
-RULE 2: CITE EVERY ANSWER: **Proof**: Database ncdc_master_db.json {subject} {level} + RAG [file]
-RULE 3: If topic NOT in DB and NOT in RAG, say: "Per NCDC 2026 this is not in syllabus. Click 'Invent/Extend' to generate."
-RULE 4: Use CHAT MEMORY to follow what student asked in last 5 minutes.
-RULE 5: Be interactive tutor. {level_rules}
-"""
-
-SYSTEM_PROMPT_GENERATIVE="""You are DIGITAL UNEB TUTOR 2026 - INVENT MODE.
-RULE 1: Topic must be RELATED to NCDC 2026 {subject} {level}. NO USA CURRICULUM.
-RULE 2: Start with **[NCDC-GENERATIVE: topic]**
-RULE 3: Use Ugandan context only. Cite: **Proof**: [NCDC-GENERATIVE AI 2026]
-RULE 4: {level_rules}
-"""
+SYSTEM_PROMPT_OFFICIAL="""You are DIGITAL UNEB TUTOR 2026. Mark like Ndejje SS HOD. Be creative like Gemini Pro. Use analogies. PRIORITIZE ncdc_master_db.json. {level_rules}"""
+SYSTEM_PROMPT_GENERATIVE="""You are DIGITAL UNEB TUTOR 2026 - INVENT MODE. NCDC 2026 {subject} {level}. Ugandan context only."""
 
 def call_openrouter_api(messages, model, max_tokens):
     res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
     return res.choices[0].message.content
 
 def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
-    global SYS_STATE; SYS_STATE=system_check()
-    chat_mem.add("user", prompt)
+    global SYS_STATE; SYS_STATE=system_check(); chat_mem.add("user", prompt)
     detected_level, max_resp_tokens = detect_complexity(prompt) if level=="Auto" else (level, 600)
-
     sources=vector_rag.search(prompt,3)
-    rag_context="\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt'][:400]}" for r in sources])
-
-    topic_exists = False
-    competency = get_competency(subject, detected_level)
-    for s in SUBJECTS:
-        for l in CLASSES:
-            if any(x.lower() in prompt.lower() for x in get_topics(s,l)):
-                topic_exists = True
-                competency = get_competency(s,l)
-                subject = s
-                break
-
-    level_rules = get_level_rules(detected_level)
-    practical_link = get_related_practicals(subject, detected_level, prompt)
-
-    if allow_invent and not topic_exists and len(sources)==0:
-        sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level)
-    else:
-        sys_prompt = SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules, subject=subject, level=detected_level)
-
-    # AUTO QUANTIZATION
+    topic_exists, subject, detected_level = topic_exists_in_db(prompt, subject, detected_level)
+    competency = get_competency(subject, detected_level); level_rules = get_level_rules(detected_level); practical_link = get_related_practicals(subject, detected_level, prompt)
+    matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
+    style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
+    if not topic_exists and len(sources)==0 and not allow_invent: return "Per NCDC 2026 this is not in syllabus. Click 'Invent/Extend' to generate.", [], detected_level
+    sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent and not topic_exists else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
     compressed_sources, AI_MODEL = token_econ.auto_quantize(sources, prompt, sys_prompt)
-    compressed_rag = "\n".join([f"[{r['src']} c{r['chunk_id']}] {r['txt'][:400]}" for r in compressed_sources])
-    compressed_mem = chat_mem.get_context()
-
-    full_prompt = f"""{sys_prompt}
-LEVEL:{detected_level}
-SUBJECT:{subject}
-COMPETENCY:{competency}
-RAG_CONTEXT:\n{compressed_rag}
-DATABASE_TOPICS: {get_topics(subject, detected_level)}
-PRACTICAL:{practical_link}
-TASK:{prompt}"""
-
-    cached=ai_cache.get(full_prompt+AI_MODEL+mode+detected_level+str(allow_invent));
-    if cached: return f"[CACHED 0 TOKENS] {cached}", sources, detected_level
-
+    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nRAG:{compressed_sources}\nPRACTICAL:{practical_link}\nTASK:{prompt}"
+    cached=ai_cache.get(full_prompt+AI_MODEL);
+    if cached: return f"[CACHED] {cached}", sources, detected_level
     if SYS_STATE["online"] and client:
         try:
-            messages = compressed_mem + [{"role":"user","content":full_prompt}]
-            tokens_used = token_econ.count_tokens(str(messages))
-            st.sidebar.metric("Tokens Used", f"{tokens_used}/{token_econ.TOKEN_BUDGET}")
-            st.sidebar.metric("Model", AI_MODEL)
-
-            ans = call_openrouter_api(messages, AI_MODEL, max_resp_tokens)
-            chat_mem.add("assistant", ans)
-            src_line = "**Proof**: DB ncdc_master_db.json + " + ", ".join([f"{r['src']}" for r in compressed_sources]) if compressed_sources else "**Proof**: [NCDC-GENERATIVE AI 2026]"
-            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level} | **Mode**: CLOUD"
-            ai_cache.set(full_prompt+AI_MODEL+mode+detected_level+str(allow_invent),final_ans)
-            return final_ans, sources, detected_level
+            messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]; ans = call_openrouter_api(messages, AI_MODEL, max_resp_tokens)
+            ans = teacher_style.format_answer(ans, subject, detected_level); chat_mem.add("assistant", ans)
+            src_line = f"**Proof**: DB {subject} {detected_level}" if topic_exists else "**Proof**: [NCDC-GENERATIVE]"
+            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level}"; ai_cache.set(full_prompt+AI_MODEL,final_ans); return final_ans, sources, detected_level
         except Exception as e: st.sidebar.error(f"Cloud failed: {e}")
+    return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
 
-    if rag_context: return (f"[OFFLINE RAG]\n**Proof**: {rag_context[:500]}", sources, detected_level)
-    else: return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
-
-### 9. STUDENT PORTAL ###
+### 10. STUDENT + ADMIN PORTAL ###
 def show_student():
-    st.header("🧠 Digital Tutor - Token Economy Active")
+    st.header("🧠 Digital Tutor V7.3.5");
     if st.button("Logout", key="student_logout"): st.session_state.clear(); st.rerun()
     t1,t2,t3,t4,t5=st.tabs(["💬 Chat","📖 Learn","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
-
     with t1:
-        st.text_input("🔎 Search", key="search_t1")
-        render_upload("s1");
-        s=st.selectbox("Subject",SUBJECTS,key="s1s");
-        l=st.selectbox("Class",["Auto Detect"]+CLASSES,key="s1l");
-        q=st.text_area("Ask",placeholder="Follow up questions work here",key="s1q")
+        render_upload("s1"); s=st.selectbox("Subject",SUBJECTS,key="s1s"); l=st.selectbox("Class",["Auto"]+CLASSES,key="s1l"); q=st.text_area("Ask",key="s1q")
         c1,c2=st.columns(2)
-        if c1.button("Ask Official",key="s1b") and q:
-            lvl = "Auto" if l=="Auto Detect" else l
-            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, allow_invent=False); display_preview(a,"s1")
-        if c2.button("Invent/Extend",key="s1gen") and q:
-            lvl = "Auto" if l=="Auto Detect" else l
-            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, allow_invent=True); display_preview(a,"s1gen")
-
+        if c1.button("Ask Official",key="s1b") and q: lvl = "S4" if l=="Auto" else l; a,src,lvl_out=tutor_brain(q,lvl,"smart",s, False); display_preview(a,"s1",s,lvl_out)
+        if c2.button("Invent/Extend",key="s1gen") and q: lvl = "S4" if l=="Auto" else l; a,src,lvl_out=tutor_brain(q,lvl,"smart",s, True); display_preview(a,"s1gen",s,lvl_out)
     with t2:
-        st.text_input("🔎 Search", key="search_t2")
-        render_upload("s2")
-        s=st.selectbox("Subject",SUBJECTS,key="s2s")
-        l=st.selectbox("Class",CLASSES,key="s2l")
-        t=st.selectbox("Topic",get_topics(s,l),key="s2t_topics")
+        render_upload("s2"); s=st.selectbox("Subject",SUBJECTS,key="s2s"); l=st.selectbox("Class",CLASSES,key="s2l"); t=st.selectbox("Topic",get_topics(s,l),key="s2t")
         c1,c2,c3=st.columns(3)
-        if c1.button("Notes From DB",key="s2b"): a,src,lvl=tutor_brain(f"Teach {t} for {l} {s}",l,"notes",s, False); display_preview(a,"s2")
-        if c2.button("Quiz Me",key="s2q"): a,src,lvl=tutor_brain(f"Quiz me on {t} for {l} {s}",l,"smart",s, False); display_preview(a,"s2q")
-        if c3.button("Invent Related Topic",key="s2gen"): a,src,lvl=tutor_brain(f"Invent new NCDC topic related to {t} for {l} {s}",l,"notes",s, True); display_preview(a,"s2gen")
-
+        if c1.button("Notes From DB",key="s2b"): a,src,lvl=tutor_brain(f"Teach {t} for {l} {s}",l,"notes",s, False); display_preview(a,"s2",s,l)
+        if c2.button("Quiz Me",key="s2q"): a,src,lvl=tutor_brain(f"Quiz me on {t} for {l} {s}",l,"smart",s, False); display_preview(a,"s2q",s,l)
+        if c3.button("10 SIT Questions",key="s2sit"): a,src,lvl=tutor_brain(ncdc_engine.generate_10_sit(s,l,t),l,"notes",s, False); display_preview(a,"s2sit",s,l)
     with t3:
-        st.text_input("🔎 Search", key="search_t3")
-        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="s3s"); l=st.selectbox("Class",CLASSES,key="s3l"); p=st.selectbox("Practical",get_practicals(s,l)+["Invent Practical"],key="s3p")
-        if st.button("Teach Practical",key="s3b"):
-            if p=="Invent Practical":
-                a,src,lvl=tutor_brain(f"Invent basic practical for {l} {s} using local materials",l,"notes",s, True)
-            else:
-                obj=get_practical_obj(s,l,p)
-                a,src,lvl=tutor_brain(f"Teach {p} practical for {l}. Objective: {obj}",l,"notes",s, False)
-            display_preview(a,"s3")
-
+        render_upload("s3"); s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="s3s"); l=st.selectbox("Class",CLASSES,key="s3l"); p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
+        if st.button("Teach Practical",key="s3b"): obj=get_practical_obj(s,l,p); a,src,lvl=tutor_brain(f"Teach {p} practical for {l}. Objective: {obj}",l,"notes",s, False); display_preview(a,"s3",s,l)
     with t4:
-        st.text_input("🔎 Search", key="search_t4")
-        render_upload("s4"); s=st.selectbox("Subject",SUBJECTS,key="s4s"); l=st.selectbox("Class",CLASSES,key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t_topics")
-        if st.button("Explain Diagram",key="s4b"): a,src,lvl=tutor_brain(f"Explain diagram for {t} in {s} {l}",l,"smart",s, False); display_preview(a,"s4")
-
+        render_upload("s4"); s=st.selectbox("Subject",SUBJECTS,key="s4s"); l=st.selectbox("Class",CLASSES,key="s4l"); t=st.selectbox("Topic",get_topics(s,l),key="s4t")
+        if st.button("Explain Diagram",key="s4b"): a,src,lvl=tutor_brain(f"Explain diagram for {t} in {s} {l}",l,"smart",s, False); display_preview(a,"s4",s,l)
     with t5:
-        st.text_input("🔎 Search", key="search_t5")
-        st.subheader("Research")
         render_upload("s5"); s=st.selectbox("Subject",SUBJECTS,key="s5s"); l=st.selectbox("Class",CLASSES,key="s5l")
         rq=st.text_area("Research Topic",key="s5rq")
         c1,c2=st.columns(2)
-        if c1.button("Research From DB",key="s5rb") and rq: a,src,lvl=tutor_brain(f"Research project on {rq} for {l} {s}",l,"research",s, False); display_preview(a,"s5res")
-        if c2.button("Invent Research Idea",key="s5gen") and rq: a,src,lvl=tutor_brain(f"Invent new NCDC research topic related to {rq} for {l} {s}",l,"research",s, True); display_preview(a,"s5gen")
+        if c1.button("Research From DB",key="s5rb") and rq: a,src,lvl=tutor_brain(f"Research project on {rq} for {l} {s}",l,"research",s, False); display_preview(a,"s5res",s,l)
+        if c2.button("Invent Research Idea",key="s5gen") and rq: a,src,lvl=tutor_brain(f"Invent new NCDC research topic related to {rq} for {l} {s}",l,"research",s, True); display_preview(a,"s5gen",s,l)
 
-### 10. ADMIN PORTAL ###
 def show_admin():
-    st.header("🏫 Admin Portal")
+    st.header("🏫 Admin Portal");
     if st.button("Logout", key="admin_logout"): st.session_state.clear(); st.rerun()
     tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams"])
-
     with tabs[0]:
         q=st.text_area("Ask Analytics",key="aq")
-        if st.button("Ask"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"a")
+        if st.button("Ask"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"a","General","S4")
     with tabs[1]:
         s=st.selectbox("Subject",SUBJECTS,key="as"); l=st.selectbox("Class",CLASSES,key="al"); t=st.multiselect("Topics",get_topics(s,l), key="a1_topics")
-        if st.button("Scheme"): a,src,lvl=tutor_brain(f"Scheme for {l} {s} {t}",l,"notes",s, False); display_preview(a,"scheme")
+        if st.button("Scheme"): a,src,lvl=tutor_brain(f"Scheme for {l} {s} {t}",l,"notes",s, False); display_preview(a,"scheme",s,l)
     with tabs[2]:
         s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="ps"); l=st.selectbox("Class",CLASSES,key="pl"); p=st.selectbox("Practical",get_practicals(s,l)+["Invent"],key="pp")
-        if st.button("Guide"): a,src,lvl=tutor_brain(f"Lab manual for {p} {l} {s}",l,"notes",s, "Invent" in p); display_preview(a,"pg")
+        if st.button("Guide"): a,src,lvl=tutor_brain(f"Lab manual for {p} {l} {s}",l,"notes",s, "Invent" in p); display_preview(a,"pg",s,l)
     with tabs[3]:
         s=st.selectbox("Subject",SUBJECTS,key="bs"); l=st.selectbox("Class",CLASSES,key="bl"); t=st.multiselect("Topics",get_topics(s,l), key="a2_topics"); n=st.slider("Qs",10,100,50)
-        if st.button("Bulk"): a,src,lvl=tutor_brain(f"{n} NCDC Qs + Marking from {t} for {l} {s}",l,"notes",s, False); display_preview(a,"bulk")
+        if st.button("Bulk"): a,src,lvl=tutor_brain(f"{n} NCDC Qs + Marking from {t} for {l} {s}",l,"notes",s, False); display_preview(a,"bulk",s,l)
     with tabs[4]:
         st.metric("FAISS Chunks",len(vector_rag.docs)); render_upload("a5")
         q=st.text_area("Ask RAG",key="ragq")
-        if st.button("Ask RAG"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"rag")
+        if st.button("Ask RAG"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"rag","General","S4")
     with tabs[5]:
-        s=st.selectbox("Subject",SUBJECTS,key="ls"); l=st.selectbox("Class",CLASSES,key="ll"); t=st.selectbox("Topic",get_topics(s,l),key="lt_topics")
-        if st.button("Lesson"): a,src,lvl=tutor_brain(f"Lesson Plan {l} {s} {t}",l,"notes",s, False); display_preview(a,"lesson")
+        s=st.selectbox("Subject",SUBJECTS,key="ls"); l=st.selectbox("Class",CLASSES,key="ll"); t=st.selectbox("Topic",get_topics(s,l),key="lt")
+        if st.button("Lesson"): a,src,lvl=tutor_brain(f"Lesson Plan {l} {s} {t}",l,"notes",s, False); display_preview(a,"lesson",s,l)
     with tabs[6]:
         n=st.number_input("Students",1,1000,100)
-        if st.button("Reports"): a,src,lvl=tutor_brain(f"{n} Report Cards","S4","notes","General", False); display_preview(a,"report")
+        if st.button("Reports"): a,src,lvl=tutor_brain(f"{n} Report Cards","S4","notes","General", False); display_preview(a,"report","General","S4")
     with tabs[7]:
         q=st.text_area("Predictor",key="prq")
-        if st.button("Ask"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"pr")
+        if st.button("Ask"): a,src,lvl=tutor_brain(q,"S4","smart","General", False); display_preview(a,"pr","General","S4")
     with tabs[8]:
         s=st.selectbox("Subject",SUBJECTS,key="exs"); l=st.selectbox("Class",CLASSES,key="exl"); t=st.multiselect("Topics",get_topics(s,l), key="a3_topics")
-        if st.button("Exam"): a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False); display_preview(a,"exam")
+        if st.button("Full Exam"): a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False); display_preview(a,"exam",s,l)
 
 ### 11. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - TOKEN ECONOMY")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC")
 with st.sidebar:
-    st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
-    st.metric("Mode", mode_badge)
-    st.metric("Memory", f"{len(chat_mem.mem)} msgs")
-    st.metric("Tokens", f"Budget: {token_econ.TOKEN_BUDGET}")
+    st.metric("RAM",f"{SYS_STATE['ram']:.0f}%"); st.metric("Mode", mode_badge)
     pw=st.text_input("Password",type="password", key="main_login_pw")
-    c1,c2=st.columns(2)
-    if c1.button("Student Login",key="btn_student_login") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
-    if c2.button("Admin Login",key="btn_admin_login") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
+    if st.button("Student Login") and pw==STUDENT_PASSWORD: st.session_state.role="Student"; st.rerun()
+    if st.button("Admin Login") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.rerun()
 if st.session_state.get("role")=="Admin": show_admin()
 elif st.session_state.get("role")=="Student": show_student()
 else: st.info("Login. Student=1234 Admin=admin123")
