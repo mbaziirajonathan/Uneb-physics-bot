@@ -2,15 +2,13 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# Runtime deps for PyMuPDF, pillow, matplotlib, python-docx, reportlab, pypdf
-# poppler-utils added for better PDF text extraction
+# Runtime deps - slimmed down for google-genai
+# Only need these for PyMuPDF, pillow, python-docx
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    gcc \
-    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Streamlit settings for Render
@@ -18,18 +16,19 @@ ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 ENV STREAMLIT_SERVER_RUN_ON_SAVE=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-# Tell app this is CLOUD so it skips local LLM and uses OPENROUTER
+# Tell app this is CLOUD so it uses GEMINI_API_KEY first, then OPENROUTER
 ENV DEPLOY_ENV=cloud
 
 # Install python deps
 COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
 COPY . .
 
 # Create folder for persistent data on Render Disk
-RUN mkdir -p /data/assets/labels
+RUN mkdir -p /data/assets
 
 # Tell app to save files to /data
 ENV STREAMLIT_DATA_PATH=/data
