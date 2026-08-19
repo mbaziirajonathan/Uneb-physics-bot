@@ -5,7 +5,7 @@ pillow
 requests
 python-dotenv
 psutil
-ticktoken
+tiktoken
 # AI SDKs - OPENROUTER ONLY
 openai
 
