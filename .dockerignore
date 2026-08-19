@@ -33,7 +33,7 @@ Thumbs.db
 models/
 ollama/
 
-# Local server data - we use /data on Render
+# Local server data - we use /tmp on Render free tier
 data/
 C:/unebserver/
 local_llm_server.log
@@ -47,6 +47,6 @@ tests/
 .ipynb_checkpoints
 
 # Keep JSON files for app logic but ignore local copies
-# App will create fresh ones in /data on Render
+# App will create fresh ones in /tmp on Render
 local_cache.json
 local_memory.json
