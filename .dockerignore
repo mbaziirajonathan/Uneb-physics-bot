@@ -12,6 +12,7 @@ __pycache__
 # Env files - NEVER push keys to github
 .env
 .env.local
+.env.*
 
 # Python venv
 .venv
@@ -22,27 +23,30 @@ env/
 .DS_Store
 Thumbs.db
 
-# Local assets - comment this if you have logo/css < 50MB
-assets/
+# Local assets - uncomment if you have big files >10MB
+# assets/
 
-# Local LLM - must ignore for free tier
+# Local LLM - must ignore for cloud deploy
 *.gguf
 *.bin
 *.safetensors
+models/
+ollama/
+
+# Local server data - we use /data on Render
+data/
 C:/unebserver/
 local_llm_server.log
-models/
 
 # Dev stuff we don't need in cloud
 .devcontainer/
 Dockerfile.local
 README.md
 *.md
+tests/
+.ipynb_checkpoints
 
-# IMPORTANT: Keep these so your app starts clean
-# DO NOT IGNORE: *.json 
-# Your app creates: usage_log.json, ai_cache.json, vector_docs.json, chat_memory.json
-# Render Disk at /data will handle persistence
-
-# Local data folder - Render will use /data disk instead
-data/
+# Keep JSON files for app logic but ignore local copies
+# App will create fresh ones in /data on Render
+local_cache.json
+local_memory.json
