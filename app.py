@@ -39,9 +39,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # AUG 2026 MODEL NAMES - STABLE
 AI_MODEL = os.getenv("AI_MODEL", "gemini-2.5-flash") 
 ALL_MODELS = [
-    "gemini-2.5-flash", # Primary: Direct SDK - Fast + Cheap. AUG 2026
-    "gemini-2.5-pro", # Backup 1: Direct SDK - Smarter
-    "openrouter/free" # Backup 2: Router for free models. UNCHANGED
+    "gemini-1.5-flash-latest", # Primary: STABLE AUG 2026. Works with all keys
+    "gemini-2.5-pro", # Backup 1: If you have quota
+    "openrouter/free" # Backup 2: Unchanged
 ]
 
 # Passwords
@@ -110,9 +110,9 @@ def health_check():
             try:
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash", # AUG 2026 STABLE
-                    contents=[types.Content(role="user", parts=[types.Part(text="Reply with OK only")])]
-                )
+    model="gemini-1.5-flash-latest", # CHANGED
+    contents=[types.Content(role="user", parts=[types.Part(text="Reply with OK only")])]
+)
                 st.sidebar.success(f"✅ Gemini OK: {response.text[:20]}")
             except Exception as e:
                 st.sidebar.error(f"❌ Gemini Failed: {str(e)[:100]}")
