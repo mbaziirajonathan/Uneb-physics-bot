@@ -180,7 +180,18 @@ def load_master_db():
         "Agriculture": {"S1-S4": {"Farm Tools Identification": {"objective": "Identify and maintain farm tools", "apparatus": "Hoe, Panga"}, "Physical & Chemical Soil Testing": {"objective": "Determine soil pH and texture", "apparatus": "Soil sample, pH indicator"}, "Crop Agronomy (Nursery Bed Management)": {"objective": "Manage nursery bed", "apparatus": "Seeds, Watering can"}, "Livestock Management Exercises": {"objective": "Identify animal feeds and parasites", "apparatus": "Feed samples"}, "DIT Vocational Assessment Practice": {"objective": "Execute Level 1 husbandry", "apparatus": "Poultry equipment"}, "Activities of Integration (AOI)": {"objective": "Develop farm record keeping framework", "apparatus": "Book, Pen"}}, "S5-S6": {"Advanced Soil Science Analysis": {"objective": "Measure soil cation exchange capacity", "apparatus": "Soil, Reagents"}, "Agronomic Field Trials": {"objective": "Compare organic vs inorganic fertilizer", "apparatus": "Plot, Fertilizers"}, "Animal Nutrition & Feed Formulation": {"objective": "Formulate balanced rations", "apparatus": "Feed ingredients, Scale"}, "Agricultural Engineering & Mechanisation": {"objective": "Analyze tractor engine systems", "apparatus": "Tractor"}, "Farm Economics & Management Portfolio": {"objective": "Construct balance sheets", "apparatus": "Calculator, Records"}}}
       }
     }
-    return load_db(MASTER_DB_FILE, default_db)
+ class TTLSchoolCache:
+    def __init__(self, ttl=7200):
+        self.ttl=ttl
+        self.cache=load_db(CACHE_FILE,{})
+    def get(self,q):
+        k=hashlib.sha256(q.encode()).hexdigest()
+        if k in self.cache and time.time()<self.cache[k][1]:
+            return self.cache[k][0]
+        return None
+    def set(self,q,a):
+        self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]
+        save_db(CACHE_FILE,self.cache)
 
 NCDC_DB = load_master_db()
 THEORY_DB = NCDC_DB["theory"]
