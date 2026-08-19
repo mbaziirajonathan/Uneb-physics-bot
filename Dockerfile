@@ -2,8 +2,8 @@ FROM python:3.11.9-slim
 
 WORKDIR /app
 
-# Runtime deps - slimmed down for google-genai
-# Only need these for PyMuPDF, pillow, python-docx
+# Runtime deps - slimmed for cloud
+# Only need these for pillow, python-docx
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
-COPY . .
+COPY .
 
 # Create folder for persistent data on Render Disk
 RUN mkdir -p /data/assets
