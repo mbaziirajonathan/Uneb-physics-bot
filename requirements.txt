@@ -1,11 +1,15 @@
 streamlit
-openai
 pandas
 numpy
 pillow
 requests
-python-docx
-PyMuPDF
-pypdf
-psutil
 python-dotenv
+psutil
+
+# AI SDKs - NEW ARCH
+openai
+google-genai
+
+# File Handling
+python-docx
+pypdf
