@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib, tiktoken
+import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime
@@ -9,7 +9,15 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-# LAZY LOAD HEAVY LIBS - Prevents crash on Render free 512MB
+# TOKEN COUNTER - OPTIONAL DEPENDENCY
+try:
+    import tiktoken
+    TIKTOKEN_AVAILABLE = True
+except ModuleNotFoundError:
+    TIKTOKEN_AVAILABLE = False
+    st.sidebar.warning("tiktoken not installed. Using rough token estimate ~4 chars = 1 token")
+
+# LAZY LOAD HEAVY LIBS
 numpy = None
 faiss = None
 SentenceTransformer = None
