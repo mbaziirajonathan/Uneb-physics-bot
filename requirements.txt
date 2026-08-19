@@ -6,9 +6,12 @@ requests
 python-dotenv
 psutil
 
-# AI SDKs - NEW ARCH
+# AI SDKs - OPENROUTER ONLY
 openai
-google-genai
+
+# RAG + Embeddings
+sentence-transformers
+faiss-cpu
 
 # File Handling
 python-docx
