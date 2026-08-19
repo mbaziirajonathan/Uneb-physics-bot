@@ -3,13 +3,10 @@ import os
 import json
 import hashlib
 import time
-import re
 from datetime import datetime
-import pandas as pd
 import psutil
-import requests
 from openai import OpenAI
-from google import genai # NEW: Modern Google GenAI library
+from google import genai # Modern Google GenAI library Aug 2026
 from google.genai import types
 from dotenv import load_dotenv
 
@@ -19,7 +16,7 @@ from docx import Document
 
 # ================== CONFIG ==================
 load_dotenv()
-APP_TITLE = "UNEB AI TUTOR V6.4.8-MODERN"
+APP_TITLE = "UNEB AI TUTOR V6.4.9-MODERN"
 
 # FREE TIER FIX: Use /tmp if /data doesn't exist
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
@@ -39,11 +36,12 @@ LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Cleaned Active 2026 Model Fallback Array
+# AUG 2026 MODEL NAMES - STABLE
 AI_MODEL = os.getenv("AI_MODEL", "gemini-2.5-flash") 
 ALL_MODELS = [
-    "gemini-2.5-flash", # Primary: Direct SDK - uses AQ key
-    "openrouter/free" # Backup: Router for free models
+    "gemini-2.5-flash", # Primary: Direct SDK - Fast + Cheap. AUG 2026
+    "gemini-2.5-pro", # Backup 1: Direct SDK - Smarter
+    "openrouter/free" # Backup 2: Router for free models. UNCHANGED
 ]
 
 # Passwords
@@ -62,25 +60,27 @@ UNEB_CURRICULUM_MAP = {
 
 SYSTEM_PROMPT = """You are UNEB AI Tutor for Uganda NCDC. Explain step-by-step like a Ugandan teacher. 
 Use simple English, headings, and 2 local examples.
-Subject: {subject} | Level: {level}"""
+Subject: {subject} | Level: {level} | Topic: {topic}"""
 
 # ================== RAG + CACHE ==================
 ai_cache = {}
-rag_docs = []
 
 def load_cache():
     global ai_cache
-    if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, 'r') as f: ai_cache = json.load(f)
+    try:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f: ai_cache = json.load(f)
+    except: ai_cache = {}
 load_cache()
 
 def save_cache():
     try:
-        with open(CACHE_FILE, 'w') as f: json.dump(ai_cache, f)
+        with open(CACHE_FILE, 'w', encoding='utf-8') as f: json.dump(ai_cache, f)
     except: pass
 
 def log_usage(user, query):
-    pass # Add your log function back
+    # Add your log logic here
+    pass
 
 # ================== HEALTH CHECK SIDEBAR ==================
 def health_check():
@@ -88,10 +88,10 @@ def health_check():
     st.sidebar.write(f"**Data Path:** `{DATA_PATH}`")
     
     # 1. Check Keys
-    if GEMINI_API_KEY and GEMINI_API_KEY.startswith("AQ"):
+    if GEMINI_API_KEY and len(GEMINI_API_KEY) > 20:
         st.sidebar.success("✅ GEMINI_API_KEY: Loaded")
     else:
-        st.sidebar.error("❌ GEMINI_API_KEY: Missing or Invalid")
+        st.sidebar.error("❌ GEMINI_API_KEY: Missing")
         
     if OPENROUTER_API_KEY and OPENROUTER_API_KEY.startswith("sk-or"):
         st.sidebar.success("✅ OPENROUTER_API_KEY: Loaded")
@@ -99,27 +99,29 @@ def health_check():
         st.sidebar.warning("⚠️ OPENROUTER_API_KEY: Missing")
     
     # 2. Check Disk Space
-    disk = psutil.disk_usage(DATA_PATH)
-    st.sidebar.info(f"💾 Disk Free: {disk.free / 1024 / 1024:.1f} MB")
+    try:
+        disk = psutil.disk_usage(DATA_PATH)
+        st.sidebar.info(f"💾 Disk Free: {disk.free / 1024 / 1024:.1f} MB")
+    except: pass
     
-    # 3. Test Gemini Call
+    # 3. Test Gemini Call - AUG 2026 NAME
     if st.sidebar.button("🧪 Test Gemini Key"):
         with st.sidebar.spinner("Pinging gemini-2.5-flash..."):
             try:
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[types.Content(role="user", parts=[types.Part(text="Say OK")])]
+                    model="gemini-2.5-flash", # AUG 2026 STABLE
+                    contents=[types.Content(role="user", parts=[types.Part(text="Reply with OK only")])]
                 )
-                st.sidebar.success(f"✅ Gemini OK: {response.text[:10]}")
+                st.sidebar.success(f"✅ Gemini OK: {response.text[:20]}")
             except Exception as e:
-                st.sidebar.error(f"❌ Gemini Failed: {str(e)[:80]}")
+                st.sidebar.error(f"❌ Gemini Failed: {str(e)[:100]}")
 
 health_check()
 
-# ================== AI CALL V6.4.8 ==================
-def ai_call(prompt, system_prompt, subject, level):
-    system_prompt = system_prompt.format(subject=subject, level=level)
+# ================== AI CALL V6.4.9 ==================
+def ai_call(prompt, system_prompt, subject, level, topic):
+    system_prompt = system_prompt.format(subject=subject, level=level, topic=topic)
     full_prompt = f"{system_prompt}\n\nStudent Question: {prompt}"
     cache_key = hashlib.md5(full_prompt.encode()).hexdigest()
     if cache_key in ai_cache: return ai_cache[cache_key] + " [CACHED]"
@@ -132,19 +134,19 @@ def ai_call(prompt, system_prompt, subject, level):
             st.sidebar.write(f"⏳ Trying: `{m}`")
             
             # --- PATH 1: DIRECT GEMINI SDK with AQ key ---
-            if "gemini" in m:
+            if "gemini" in m and "openrouter" not in m:
                 if not GEMINI_API_KEY: raise ValueError("GEMINI_API_KEY missing")
                 
                 client = genai.Client(api_key=GEMINI_API_KEY)
                 response = client.models.generate_content(
-                    model=m,
+                    model=m, # will be gemini-2.5-flash or gemini-2.5-pro
                     contents=[
                         types.Content(role="user", parts=[types.Part(text=full_prompt)])
                     ]
                 )
                 answer = response.text
 
-            # --- PATH 2: OPENROUTER ROUTER ---
+            # --- PATH 2: OPENROUTER ROUTER - UNCHANGED ---
             else:
                 if not OPENROUTER_API_KEY: raise ValueError("OPENROUTER_API_KEY missing")
                 or_client = OpenAI(
@@ -179,12 +181,12 @@ with col1: level = st.selectbox("Level", list(UNEB_CURRICULUM_MAP.keys()))
 with col2: subject = st.selectbox("Subject", list(UNEB_CURRICULUM_MAP[level].keys()))
 with col3: topic = st.selectbox("Topic", UNEB_CURRICULUM_MAP[level][subject])
 
-query = st.text_area("Ask your UNEB Question:", height=100)
+query = st.text_area("Ask your UNEB Question:", height=120, placeholder="e.g. Explain osmosis with 2 local examples")
 
-if st.button("Ask AI Tutor"):
+if st.button("Ask AI Tutor", type="primary"):
     if query:
         with st.spinner("Thinking..."):
-            answer = ai_call(query, SYSTEM_PROMPT, subject, level)
+            answer = ai_call(query, SYSTEM_PROMPT, subject, level, topic)
             st.markdown(answer)
             log_usage("student", query)
     else:
