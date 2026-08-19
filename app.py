@@ -164,13 +164,19 @@ threading.Thread(target=keep_alive, daemon=True).start()
 @st.cache_resource
 def get_client(): return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
 @st.cache_resource
-def get_embedder(): global SentenceTransformer;
-if SentenceTransformer is None: from sentence_transformers import SentenceTransformer; return SentenceTransformer('all-MiniLM-L6-v2')
+def get_embedder():
+    global SentenceTransformer
+    if SentenceTransformer is None:
+        from sentence_transformers import SentenceTransformer
+    return SentenceTransformer('all-MiniLM-L6-v2')
 @st.cache_resource
-def get_faiss(): global faiss, numpy;
-if faiss is None: import faiss;
-if numpy is None: import numpy as np; return faiss, np
-SYS_STATE=system_check(); client=get_client() if SYS_STATE["online"] else None; mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%"
+def get_faiss():
+    global faiss, numpy
+    if faiss is None:
+        import faiss
+    if numpy is None:
+        import numpy as np
+    return faiss, np
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
     def get(self,q): k=hashlib.sha256(q.encode()).hexdigest();
