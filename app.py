@@ -20,7 +20,12 @@ from docx import Document
 # ================== CONFIG ==================
 load_dotenv()
 APP_TITLE = "UNEB AI TUTOR V6.4.8-MODERN"
+
+# FREE TIER FIX: Use /tmp if /data doesn't exist
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "/data")
+if not os.path.exists(DATA_PATH) or not os.access(DATA_PATH, os.W_OK):
+    DATA_PATH = "/tmp"
+    
 ASSETS_PATH = os.path.join(DATA_PATH, "assets")
 os.makedirs(ASSETS_PATH, exist_ok=True)
 
@@ -32,7 +37,7 @@ LOG_FILE = os.path.join(DATA_PATH, "usage_log.json")
 
 # Keys Configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # NEW: Put your AQ... or Ab... key here
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Cleaned Active 2026 Model Fallback Array
 AI_MODEL = os.getenv("AI_MODEL", "gemini-2.5-flash") 
@@ -62,8 +67,6 @@ Subject: {subject} | Level: {level}"""
 # ================== RAG + CACHE ==================
 ai_cache = {}
 rag_docs = []
-CACHE_FILE = "/data/ai_cache.json"
-VECTOR_FILE = "/data/vector_docs.json"
 
 def load_cache():
     global ai_cache
@@ -72,7 +75,47 @@ def load_cache():
 load_cache()
 
 def save_cache():
-    with open(CACHE_FILE, 'w') as f: json.dump(ai_cache, f)
+    try:
+        with open(CACHE_FILE, 'w') as f: json.dump(ai_cache, f)
+    except: pass
+
+def log_usage(user, query):
+    pass # Add your log function back
+
+# ================== HEALTH CHECK SIDEBAR ==================
+def health_check():
+    st.sidebar.title("🔧 System Health")
+    st.sidebar.write(f"**Data Path:** `{DATA_PATH}`")
+    
+    # 1. Check Keys
+    if GEMINI_API_KEY and GEMINI_API_KEY.startswith("AQ"):
+        st.sidebar.success("✅ GEMINI_API_KEY: Loaded")
+    else:
+        st.sidebar.error("❌ GEMINI_API_KEY: Missing or Invalid")
+        
+    if OPENROUTER_API_KEY and OPENROUTER_API_KEY.startswith("sk-or"):
+        st.sidebar.success("✅ OPENROUTER_API_KEY: Loaded")
+    else:
+        st.sidebar.warning("⚠️ OPENROUTER_API_KEY: Missing")
+    
+    # 2. Check Disk Space
+    disk = psutil.disk_usage(DATA_PATH)
+    st.sidebar.info(f"💾 Disk Free: {disk.free / 1024 / 1024:.1f} MB")
+    
+    # 3. Test Gemini Call
+    if st.sidebar.button("🧪 Test Gemini Key"):
+        with st.sidebar.spinner("Pinging gemini-2.5-flash..."):
+            try:
+                client = genai.Client(api_key=GEMINI_API_KEY)
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[types.Content(role="user", parts=[types.Part(text="Say OK")])]
+                )
+                st.sidebar.success(f"✅ Gemini OK: {response.text[:10]}")
+            except Exception as e:
+                st.sidebar.error(f"❌ Gemini Failed: {str(e)[:80]}")
+
+health_check()
 
 # ================== AI CALL V6.4.8 ==================
 def ai_call(prompt, system_prompt, subject, level):
@@ -146,6 +189,3 @@ if st.button("Ask AI Tutor"):
             log_usage("student", query)
     else:
         st.warning("Please type a question")
-
-def log_usage(user, query):
-    pass # Add your log function back
