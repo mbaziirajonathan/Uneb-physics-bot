@@ -50,3 +50,7 @@ tests/
 # App will create fresh ones in /tmp on Render
 local_cache.json
 local_memory.json
+
+# HEAVY ML CACHE - prevents 1GB upload
+.huggingface/
+.cache/
