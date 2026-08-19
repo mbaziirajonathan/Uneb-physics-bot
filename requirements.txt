@@ -6,13 +6,8 @@ requests
 python-dotenv
 psutil
 tiktoken
-# AI SDKs - OPENROUTER ONLY
 openai
-
-# RAG + Embeddings
 sentence-transformers
 faiss-cpu
-
-# File Handling
 python-docx
 pypdf
