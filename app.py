@@ -51,13 +51,16 @@ for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEM
 ### 2. TOKEN ECONOMICS ENGINE ###
 class TokenEconomist:
     def __init__(self):
-        try: self.enc = tiktoken.get_encoding("cl100k_base")
-        except: self.enc = None
+        if TIKTOKEN_AVAILABLE: 
+            self.enc = tiktoken.get_encoding("cl100k_base")
+        else: 
+            self.enc = None
         self.TOKEN_BUDGET = 3500
         self.PRESERVED_MEMORY_TOKENS = 400
 
     def count_tokens(self, text):
-        return len(self.enc.encode(text)) if self.enc else len(text)//4
+        if self.enc: return len(self.enc.encode(text))
+        return len(text)//4 # rough fallback
 
     def auto_quantize(self, rag_chunks, prompt, system_prompt):
         available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
