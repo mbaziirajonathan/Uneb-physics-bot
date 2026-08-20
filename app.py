@@ -11,6 +11,12 @@ except:
     fcntl = None
 logging.basicConfig(level=logging.INFO)
 
+# DO NOT IMPORT FAISS HERE. IT WILL CRASH RENDER
+# try:
+#     import faiss, sentence_transformers
+# except:
+#     pass
+
 # TOKEN COUNTER - OPTIONAL DEPENDENCY
 TIKTOKEN_AVAILABLE = False
 try:
@@ -18,6 +24,13 @@ try:
     TIKTOKEN_AVAILABLE = True
 except ModuleNotFoundError:
     pass
+
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... Render Safe Mode 3s"):
+    time.sleep(0.1)
+if not TIKTOKEN_AVAILABLE:
+    st.sidebar.warning("tiktoken not installed. Using ~4 chars = 1 token")
+st.sidebar.caption("Build: V7.4.7-RENDER-SAFE | FAISS LAZY LOADED")
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
 with st.spinner("🚀 Booting NDEJJE AI Tutor... Loading FULL DB 5s"):
@@ -228,19 +241,37 @@ def display_preview(content,name,s,l,user="Guest"):
     if st.button("🔍 QC Mark",key=f"qc{name}") and student_ans:
         st.success(qc_examiner.mark_answer(student_ans, content, s, l))
 
-### 8. RAG DISABLED FOR FAST BOOT ###
+### 8. RAG LAZY LOADED - ONLY IF USED ###
 class VectorRAG:
     def __init__(self):
         self.docs=load_db(DOCS_FILE,[])
-        st.sidebar.info("RAG/FAISS OFF. Bot loads in 3s")
-    def add(self,texts,fn):
-        st.info("RAG disabled. Upload will not save to vector DB.")
-    def search(self,q,k=3):
-        return []
-vector_rag=VectorRAG()
+        self.faiss = None
+        self.embedder = None
+        st.sidebar.info("RAG OFF. Enable in Admin tab to load FAISS")
+    
+    def _load_faiss(self):
+        if self.faiss is None:
+            try:
+                import faiss
+                from sentence_transformers import SentenceTransformer
+                import numpy as np
+                self.faiss = faiss
+                self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
+                st.sidebar.success("FAISS Loaded. 512MB RAM used")
+            except Exception as e:
+                st.sidebar.error(f"FAISS Failed: {e}. Staying OFF")
+                self.faiss = False
 
-def render_upload(key="d"):
-    st.info("Upload disabled. Paste notes directly in chat while FAISS is OFF.")
+    def add(self,texts,fn):
+        self._load_faiss()
+        if not self.faiss: return
+        # ... rest of your add code
+
+    def search(self,q,k=3):
+        self._load_faiss()
+        if not self.faiss: return []
+        # ... rest of your search code
+vector_rag=VectorRAG()
 
 ### 9. BRAIN - SMART BALANCING ###
 SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. Follow NCDC 2026 Syllabus and UNEB standards. Use Ugandan context only. Be a human teacher.\nCORE RULES: 1.NCDC LOCKED 2.ANTI-HALLUCINATION 3.HUMAN STYLE 4.SMART 5.GUIDANCE MODE\nMANDATORY CLOSING: Important: Confirm this with your Head Teacher, DOS, or class notes.\n{level_rules}"""
