@@ -9,10 +9,10 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7 FULL DB"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.1", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.1 FULL DB"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7-FULLDB-18SUBJECTS | TTL CACHE ON")
+st.sidebar.caption("Build: V8.7.1-FULLDB-18SUBJECTS | TTL CACHE ON | OPENROUTER FIX")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -167,7 +167,7 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
         return cached_answer + "\n\n*✅ Served from Cache*", [], level
 
-    model = st.session_state.get("ai_model", "qwen2.5:14b-instruct")
+    model = st.session_state.get("ai_model", "qwen/qwen-2.5-14b-instruct") # FIXED
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
     messages = [{"role":"system","content":system}, {"role":"user","content":q}]
@@ -179,7 +179,7 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
     if user: log_activity(user["user"], f"Cached: {q[:20]}")
     return ans, [], level
 
-### 8. STUDENT PORTAL V8.7 ###
+### 8. STUDENT PORTAL V8.7.1 ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
@@ -244,19 +244,22 @@ def show_admin(user):
     with tabs[1]: st.write(f"Total Subjects: {len(SUBJECTS)}")
     with tabs[2]: st.write("Scheme Generator")
     with tabs[3]: st.write("MOES Reports")
-    with tabs[4]:
-    st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
-    st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-    model = st.selectbox("AI Model", [
-        "qwen/qwen-2.5-14b-instruct - Cheap, Fast",
-        "meta-llama/llama-3.1-405b-instruct - Meta AI Level",
-        "openai/gpt-4o - ChatGPT Level",
-        "google/gemini-2.0-flash-exp - Fastest"
-    ])
-    st.session_state["ai_model"] = model.split(" - ")[0]
-    if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
+    with tabs[4]: # FIXED INDENTATION
+        st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
+        st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
+        model = st.selectbox("AI Model", [
+            "qwen/qwen-2.5-14b-instruct - Cheap, Fast",
+            "meta-llama/llama-3.1-405b-instruct - Meta AI Level",
+            "openai/gpt-4o - ChatGPT Level",
+            "google/gemini-2.0-flash-exp - Fastest"
+        ])
+        st.session_state["ai_model"] = model.split(" - ")[0]
+        if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
+    with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
+    if st.button("Logout"): st.session_state.clear(); st.rerun()
+
 ### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.1")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
