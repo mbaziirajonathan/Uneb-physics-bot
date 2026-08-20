@@ -7,7 +7,5 @@ python-dotenv
 psutil
 tiktoken
 openai
-sentence-transformers
-faiss-cpu
 python-docx
 pypdf
