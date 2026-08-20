@@ -99,7 +99,8 @@ class TokenEconomist:
             model = "google/gemini-2.0-flash-lite"
         return compressed_rag, model, depth_tokens # Return depth needed
     
-     def compress_memory(self, messages):
+    
+    def compress_memory(self, messages):
         if len(messages) <= 4:
             return messages
         return messages[-4:]
