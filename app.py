@@ -25,7 +25,7 @@ faiss = None
 SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-st.sidebar.caption("Build: V7.3.6-NDEJJE-QC-SIT | FULL 18 SUBJECTS + QC")
+st.sidebar.caption("Build: V7.3.7-NDEJJE-QC-HUMAN | FULL 18 SUBJECTS + NCDC LOCKED")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -118,57 +118,51 @@ class UgandanTeacher:
         if is_science and level_num >= 3:
             return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE. Explain WHY scientifically.\nRULE 2: REAL APPLICATIONS: {apps}\nRULE 3: SECTORS YOU CAN HELP:\n{sectors}\nRULE 4: {sit}\nRULE 5: Use Ugandan context only."
         return f"TEACHING STYLE: NCDC HUMANITIES TEACHER\n1. Cause -> Effect -> Impact\n2. SECTORS:\n{sectors}\n3. {sit}"
+
     def format_answer(self, raw, subject, level):
         text = raw
         import re
-    
-    # 1. DICTIONARY OF ALL MATH SYMBOLS -> HUMAN
-    symbol_map = {
-        # Powers and roots
-        "sqrt": "√",
-        # Greek letters used in all sciences
-        "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ", 
-        "lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω",
-        # Operators
-        "*": " × ", "/": " ÷ ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ",
-        "->": " leads to ", "=>": " therefore ", "~": " ≈ ",
-        # Units
-        "m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³",
-        "kg/m^3": "kg/m³", "m/s^2": "m/s²"
-    }
-    
-    # 2. LOOP 1: CONVERT POWERS x^2, (a+b)^n -> x², (a+b)ⁿ
-    superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
-    def to_superscript(match):
-        base = match.group(1)
-        power = match.group(2)
-        sup = ''.join(superscripts.get(c,c) for c in power)
-        return f"{base}{sup}"
-    text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
-    
-    # 3. LOOP 2: CONVERT ROOTS sqrt(x) -> √x
-    text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
-    text = re.sub(r'sqrt\s+(\w+)', r'√\1', text, flags=re.IGNORECASE)
-    
-    # 4. LOOP 3: CONVERT ALL OTHER SYMBOLS FROM DICT
-    for old, new in symbol_map.items():
-        text = text.replace(old, new)
-    
-    # 5. LOOP 4: REMOVE COMPUTER JUNK
-    junk = ["$", "{", "}", "[", "]", "*"]
-    for j in junk:
-        text = text.replace(j, "")
-    
-    # 6. MAKE NCDC SECTIONS HUMAN FOR ALL SUBJECTS
-    human_rules = {
-        "SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:",
-        "DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values", 
-        "CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"
-    }
-    for old, new in human_rules.items():
-        text = text.replace(old, new)
-        
-    return text
+
+        # 1. CONVERT POWERS x^2, (a+b)^n -> x², (a+b)ⁿ
+        superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
+        def to_superscript(match):
+            base = match.group(1)
+            power = match.group(2)
+            sup = ''.join(superscripts.get(c,c) for c in power)
+            return f"{base}{sup}"
+        text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
+
+        # 2. CONVERT ROOTS sqrt(x) -> √x
+        text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
+        text = re.sub(r'sqrt\s+(\w+)', r'√\1', text, flags=re.IGNORECASE)
+
+        # 3. CONVERT ALL OTHER SYMBOLS TO HUMAN
+        symbol_map = {
+            "sqrt": "√", "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ",
+            "lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω",
+            "*": " × ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ",
+            "->": " leads to ", "=>": " therefore ", "~": " ≈ ",
+            "m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³",
+            "kg/m^3": "kg/m³", "m/s^2": "m/s²"
+        }
+        for old, new in symbol_map.items():
+            text = text.replace(old, new)
+
+        # 4. REMOVE COMPUTER JUNK BUT KEEP /
+        junk = ["$", "{", "}", "[", "]"]
+        for j in junk:
+            text = text.replace(j, "")
+
+        # 5. MAKE NCDC SECTIONS HUMAN FOR ALL SUBJECTS
+        human_rules = {
+            "SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:",
+            "DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values",
+            "CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"
+        }
+        for old, new in human_rules.items():
+            text = text.replace(old, new)
+
+        return text
 
 class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
@@ -229,7 +223,9 @@ def load_master_db():
         "Agriculture": {"S1-S4": {"Farm Tools Identification": {"objective": "Identify and maintain farm tools", "apparatus": "Hoe, Panga"}, "Physical & Chemical Soil Testing": {"objective": "Determine soil pH and texture", "apparatus": "Soil sample, pH indicator"}, "Crop Agronomy (Nursery Bed Management)": {"objective": "Manage nursery bed", "apparatus": "Seeds, Watering can"}, "Livestock Management Exercises": {"objective": "Identify animal feeds and parasites", "apparatus": "Feed samples"}, "DIT Vocational Assessment Practice": {"objective": "Execute Level 1 husbandry", "apparatus": "Poultry equipment"}, "Activities of Integration (AOI)": {"objective": "Develop farm record keeping framework", "apparatus": "Book, Pen"}}, "S5-S6": {"Advanced Soil Science Analysis": {"objective": "Measure soil cation exchange capacity", "apparatus": "Soil, Reagents"}, "Agronomic Field Trials": {"objective": "Compare organic vs inorganic fertilizer", "apparatus": "Plot, Fertilizers"}, "Animal Nutrition & Feed Formulation": {"objective": "Formulate balanced rations", "apparatus": "Feed ingredients, Scale"}, "Agricultural Engineering & Mechanisation": {"objective": "Analyze tractor engine systems", "apparatus": "Tractor"}, "Farm Economics & Management Portfolio": {"objective": "Construct balance sheets", "apparatus": "Calculator, Records"}}}
       }
     }
- class TTLSchoolCache:
+    return default_db
+
+class TTLSchoolCache:
     def __init__(self, ttl=7200):
         self.ttl=ttl
         self.cache=load_db(CACHE_FILE,{})
@@ -296,18 +292,6 @@ SYS_STATE=system_check()
 client=get_client() if SYS_STATE["online"] else None
 mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%"
 
-class TTLSchoolCache:
-    def __init__(self, ttl=7200):
-        self.ttl=ttl
-        self.cache=load_db(CACHE_FILE,{})
-    def get(self,q):
-        k=hashlib.sha256(q.encode()).hexdigest()
-        if k in self.cache and time.time()<self.cache[k][1]:
-            return self.cache[k][0]
-        return None
-    def set(self,q,a):
-        self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]
-        save_db(CACHE_FILE,self.cache)
 ai_cache = TTLSchoolCache()
 
 class ChatMemory:
@@ -353,6 +337,19 @@ def topic_exists_in_db(prompt, subject, level):
         if p_name.lower() in prompt_l:
             return True, subject, level
     return False, subject, level
+
+def display_disclaimer():
+    st.markdown("""
+    <div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;">
+    <b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>
+    This AI Tutor is a learning helper only. It follows the Uganda NCDC Syllabus and UNEB standards.<br><br>
+    <b>You MUST:</b><br>
+    1. Confirm all content with your <b>Head Teacher, Director of Studies, Deputy, or Class Teacher</b>.<br>
+    2. Refer to your <b>official class notes and textbooks</b> as the final authority.<br>
+    3. This tool <b>does NOT replace</b> your class teacher, school lessons, or school requirements.<br><br>
+    Use this assistant to fill learning gaps and practice. For final exams and school policy, follow your school.
+    </div>
+    """, unsafe_allow_html=True)
 
 def display_preview(content,name,s,l):
     st.session_state.current_subject=s
@@ -453,8 +450,23 @@ def get_level_rules(level):
     rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
     return rules.get(level, rules["S4"])
 
-SYSTEM_PROMPT_OFFICIAL="""You are DIGITAL UNEB TUTOR 2026. Mark like Ndejje SS HOD. Be creative like Gemini Pro. Use analogies. PRIORITIZE ncdc_master_db.json. {level_rules}"""
-SYSTEM_PROMPT_GENERATIVE="""You are DIGITAL UNEB TUTOR 2026 - INVENT MODE. NCDC 2026 {subject} {level}. Ugandan context only."""
+SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. You are a helper assistant for students and teachers in Uganda, strictly following the NCDC Syllabus and UNEB standards for S1 to S6.
+
+CORE RULES - YOU MUST FOLLOW:
+1. NCDC/UNEB LOCKED: Only teach content in the Uganda NCDC syllabus. If a question is outside NCDC, say: "This topic is not in the NCDC syllabus for your level. Ask your class teacher."
+2. ANTI-HALLUCINATION: Never invent facts, formulas, dates, or past paper questions. If you are not 100% sure, say: "Let me guide you, but please confirm this with your Head Teacher, DOS, Deputy or your class notes."
+3. HUMAN TEACHER STYLE: Write like a Ugandan teacher with chalk. Use handwritten math: x² not x^2, m³, √, ×, ÷, ∑, Δ, π. Keep fractions as 3/2. Use local examples: boda, posho, market, school.
+4. GENERATIVE + SMART: Answer exactly what the user asked. Then add 1-2 smart follow-up questions to test understanding like "Can you try this one?" or "Why do you think that happens?"
+5. GUIDANCE MODE: If user asks "teach me" or "guide me", use SIT: Scenario, Item Given, Task. Break it into Step 1, Step 2, Step 3.
+6. ROLE LIMIT: You are a helper only. You do NOT replace the class teacher, school exams, or school rules.
+
+MANDATORY CLOSING FOR EVERY ANSWER:
+"Important: Confirm this with your Head Teacher, Director of Studies, Deputy, or your class notes. This AI is just a helper to fill gaps and is not replacing your class teacher or school requirements."
+
+Be patient, respectful, and clear. Mark like UNEB.
+{level_rules}"""
+
+SYSTEM_PROMPT_GENERATIVE="""You are NDEJJE SS AI TUTOR - INVENT MODE. NCDC 2026 {subject} {level}. Ugandan context only. Follow all 6 CORE RULES above."""
 
 def call_openrouter_api(messages, model, max_tokens):
     res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
@@ -496,7 +508,8 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
 
 ### 10. STUDENT + ADMIN PORTAL ###
 def show_student():
-    st.header("🧠 Digital Tutor V7.3.6")
+    st.header("🧠 Digital Tutor V7.3.7 - NDEJJE QC")
+    display_disclaimer()
     if st.button("Logout", key="student_logout"):
         st.session_state.clear()
         st.rerun()
@@ -562,6 +575,7 @@ def show_student():
 
 def show_admin():
     st.header("🏫 Admin Portal")
+    display_disclaimer()
     if st.button("Logout", key="admin_logout"):
         st.session_state.clear()
         st.rerun()
@@ -627,6 +641,7 @@ def show_admin():
 
 ### 11. LOGIN ###
 st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC")
+display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
     st.metric("Mode", mode_badge)
