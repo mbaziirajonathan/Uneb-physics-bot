@@ -65,30 +65,41 @@ class TokenEconomist:
             self.enc = tiktoken.get_encoding("cl100k_base")
         else:
             self.enc = None
-        self.TOKEN_BUDGET = 3500
+        self.TOKEN_BUDGET = 4000 # Increased from 3500
         self.PRESERVED_MEMORY_TOKENS = 400
+    
     def count_tokens(self, text):
         if self.enc:
             return len(self.enc.encode(text))
         return len(text)//4
-    def auto_quantize(self, rag_chunks, prompt, system_prompt):
+    
+    def detect_depth_needed(self, prompt):
+        p = prompt.lower()
+        deep_keywords = ["practical", "procedure", "derive", "explain", "teach me", "scheme", "lesson", "exam", "lab manual", "bulk", "research"]
+        if any(k in p for k in deep_keywords):
+            return 1200 # Deep mode
+        return 600 # Normal mode
+    
+    def auto_quantize(self, rag_chunks, prompt, system_prompt, mode="smart"):
+        depth_tokens = self.detect_depth_needed(prompt)
         available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
-        if available < 500:
-            available = 500
+        
         compressed_rag = []
         used = 0
         for chunk in rag_chunks:
             chunk_tokens = self.count_tokens(chunk['txt'])
-            if used + chunk_tokens < available:
+            if used + chunk_tokens < available - depth_tokens: # Reserve space for answer
                 compressed_rag.append(chunk)
                 used += chunk_tokens
             else:
                 break
+        
         model = "google/gemini-2.5-flash"
-        if used > 3000:
+        if used > 2500:
             model = "google/gemini-2.0-flash-lite"
-        return compressed_rag, model
-    def compress_memory(self, messages):
+        return compressed_rag, model, depth_tokens # Return depth needed
+    
+     def compress_memory(self, messages):
         if len(messages) <= 4:
             return messages
         return messages[-4:]
@@ -437,15 +448,48 @@ def render_upload(key="d"):
             st.success(f"Added to FAISS RAG")
 
 ### 9. BRAIN ###
-def detect_complexity(prompt):
-    p = prompt.lower()
-    if any(x in p for x in ["define","what is","list"]):
-        return "S1", 300
-    if any(x in p for x in ["explain","how","why"]):
-        return "S4", 600
-    if any(x in p for x in ["derive","evaluate","research","design","exam"]):
-        return "S6", 1200
-    return "S4", 600
+def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False, user="Guest"):
+    global SYS_STATE
+    SYS_STATE=system_check()
+    st.session_state.current_q = prompt
+    chat_mem.add("user", prompt)
+    log_activity(user, f"Asked: {prompt[:50]}")
+    
+    detected_level, _ = detect_complexity(prompt) if level=="Auto" else (level, 600)
+    sources=vector_rag.search(prompt,3)
+    topic_exists, subject, detected_level = topic_exists_in_db(prompt, subject, detected_level)
+    competency = get_competency(subject, detected_level)
+    level_rules = get_level_rules(detected_level)
+    practical_link = get_related_practicals(subject, detected_level, prompt)
+    matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
+    style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
+    
+    if not topic_exists and len(sources)==0 and not allow_invent:
+        return "Per NCDC 2026 this is not in syllabus. Click 'Invent/Extend' to generate.", [], detected_level
+        
+    sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent and not topic_exists else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
+    
+    compressed_sources, AI_MODEL, MAX_TOKENS = token_econ.auto_quantize(sources, prompt, sys_prompt, mode) # Now smart
+    
+    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nRAG:{compressed_sources}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
+    
+    cached=ai_cache.get(full_prompt+AI_MODEL)
+    if cached:
+        return f"[CACHED] {cached}", sources, detected_level
+        
+    if SYS_STATE["online"] and client:
+        try:
+            messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
+            ans = call_openrouter_api(messages, AI_MODEL, MAX_TOKENS) # Now uses 1200 for practicals
+            ans = teacher_style.format_answer(ans, subject, detected_level)
+            chat_mem.add("assistant", ans)
+            src_line = f"**Proof**: DB {subject} {detected_level}" if topic_exists else "**Proof**: [NCDC-GENERATIVE]"
+            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level}"
+            ai_cache.set(full_prompt+AI_MODEL,final_ans)
+            return final_ans, sources, detected_level
+        except Exception as e:
+            st.sidebar.error(f"Cloud failed: {e}")
+    return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
 
 def get_level_rules(level):
     rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
