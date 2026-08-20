@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib
+import streamlit as st, os, json, re, time, requests, random, threading, psutil, socket, hashlib
 from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime
@@ -25,7 +25,7 @@ faiss = None
 SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-st.sidebar.caption("Build: V7.4.0-NDEJJE-CONTROLLER | FULL 18 SUBJECTS + SEARCH EVERYWHERE")
+st.sidebar.caption("Build: V7.4.2-NDEJJE-FULLDB | FULL 18 SUBJECTS + FULL PRACTICALS + SMART")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -58,48 +58,49 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[]),(FLAGS_FILE,[])]:
     load_db(f,d)
 
-### 2. TOKEN ECONOMICS ENGINE ###
+### 2. TOKEN ECONOMICS ENGINE - SMART BALANCING ###
 class TokenEconomist:
     def __init__(self):
         if TIKTOKEN_AVAILABLE:
             self.enc = tiktoken.get_encoding("cl100k_base")
         else:
             self.enc = None
-        self.TOKEN_BUDGET = 4000 # Increased from 3500
+        self.TOKEN_BUDGET = 4000
         self.PRESERVED_MEMORY_TOKENS = 400
-    
+
     def count_tokens(self, text):
         if self.enc:
             return len(self.enc.encode(text))
         return len(text)//4
-    
+
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        deep_keywords = ["practical", "procedure", "derive", "explain", "teach me", "scheme", "lesson", "exam", "lab manual", "bulk", "research"]
+        deep_keywords = ["practical", "procedure", "derive", "explain", "teach me", "scheme", "lesson", "exam", "lab manual", "bulk", "research", "10 sit", "full"]
         if any(k in p for k in deep_keywords):
-            return 1200 # Deep mode
-        return 600 # Normal mode
-    
+            return 1200
+        if any(k in p for k in ["define", "what is", "list"]):
+            return 300
+        return 600
+
     def auto_quantize(self, rag_chunks, prompt, system_prompt, mode="smart"):
         depth_tokens = self.detect_depth_needed(prompt)
         available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
-        
+
         compressed_rag = []
         used = 0
         for chunk in rag_chunks:
             chunk_tokens = self.count_tokens(chunk['txt'])
-            if used + chunk_tokens < available - depth_tokens: # Reserve space for answer
+            if used + chunk_tokens < available - depth_tokens:
                 compressed_rag.append(chunk)
                 used += chunk_tokens
             else:
                 break
-        
+
         model = "google/gemini-2.5-flash"
         if used > 2500:
             model = "google/gemini-2.0-flash-lite"
-        return compressed_rag, model, depth_tokens # Return depth needed
-    
-    
+        return compressed_rag, model, depth_tokens
+
     def compress_memory(self, messages):
         if len(messages) <= 4:
             return messages
@@ -134,7 +135,6 @@ class UgandanTeacher:
 
     def format_answer(self, raw, subject, level):
         text = raw
-        import re
         superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
         def to_superscript(match):
             base = match.group(1)
@@ -143,16 +143,12 @@ class UgandanTeacher:
             return f"{base}{sup}"
         text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
         text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
-        text = re.sub(r'sqrt\s+(\w+)', r'√\1', text, flags=re.IGNORECASE)
         symbol_map = {"sqrt": "√", "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ","lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω","*": " × ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ","->": " leads to ", "=>": " therefore ", "~": " ≈ ","m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³","kg/m^3": "kg/m³", "m/s^2": "m/s²"}
         for old, new in symbol_map.items():
             text = text.replace(old, new)
         junk = ["$", "{", "}", "[", "]"]
         for j in junk:
             text = text.replace(j, "")
-        human_rules = {"SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:","DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values","CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"}
-        for old, new in human_rules.items():
-            text = text.replace(old, new)
         return text
 
 class QCExaminer:
@@ -169,11 +165,6 @@ class QCExaminer:
         if is_science and not any(u in student_answer for u in ["N","m","s","J","kg","mol","dm3"]):
             total-=1
             feedback.append("❌ -1: Missing Units. UNEB deducts 1 mark.")
-        fundamentals = {"Physics": ["Force","Energy"],"Chemistry": ["Mole","Reaction"],"Biology": ["Cell","Enzyme"]}
-        for fund in fundamentals.get(subject,[]):
-            if fund.lower() in correct_answer.lower() and fund.lower() not in student_answer.lower():
-                total-=1
-                feedback.append(f"❌ -1: Missed core concept: '{fund}'")
         total=max(0,total)
         grade="A - Distinction" if total>=8 else "B - Credit" if total>=6 else "C - Revise"
         if feedback:
@@ -211,7 +202,7 @@ teacher_style = UgandanTeacher()
 qc_examiner = QCExaminer()
 teacher_review = TeacherReview()
 
-### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS RESTORED - NO DATA LOST ###
+### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS + FULL PRACTICALS RESTORED ###
 @st.cache_data
 def load_master_db():
     default_db = {
@@ -308,7 +299,7 @@ def get_faiss():
 
 SYS_STATE=system_check()
 client=get_client() if SYS_STATE["online"] else None
-mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%"
+mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%" if SYS_STATE["online"] else f"📴 OFFLINE | RAM:{SYS_STATE['ram']:.0f}%"
 
 ai_cache = TTLSchoolCache()
 
@@ -356,8 +347,22 @@ def topic_exists_in_db(prompt, subject, level):
             return True, subject, level
     return False, subject, level
 
+def detect_complexity(prompt):
+    p = prompt.lower()
+    if any(x in p for x in ["define","what is","list"]):
+        return "S1", 300
+    if any(x in p for x in ["explain","how","why"]):
+        return "S4", 600
+    if any(x in p for x in ["derive","evaluate","research","design","exam","practical","10 sit"]):
+        return "S6", 1200
+    return "S4", 600
+
+def get_level_rules(level):
+    rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
+    return rules.get(level, rules["S4"])
+
 def display_disclaimer():
-    st.markdown("""<div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;"><b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>This AI Tutor is a learning helper only. It follows the Uganda NCDC Syllabus and UNEB standards.<br><br><b>You MUST:</b><br>1. Confirm all content with your <b>Head Teacher, Director of Studies, Deputy, or Class Teacher</b>.<br>2. Refer to your <b>official class notes and textbooks</b> as the final authority.<br>3. This tool <b>does NOT replace</b> your class teacher, school lessons, or school requirements.<br><br>Use this assistant to fill learning gaps and practice. For final exams and school policy, follow your school.</div>""", unsafe_allow_html=True)
+    st.markdown("""<div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;"><b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>This AI Tutor is a learning helper only. It follows the Uganda NCDC Syllabus and UNEB standards.<br><br><b>You MUST:</b><br>1. Confirm all content with your <b>Head Teacher, Director of Studies, Deputy, or Class Teacher</b>.<br>2. Refer to your <b>official class notes and textbooks</b> as the final authority.<br>3. This tool <b>does NOT replace</b> your class teacher, school lessons, or school requirements.</div>""", unsafe_allow_html=True)
 
 def display_preview(content,name,s,l,user="Guest"):
     st.session_state.current_subject=s
@@ -383,16 +388,6 @@ class VectorRAG:
         if os.path.exists(FAISS_FILE):
             faiss, np = get_faiss()
             self.index = faiss.read_index(FAISS_FILE)
-        self._rebuild_if_needed()
-    def _rebuild_if_needed(self):
-        if len(self.docs) > 0 and (self.index is None or self.index.ntotal!= len(self.docs)):
-            faiss, np = get_faiss()
-            embedder = get_embedder()
-            with st.spinner("Building FAISS Index..."):
-                embeddings = embedder.encode([d['txt'] for d in self.docs])
-                self.index = faiss.IndexFlatL2(384)
-                self.index.add(np.array(embeddings).astype('float32'))
-                faiss.write_index(self.index, FAISS_FILE)
     def add(self,texts,fn):
         faiss, np = get_faiss()
         embedder = get_embedder()
@@ -448,68 +443,10 @@ def render_upload(key="d"):
             vector_rag.add(chunk_text(text),f.name)
             st.success(f"Added to FAISS RAG")
 
-### 9. BRAIN ###
-def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False, user="Guest"):
-    global SYS_STATE
-    SYS_STATE=system_check()
-    st.session_state.current_q = prompt
-    chat_mem.add("user", prompt)
-    log_activity(user, f"Asked: {prompt[:50]}")
-    
-    detected_level, _ = detect_complexity(prompt) if level=="Auto" else (level, 600)
-    sources=vector_rag.search(prompt,3)
-    topic_exists, subject, detected_level = topic_exists_in_db(prompt, subject, detected_level)
-    competency = get_competency(subject, detected_level)
-    level_rules = get_level_rules(detected_level)
-    practical_link = get_related_practicals(subject, detected_level, prompt)
-    matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
-    style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
-    
-    if not topic_exists and len(sources)==0 and not allow_invent:
-        return "Per NCDC 2026 this is not in syllabus. Click 'Invent/Extend' to generate.", [], detected_level
-        
-    sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent and not topic_exists else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
-    
-    compressed_sources, AI_MODEL, MAX_TOKENS = token_econ.auto_quantize(sources, prompt, sys_prompt, mode) # Now smart
-    
-    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nRAG:{compressed_sources}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
-    
-    cached=ai_cache.get(full_prompt+AI_MODEL)
-    if cached:
-        return f"[CACHED] {cached}", sources, detected_level
-        
-    if SYS_STATE["online"] and client:
-        try:
-            messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-            ans = call_openrouter_api(messages, AI_MODEL, MAX_TOKENS) # Now uses 1200 for practicals
-            ans = teacher_style.format_answer(ans, subject, detected_level)
-            chat_mem.add("assistant", ans)
-            src_line = f"**Proof**: DB {subject} {detected_level}" if topic_exists else "**Proof**: [NCDC-GENERATIVE]"
-            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level}"
-            ai_cache.set(full_prompt+AI_MODEL,final_ans)
-            return final_ans, sources, detected_level
-        except Exception as e:
-            st.sidebar.error(f"Cloud failed: {e}")
-    return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
-
-def get_level_rules(level):
-    rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
-    return rules.get(level, rules["S4"])
-
+### 9. BRAIN - SMART BALANCING ###
 SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. You are a helper assistant for students and teachers in Uganda, strictly following the NCDC Syllabus and UNEB standards for S1 to S6.
-
-CORE RULES - YOU MUST FOLLOW:
-1. NCDC/UNEB LOCKED: Only teach content in the Uganda NCDC syllabus. If a question is outside NCDC, say: "This topic is not in the NCDC syllabus for your level. Ask your class teacher."
-2. ANTI-HALLUCINATION: Never invent facts, formulas, dates, or past paper questions. If you are not 100% sure, say: "Let me guide you, but please confirm this with your Head Teacher, DOS, Deputy or your class notes."
-3. HUMAN TEACHER STYLE: Write like a Ugandan teacher with chalk. Use handwritten math: x² not x^2, m³, √, ×, ÷, ∑, Δ, π. Keep fractions as 3/2. Use local examples: boda, posho, market, school.
-4. GENERATIVE + SMART: Answer exactly what the user asked. Then add 1-2 smart follow-up questions to test understanding like "Can you try this one?" or "Why do you think that happens?"
-5. GUIDANCE MODE: If user asks "teach me" or "guide me", use SIT: Scenario, Item Given, Task. Break it into Step 1, Step 2, Step 3.
-6. ROLE LIMIT: You are a helper only. You do NOT replace the class teacher, school exams, or school rules.
-
-MANDATORY CLOSING FOR EVERY ANSWER:
-"Important: Confirm this with your Head Teacher, Director of Studies, Deputy, or your class notes. This AI is just a helper to fill gaps and is not replacing your class teacher or school requirements."
-
-Be patient, respectful, and clear. Mark like UNEB.
+CORE RULES: 1. NCDC/UNEB LOCKED 2. ANTI-HALLUCINATION 3. HUMAN TEACHER STYLE 4. SMART 5. GUIDANCE MODE 6. ROLE LIMIT
+MANDATORY CLOSING: "Important: Confirm this with your Head Teacher, Director of Studies, Deputy, or your class notes. This AI is just a helper."
 {level_rules}"""
 
 SYSTEM_PROMPT_GENERATIVE="""You are NDEJJE SS AI TUTOR - INVENT MODE. NCDC 2026 {subject} {level}. Ugandan context only. Follow all 6 CORE RULES above."""
@@ -524,7 +461,8 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
     st.session_state.current_q = prompt
     chat_mem.add("user", prompt)
     log_activity(user, f"Asked: {prompt[:50]}")
-    detected_level, max_resp_tokens = detect_complexity(prompt) if level=="Auto" else (level, 600)
+
+    detected_level, _ = detect_complexity(prompt) if level=="Auto" else (level, 600)
     sources=vector_rag.search(prompt,3)
     topic_exists, subject, detected_level = topic_exists_in_db(prompt, subject, detected_level)
     competency = get_competency(subject, detected_level)
@@ -532,18 +470,23 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
     practical_link = get_related_practicals(subject, detected_level, prompt)
     matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
     style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
+
     if not topic_exists and len(sources)==0 and not allow_invent:
         return "Per NCDC 2026 this is not in syllabus. Click 'Invent/Extend' to generate.", [], detected_level
+
     sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent and not topic_exists else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
-    compressed_sources, AI_MODEL = token_econ.auto_quantize(sources, prompt, sys_prompt)
-    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nRAG:{compressed_sources}\nPRACTICAL:{practical_link}\nTASK:{prompt}"
+    compressed_sources, AI_MODEL, MAX_TOKENS = token_econ.auto_quantize(sources, prompt, sys_prompt, mode)
+
+    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nRAG:{compressed_sources}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
+
     cached=ai_cache.get(full_prompt+AI_MODEL)
     if cached:
         return f"[CACHED] {cached}", sources, detected_level
+
     if SYS_STATE["online"] and client:
         try:
             messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-            ans = call_openrouter_api(messages, AI_MODEL, max_resp_tokens)
+            ans = call_openrouter_api(messages, AI_MODEL, MAX_TOKENS)
             ans = teacher_style.format_answer(ans, subject, detected_level)
             chat_mem.add("assistant", ans)
             src_line = f"**Proof**: DB {subject} {detected_level}" if topic_exists else "**Proof**: [NCDC-GENERATIVE]"
@@ -552,11 +495,11 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
             return final_ans, sources, detected_level
         except Exception as e:
             st.sidebar.error(f"Cloud failed: {e}")
-    return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
+    return "[OFFLINE] No internet. Upload notes.", [], detected_level
 
 ### 10. STUDENT + ADMIN + CONTROLLER PORTAL ###
 def show_student(user):
-    st.header("🧠 Digital Tutor V7.4.0 - STUDENT")
+    st.header("🧠 Digital Tutor V7.4.2 - STUDENT")
     display_disclaimer()
     if st.button("Logout", key="student_logout"):
         st.session_state.clear()
@@ -677,17 +620,14 @@ def show_admin(user):
         if st.button("📝 Full Exam"):
             a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False, user)
             display_preview(a,"exam",s,l,user)
-    with tabs[9]: # CONTROLLER UNIT
+    with tabs[9]:
         st.subheader("🎛️ HM/DOS/Deputy Controller Unit")
-        st.metric("Total Users Active", "N/A")
         st.metric("Total Queries Today", len(load_db(LOG_FILE,[])))
         st.metric("Flagged Items", len(load_db(FLAGS_FILE,[])))
-
         st.divider()
         st.write("**Activity Log**")
         logs = load_db(LOG_FILE,[])[-50:]
         st.dataframe(logs, use_container_width=True)
-
         st.divider()
         st.write("**Flagged for Review**")
         flags = load_db(FLAGS_FILE,[])
@@ -697,13 +637,12 @@ def show_admin(user):
                 st.download_button("📥 Download Excel Report", f, "HOD_Review_Queue.xlsx")
         else:
             st.info("No flagged items yet")
-
         if st.button("🗑️ Clear Cache"):
             save_db(CACHE_FILE,{})
             st.success("AI Cache Cleared")
 
 ### 11. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V7.4.2")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
@@ -723,4 +662,3 @@ elif st.session_state.get("role")=="Student":
     show_student(st.session_state.user)
 else:
     st.info("Login. Student=1234 Admin=admin123")
-         
