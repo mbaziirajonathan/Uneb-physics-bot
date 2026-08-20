@@ -31,6 +31,8 @@ faiss = None
 SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
+with st.spinner("Loading AI Tutor... This takes 20s first time"):
+    pass
 if not TIKTOKEN_AVAILABLE:
     st.sidebar.warning("tiktoken not installed. Using rough token estimate ~4 chars = 1 token")
 st.sidebar.caption("Build: V7.4.3-NDEJJE-PATCHED | 100% BUG FREE")
@@ -375,19 +377,18 @@ def display_preview(content,name,s,l,user="Guest"):
         msg = teacher_review.flag_answer(q, content, student_flag, s, l, user)
         st.warning(msg)
 
-### 8. FAISS RAG ###
+### 8. FAISS DISABLED FOR NOW - NO CRASH ###
 class VectorRAG:
     def __init__(self):
         self.docs=load_db(DOCS_FILE,[])
-        self.index = None
     def add(self,texts,fn):
-        pass
+        st.info("RAG disabled. Notes will not be saved to vector DB.")
     def search(self,q,k=3):
         return []
 vector_rag=VectorRAG()
 
 def render_upload(key="d"):
-    st.file_uploader("Upload PDF/DOCX/TXT NCDC Notes",type=["pdf","docx","txt"],key=key)
+    st.info("Upload disabled while FAISS is off. Paste notes directly in chat.")
 
 ### 9. BRAIN - SMART BALANCING FIXED ###
 SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. Follow NCDC Syllabus. Use Ugandan examples. End with: Confirm with Head Teacher.\n{level_rules}"""
