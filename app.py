@@ -68,28 +68,24 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[]),(FLAGS_FILE,[])]:
     load_db(f,d)
 
-### 2. TOKEN ECONOMICS ENGINE ###
+### 8.6 TOKEN ECONOMIST V2 - NCDC COMPLEXITY SENSOR ###
 class TokenEconomist:
-    def __init__(self):
-        self.enc = tiktoken.get_encoding("cl100k_base") if TIKTOKEN_AVAILABLE else None
-        self.TOKEN_BUDGET = 4000
-        self.PRESERVED_MEMORY_TOKENS = 400
-    def count_tokens(self, text):
-        return len(self.enc.encode(text)) if self.enc else len(text)//4
-    def detect_depth_needed(self, prompt):
+    def detect_depth_needed(self, prompt): 
         p = prompt.lower()
-        if any(k in p for k in ["practical", "procedure", "derive", "exam", "lab manual", "research", "10 sit"]):
-            return 1200
-        if any(k in p for k in ["define", "what is", "list"]):
-            return 300
-        return 600
-    def auto_quantize(self, rag_chunks, prompt, system_prompt, mode="smart"):
-        depth_tokens = self.detect_depth_needed(prompt)
-        model = "google/gemini-2.5-flash"
-        return [], model, depth_tokens
-    def compress_memory(self, messages):
-        return messages[-4:] if len(messages) > 4 else messages
-token_econ = TokenEconomist()
+        # SENSOR 1: Keywords that mean "essay answer"
+        if any(k in p for k in ["deeply explore","explain in detail","discuss","factors","compare","derive","practical"]):
+            return 2800  # Full NCDC answer
+        # SENSOR 2: Level
+        if "s6" in p or "s5" in p: return 2000
+        if "s4" in p or "s3" in p: return 1500
+        if "s1" in p or "s2" in p: return 800
+        # SENSOR 3: Length
+        return 1500 if len(prompt)>100 else 800
+    
+    def auto_quantize(self,sources,prompt,system,mode): 
+        # Force best model for teaching
+        return sources,"qwen2.5:14b-instruct", self.detect_depth_needed(prompt)
+token_econ=TokenEconomist()
 
 ### 2B. UGANDAN TEACHER + QC ENGINE ###
 class NCDC2026Engine:
@@ -102,20 +98,26 @@ class NCDC2026Engine:
     def generate_10_sit(self, subject, level, topics):
         return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**"
 
-class UgandanTeacher:
-    def get_style_rules(self, subject, level, topic):
-        is_science = subject in ["Physics","Chemistry","Biology","Mathematics","Agriculture"]
-        level_num = int(level[1]) if level.startswith("S") else 4
-        sectors = "\n".join(ncdc_engine.get_sectors(subject))
-        sit = ncdc_engine.generate_sit(subject, level, topic)
-        if level_num <= 2:
-            return f"TEACHING STYLE: SIMPLE UGANDAN TEACHER\n1. 4 bullets. 1 Local example: boda, posho.\n2. WHERE YOU CAN USE THIS:\n{sectors}\n3. End: 'Do you understand, student?'"
-        if is_science and level_num >= 3:
-            return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE.\nRULE 2: SECTORS:\n{sectors}\nRULE 3: {sit}"
-        return f"TEACHING STYLE: NCDC HUMANITIES TEACHER\n1. Cause -> Effect -> Impact\n2. SECTORS:\n{sectors}\n3. {sit}"
-    def format_answer(self, raw, subject, level):
-        text = raw.replace("^2","²").replace("^3","³").replace("sqrt","√")
-        return text
+### 8.7 TEACHER STYLE V2 - NCDC OUTPUT FORMATTER ###
+class TeacherStyle:
+    def get_style_rules(self,subject,level,topic):
+        return f"""
+        RULE 1: NCDC 2026 FORMAT. You are an S{level} teacher in Uganda.
+        RULE 2: STRUCTURE: 1. Intro 2. Key Points with bold + bullets 3. Ugandan Example 4. Formula if Science 5. Summary
+        RULE 3: LENGTH: Use all {self.detect_depth_needed(topic)} tokens. Do not stop early. Be thorough.
+        RULE 4: TONE: "Alright class, settle down!" Start like a real teacher. Use "we" and "you".
+        RULE 5: ENDING: Always add 3 'Check Your Understanding' follow-up questions at the end.
+        """
+    
+    def format_answer(self,ans,subject,level):
+        # Force follow-up questions if AI forgot them
+        if "Check Your Understanding" not in ans and "Question" not in ans[-200:]:
+            ans += f"\n\n---\n**Check Your Understanding:**\n1. State 2 other factors that affect {subject} besides what we discussed.\n2. Give one Ugandan example where this is important.\n3. Why is this topic important for UNEB?"
+        return ans
+    
+    def detect_depth_needed(self,topic):
+        return token_econ.detect_depth_needed(topic)
+teacher_style=TeacherStyle()
 
 class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
