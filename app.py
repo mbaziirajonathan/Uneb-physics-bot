@@ -46,7 +46,7 @@ class TokenEconomist:
         if "s6" in p or "s5" in p: return 1800
         if "s4" in p or "s3" in p: return 1200
         return 800
-    def auto_quantize(self,sources,prompt,system,mode): return sources, st.session_state.get("ai_model", "qwen2.5:14b-instruct"), self.detect_depth_needed(prompt)
+    def auto_quantize(self,sources,prompt,system,mode): return sources, st.session_state.get("ai_model", "qwen/qwen-2.5-14b-instruct"), self.detect_depth_needed(prompt)
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
 
@@ -245,14 +245,16 @@ def show_admin(user):
     with tabs[2]: st.write("Scheme Generator")
     with tabs[3]: st.write("MOES Reports")
     with tabs[4]:
-        st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
-        st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-        model = st.selectbox("AI Model", ["qwen2.5:14b-instruct","meta-llama-3.1-405b-instruct","openai/gpt-4o","google/gemini-2.0-flash-exp"])
-        st.session_state["ai_model"] = model
-        if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
-    with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
-    if st.button("Logout"): st.session_state.clear(); st.rerun()
-
+    st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
+    st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
+    model = st.selectbox("AI Model", [
+        "qwen/qwen-2.5-14b-instruct - Cheap, Fast",
+        "meta-llama/llama-3.1-405b-instruct - Meta AI Level",
+        "openai/gpt-4o - ChatGPT Level",
+        "google/gemini-2.0-flash-exp - Fastest"
+    ])
+    st.session_state["ai_model"] = model.split(" - ")[0]
+    if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
 ### 10. LOGIN ###
 st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7")
 display_disclaimer()
