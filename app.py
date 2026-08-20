@@ -9,10 +9,10 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.4", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.4 AUTO FALLBACK"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.5", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.5 BULLETPROOF"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.4-FULLDB-18SUBJECTS | AUTO FREE MODEL")
+st.sidebar.caption("Build: V8.7.5-FULLDB-18SUBJECTS | AUTO ROUTER")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -40,18 +40,19 @@ for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEM
 
 ### 2. TOKEN ECONOMIST + TEACHER ###
 FREE_MODELS_PRIORITY = [
-    "qwen/qwen-2-7b-instruct:free", # 1st choice
-    "google/gemma-2-9b-it:free", # 2nd fallback
-    "microsoft/phi-3-mini-128k-instruct:free" # 3rd fallback
+    "deepseek/deepseek-chat-v3-0324:free", # Most stable free as of Aug 2026
+    "google/gemma-2-9b-it:free",
+    "microsoft/phi-3-mini-128k-instruct:free",
+    "openrouter/auto" # ULTIMATE FALLBACK: picks cheapest available
 ]
 
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1200
-        if "s6" in p or "s5" in p: return 1000
-        if "s4" in p or "s3" in p: return 800
-        return 600
+        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1000
+        if "s6" in p or "s5" in p: return 800
+        if "s4" in p or "s3" in p: return 600
+        return 500
     def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODELS_PRIORITY[0], self.detect_depth_needed(prompt)
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
@@ -162,7 +163,7 @@ def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return P
 def display_disclaimer():
     st.markdown("""<div style="background:#1e1e1e; border-left:5px solid #ffc107; padding:15px;"><h4 style="color:#ffc107">⚠️ NDEJJE DISCLAIMER</h4><p style="color:#ffc107">Confirm with Head Teacher, DOS, Subject Teacher.</p></div>""", unsafe_allow_html=True)
 
-### 7. BRAIN WITH CACHE + AUTO FALLBACK ###
+### 7. BRAIN WITH CACHE + AUTO ROUTER FALLBACK ###
 def tutor_brain(q, level, mode, subject, stream=True, user=None):
     if st.session_state.get("chat_locked", False): return "🔒 CHATBOT LOCKED BY HEAD TEACHER.", [], level
     if user and user.get("role")=="student" and not st.session_state.get("allow_all", True): return "⛔ NO PERMISSION.", [], level
@@ -179,11 +180,13 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
     if not client: return "Offline. Add OPENROUTER_API_KEY", [], level
 
     last_error = None
-    for model in FREE_MODELS_PRIORITY: # AUTO TRY ALL FREE MODELS
+    used_model = "None"
+    for model in FREE_MODELS_PRIORITY: # AUTO TRY ALL FREE MODELS + AUTO
         try:
             resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
             raw = resp.choices[0].message.content
-            st.sidebar.caption(f"AI: {model.split('/')[1]}") # Show which model worked
+            used_model = model
+            st.sidebar.caption(f"AI: {model}") # Show which model worked
             ans = teacher_style.format_answer(raw, subject, level)
             ai_cache.set(cache_key, ans)
             if user: log_activity(user["user"], f"Cached: {q[:20]}")
@@ -192,9 +195,11 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
             last_error = str(e)
             continue # try next model
 
-    return f"AI Error: All free models failed. Last error: {last_error[:100]}", [], level
+    # If we reach here, all failed
+    help_msg = "Add $5 credits to OpenRouter to unlock paid models."
+    return f"AI Error: All free models unavailable. \nLast error: {last_error[:120]}\n\n{help_msg}", [], level
 
-### 8. STUDENT PORTAL V8.7.4 ###
+### 8. STUDENT PORTAL V8.7.5 ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
@@ -262,13 +267,13 @@ def show_admin(user):
     with tabs[4]:
         st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
         st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-        st.info(f"Free Models Priority:\n1. {FREE_MODELS_PRIORITY[0]}\n2. {FREE_MODELS_PRIORITY[1]}\n3. {FREE_MODELS_PRIORITY[2]}")
+        st.warning(f"Free Models Priority:\n1. {FREE_MODELS_PRIORITY[0]}\n2. {FREE_MODELS_PRIORITY[1]}\n3. {FREE_MODELS_PRIORITY[2]}\n4. {FREE_MODELS_PRIORITY[3]}")
         if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
     with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
 ### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.4")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.5")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
