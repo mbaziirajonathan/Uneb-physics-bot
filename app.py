@@ -9,10 +9,10 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.3", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.3 FREE MODEL"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.4", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.4 AUTO FALLBACK"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.3-FULLDB-18SUBJECTS | MODEL: qwen-2-7b-free")
+st.sidebar.caption("Build: V8.7.4-FULLDB-18SUBJECTS | AUTO FREE MODEL")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -39,7 +39,11 @@ for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEM
     load_db(f,d)
 
 ### 2. TOKEN ECONOMIST + TEACHER ###
-FREE_MODEL_ID = "qwen/qwen-2-7b-instruct:free" # NEW FREE MODEL LOCKED
+FREE_MODELS_PRIORITY = [
+    "qwen/qwen-2-7b-instruct:free", # 1st choice
+    "google/gemma-2-9b-it:free", # 2nd fallback
+    "microsoft/phi-3-mini-128k-instruct:free" # 3rd fallback
+]
 
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
@@ -48,7 +52,7 @@ class TokenEconomist:
         if "s6" in p or "s5" in p: return 1000
         if "s4" in p or "s3" in p: return 800
         return 600
-    def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODEL_ID, self.detect_depth_needed(prompt)
+    def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODELS_PRIORITY[0], self.detect_depth_needed(prompt)
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
 
@@ -158,7 +162,7 @@ def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return P
 def display_disclaimer():
     st.markdown("""<div style="background:#1e1e1e; border-left:5px solid #ffc107; padding:15px;"><h4 style="color:#ffc107">⚠️ NDEJJE DISCLAIMER</h4><p style="color:#ffc107">Confirm with Head Teacher, DOS, Subject Teacher.</p></div>""", unsafe_allow_html=True)
 
-### 7. BRAIN WITH CACHE ###
+### 7. BRAIN WITH CACHE + AUTO FALLBACK ###
 def tutor_brain(q, level, mode, subject, stream=True, user=None):
     if st.session_state.get("chat_locked", False): return "🔒 CHATBOT LOCKED BY HEAD TEACHER.", [], level
     if user and user.get("role")=="student" and not st.session_state.get("allow_all", True): return "⛔ NO PERMISSION.", [], level
@@ -169,22 +173,28 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
         return cached_answer + "\n\n*✅ Served from Cache*", [], level
 
-    model = FREE_MODEL_ID # LOCKED FREE
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
     messages = [{"role":"system","content":system}, {"role":"user","content":q}]
     if not client: return "Offline. Add OPENROUTER_API_KEY", [], level
-    try:
-        resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
-        raw = resp.choices[0].message.content
-    except Exception as e:
-        return f"AI Error: {e}. Try again.", [], level
-    ans = teacher_style.format_answer(raw, subject, level)
-    ai_cache.set(cache_key, ans)
-    if user: log_activity(user["user"], f"Cached: {q[:20]}")
-    return ans, [], level
 
-### 8. STUDENT PORTAL V8.7.3 ###
+    last_error = None
+    for model in FREE_MODELS_PRIORITY: # AUTO TRY ALL FREE MODELS
+        try:
+            resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
+            raw = resp.choices[0].message.content
+            st.sidebar.caption(f"AI: {model.split('/')[1]}") # Show which model worked
+            ans = teacher_style.format_answer(raw, subject, level)
+            ai_cache.set(cache_key, ans)
+            if user: log_activity(user["user"], f"Cached: {q[:20]}")
+            return ans, [], level
+        except Exception as e:
+            last_error = str(e)
+            continue # try next model
+
+    return f"AI Error: All free models failed. Last error: {last_error[:100]}", [], level
+
+### 8. STUDENT PORTAL V8.7.4 ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
@@ -252,13 +262,13 @@ def show_admin(user):
     with tabs[4]:
         st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
         st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-        st.info(f"Model Locked: {FREE_MODEL_ID}")
+        st.info(f"Free Models Priority:\n1. {FREE_MODELS_PRIORITY[0]}\n2. {FREE_MODELS_PRIORITY[1]}\n3. {FREE_MODELS_PRIORITY[2]}")
         if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
     with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
 ### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.3")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.4")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
