@@ -11,12 +11,6 @@ except:
     fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-# REQUIRED DEPS CHECK
-try:
-    import faiss, sentence_transformers
-except:
-    pass # Will error later with better message
-
 # TOKEN COUNTER - OPTIONAL DEPENDENCY
 TIKTOKEN_AVAILABLE = False
 try:
@@ -25,28 +19,21 @@ try:
 except ModuleNotFoundError:
     pass
 
-# LAZY LOAD HEAVY LIBS
-numpy = None
-faiss = None
-SentenceTransformer = None
-
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-with st.spinner("Loading AI Tutor... This takes 20s first time"):
-    pass
+with st.spinner("🚀 Booting NDEJJE AI Tutor... Loading FULL DB 5s"):
+    time.sleep(0.1)
 if not TIKTOKEN_AVAILABLE:
-    st.sidebar.warning("tiktoken not installed. Using rough token estimate ~4 chars = 1 token")
-st.sidebar.caption("Build: V7.4.3-NDEJJE-PATCHED | 100% BUG FREE")
+    st.sidebar.warning("tiktoken not installed. Using ~4 chars = 1 token")
+st.sidebar.caption("Build: V7.4.5-NDEJJE-FULLDB-FASTBOOT | FAISS OFF")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
 if not os.path.exists(DATA_PATH) or not os.access(DATA_PATH, os.W_OK):
     DATA_PATH = "/tmp"
 os.makedirs(DATA_PATH, exist_ok=True)
-os.makedirs("models", exist_ok=True)
 
 LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE, MEMORY_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json","chat_memory.json"]]
 MASTER_DB_FILE = f"{DATA_PATH}/ncdc_master_db.json"
-FAISS_FILE = "models/faiss.index"
 FLAGS_FILE = f"{DATA_PATH}/flagged_reviews.json"
 
 def save_db(f,d):
@@ -68,56 +55,30 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[]),(FLAGS_FILE,[])]:
     load_db(f,d)
 
-### 2. TOKEN ECONOMICS ENGINE - SMART BALANCING FIXED ###
+### 2. TOKEN ECONOMICS ENGINE ###
 class TokenEconomist:
     def __init__(self):
-        if TIKTOKEN_AVAILABLE:
-            self.enc = tiktoken.get_encoding("cl100k_base")
-        else:
-            self.enc = None
+        self.enc = tiktoken.get_encoding("cl100k_base") if TIKTOKEN_AVAILABLE else None
         self.TOKEN_BUDGET = 4000
         self.PRESERVED_MEMORY_TOKENS = 400
-
     def count_tokens(self, text):
-        if self.enc:
-            return len(self.enc.encode(text))
-        return len(text)//4
-
+        return len(self.enc.encode(text)) if self.enc else len(text)//4
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        deep_keywords = ["practical", "procedure", "derive", "explain", "teach me", "scheme", "lesson", "exam", "lab manual", "bulk", "research", "10 sit", "full"]
-        if any(k in p for k in deep_keywords):
+        if any(k in p for k in ["practical", "procedure", "derive", "exam", "lab manual", "research", "10 sit"]):
             return 1200
         if any(k in p for k in ["define", "what is", "list"]):
             return 300
         return 600
-
     def auto_quantize(self, rag_chunks, prompt, system_prompt, mode="smart"):
         depth_tokens = self.detect_depth_needed(prompt)
-        available = self.TOKEN_BUDGET - self.count_tokens(system_prompt) - self.count_tokens(prompt) - self.PRESERVED_MEMORY_TOKENS
-
-        compressed_rag = []
-        used = 0
-        for chunk in rag_chunks:
-            chunk_tokens = self.count_tokens(chunk['txt'])
-            if used + chunk_tokens < available - depth_tokens:
-                compressed_rag.append(chunk)
-                used += chunk_tokens
-            else:
-                break
-
         model = "google/gemini-2.5-flash"
-        if used > 2500:
-            model = "google/gemini-2.0-flash-lite"
-        return compressed_rag, model, depth_tokens
-
+        return [], model, depth_tokens
     def compress_memory(self, messages):
-        if len(messages) <= 4:
-            return messages
-        return messages[-4:]
+        return messages[-4:] if len(messages) > 4 else messages
 token_econ = TokenEconomist()
 
-### 2B. UGANDAN TEACHER + SIT + QC + SECTORS ENGINE ###
+### 2B. UGANDAN TEACHER + QC ENGINE ###
 class NCDC2026Engine:
     SECTORS = {"health": "Hospitals, Nursing, Public Health","agriculture": "Farming, Vet, Agro-processing","engineering": "Civil, Electrical, Mechanical","economics": "Business, Banking, SACCOs","accounts": "Bookkeeping, Auditing","research": "UNEB, Universities, NARO","geology": "Mining, Water, Construction"}
     SUBJECT_SECTORS = {"Physics": ["engineering","health","agriculture"],"Chemistry": ["health","agriculture","engineering"],"Biology": ["health","agriculture"],"Mathematics": ["economics","accounts","engineering"],"Agriculture": ["agriculture","economics"],"Geography": ["geology","agriculture"],"Entrepreneurship": ["economics","accounts"],"ICT": ["research","engineering"]}
@@ -125,10 +86,8 @@ class NCDC2026Engine:
         return [f"**{s.title()}**: {self.SECTORS[s]}" for s in self.SUBJECT_SECTORS.get(subject, ["research"])]
     def generate_sit(self, subject, level, topic):
         return f"**NCDC 2026 SIT**\n**SCENARIO**: Ugandan community in {random.choice(['Gulu','Mbale','Mbarara','Wakiso'])} has problem with {topic}.\n**ITEM**: LC1 gives you data/equipment.\n**TASK**: 1. Apply {topic} 2. Show working 3. State 2 local challenges + solutions."
-    def get_applications(self, subject, topic):
-        return f"Use {topic} in: {', '.join(self.SUBJECT_SECTORS.get(subject, ['research']))}"
     def generate_10_sit(self, subject, level, topics):
-        return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**\nEach with: Scenario, Item, Task, 10 mark marking guide."
+        return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**"
 
 class UgandanTeacher:
     def get_style_rules(self, subject, level, topic):
@@ -136,81 +95,36 @@ class UgandanTeacher:
         level_num = int(level[1]) if level.startswith("S") else 4
         sectors = "\n".join(ncdc_engine.get_sectors(subject))
         sit = ncdc_engine.generate_sit(subject, level, topic)
-        apps = ncdc_engine.get_applications(subject, topic)
         if level_num <= 2:
-            return f"TEACHING STYLE: SIMPLE UGANDAN TEACHER\n1. 4 bullets. 1 Local example: boda, posho, market.\n2. WHERE YOU CAN USE THIS:\n{sectors}\n3. End: 'Do you understand, student?'"
+            return f"TEACHING STYLE: SIMPLE UGANDAN TEACHER\n1. 4 bullets. 1 Local example: boda, posho.\n2. WHERE YOU CAN USE THIS:\n{sectors}\n3. End: 'Do you understand, student?'"
         if is_science and level_num >= 3:
-            return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE. Explain WHY scientifically.\nRULE 2: REAL APPLICATIONS: {apps}\nRULE 3: SECTORS YOU CAN HELP:\n{sectors}\nRULE 4: {sit}\nRULE 5: Use Ugandan context only."
+            return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE.\nRULE 2: SECTORS:\n{sectors}\nRULE 3: {sit}"
         return f"TEACHING STYLE: NCDC HUMANITIES TEACHER\n1. Cause -> Effect -> Impact\n2. SECTORS:\n{sectors}\n3. {sit}"
-
     def format_answer(self, raw, subject, level):
-        text = raw
-        superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
-        def to_superscript(match):
-            base = match.group(1)
-            power = match.group(2)
-            sup = ''.join(superscripts.get(c,c) for c in power)
-            return f"{base}{sup}"
-        text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
-        text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
-        symbol_map = {"sqrt": "√", "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ","lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω","*": " × ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ","->": " leads to ", "=>": " therefore ", "~": " ≈ ","m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³","kg/m^3": "kg/m³", "m/s^2": "m/s²"}
-        for old, new in symbol_map.items():
-            text = text.replace(old, new)
-        junk = ["$", "{", "}", "[", "]"]
-        for j in junk:
-            text = text.replace(j, "")
+        text = raw.replace("^2","²").replace("^3","³").replace("sqrt","√")
         return text
 
 class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
-        total=10
-        feedback=[]
-        is_science = subject in ["Physics","Chemistry","Biology","Mathematics"]
-        if is_science and "=" in correct_answer and "=" not in student_answer:
-            total-=2
-            feedback.append("❌ -2: Missing Formula. State it first.")
-        if is_science and int(level[1])>=3 and not all(s.lower() in student_answer.lower() for s in ["Define","Substitute","Calculate"]):
-            total-=4
-            feedback.append("❌ -4: Missed working steps: Define, Substitute, Calculate")
-        if is_science and not any(u in student_answer for u in ["N","m","s","J","kg","mol","dm3"]):
-            total-=1
-            feedback.append("❌ -1: Missing Units. UNEB deducts 1 mark.")
-        total=max(0,total)
-        grade="A - Distinction" if total>=8 else "B - Credit" if total>=6 else "C - Revise"
-        if feedback:
-            return f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n\n**TEACHER FEEDBACK**:\n" + "\n".join(feedback)
-        else:
-            return f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n**Feedback**: Excellent work. No errors."
+        total=10; feedback=[]
+        if "=" in correct_answer and "=" not in student_answer: total-=2; feedback.append("❌ -2: Missing Formula.")
+        total=max(0,total); grade="A - Distinction" if total>=8 else "B - Credit" if total>=6 else "C - Revise"
+        return f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n" + ("\n".join(feedback) if feedback else "Excellent work.")
 
 class TeacherReview:
-    def __init__(self):
-        self.file = FLAGS_FILE
-        self.excel = f"{DATA_PATH}/HOD_Review_Queue.xlsx"
+    def __init__(self): self.file = FLAGS_FILE
     def flag_answer(self, question, ai_answer, student_comment, subject, level, user):
-        data = load_db(self.file, [])
-        entry = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "subject": subject, "level": level, "question": question, "ai_answer": ai_answer[:500], "student_comment": student_comment, "status": "PENDING"}
-        data.append(entry)
-        save_db(self.file, data)
-        self.export_to_excel(data)
-        log_activity(user, f"Flagged answer in {subject} {level}")
-        return "✅ Flagged. Your Head Teacher/DOS will review this."
-    def export_to_excel(self, data):
-        try:
-            import pandas as pd
-            df = pd.DataFrame(data)
-            df.to_excel(self.excel, index=False)
-        except:
-            pass
+        data = load_db(self.file, []); data.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"q":question[:50]}); save_db(self.file, data)
+        return "✅ Flagged. HOD will review."
 
 def log_activity(user, action):
-    logs = load_db(LOG_FILE, [])
-    logs.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "action": action})
-    save_db(LOG_FILE, logs[-1000:])
+    logs = load_db(LOG_FILE, []); logs.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "action": action}); save_db(LOG_FILE, logs[-1000:])
 
 ncdc_engine = NCDC2026Engine()
 teacher_style = UgandanTeacher()
 qc_examiner = QCExaminer()
 teacher_review = TeacherReview()
+
 ### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS + FULL PRACTICALS RESTORED ###
 @st.cache_data
 def load_master_db():
@@ -244,17 +158,9 @@ def load_master_db():
     return default_db
 
 class TTLSchoolCache:
-    def __init__(self, ttl=7200):
-        self.ttl=ttl
-        self.cache=load_db(CACHE_FILE,{})
-    def get(self,q):
-        k=hashlib.sha256(q.encode()).hexdigest()
-        if k in self.cache and time.time()<self.cache[k][1]:
-            return self.cache[k][0]
-        return None
-    def set(self,q,a):
-        self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]
-        save_db(CACHE_FILE,self.cache)
+    def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
+    def get(self,q): k=hashlib.sha256(q.encode()).hexdigest(); return self.cache[k][0] if k in self.cache and time.time()<self.cache[k][1] else None
+    def set(self,q,a): self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]; save_db(CACHE_FILE,self.cache)
 
 NCDC_DB = load_master_db()
 THEORY_DB = NCDC_DB["theory"]
@@ -262,137 +168,83 @@ PRACTICALS_DB = NCDC_DB["practicals"]
 SUBJECTS = list(THEORY_DB.keys())
 CLASSES = [f"S{i}" for i in range(1,7)]
 
-### 4-6. SECRETS, SYSTEM CHECK, CACHE ###
+### 4-6. SECRETS + SYSTEM ###
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY","")
 STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234")
 ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
-IS_CLOUD = os.getenv("DEPLOY_ENV") == "cloud"
 
 def system_check():
-    try:
-        socket.create_connection(("1.1.1.1", 53), timeout=2)
-        online = True
-    except:
-        online = False
-    ram = psutil.virtual_memory().percent
-    return {"online": online and OPENROUTER_API_KEY!= "", "ram": ram}
+    try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
+    except: online = False
+    return {"online": online and OPENROUTER_API_KEY!= "", "ram": psutil.virtual_memory().percent}
 
 def keep_alive():
-    while True:
-        time.sleep(840)
-        try:
-            requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
-        except:
-            pass
+    while True: time.sleep(840);
+    try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
+    except: pass
 threading.Thread(target=keep_alive, daemon=True).start()
 
 @st.cache_resource
 def get_client():
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
 
-@st.cache_resource
-def get_embedder():
-    global SentenceTransformer
-    if SentenceTransformer is None:
-        from sentence_transformers import SentenceTransformer
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-@st.cache_resource
-def get_faiss():
-    global faiss, numpy
-    if faiss is None:
-        import faiss
-    if numpy is None:
-        import numpy as np
-    return faiss, np
-
 SYS_STATE=system_check()
 client=get_client() if SYS_STATE["online"] else None
 mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%" if SYS_STATE["online"] else f"📴 OFFLINE | RAM:{SYS_STATE['ram']:.0f}%"
-
 ai_cache = TTLSchoolCache()
 
 class ChatMemory:
-    def __init__(self, ttl=600):
-        self.ttl=ttl
-        self.mem=load_db(MEMORY_FILE,[])
-    def add(self, role, content):
-        self.mem.append({"role":role,"content":content,"time":time.time()})
-        self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]
-        save_db(MEMORY_FILE,self.mem)
-    def get_context(self):
-        compressed = token_econ.compress_memory(self.mem)
-        return [{"role":m["role"],"content":m["content"]} for m in compressed]
+    def __init__(self, ttl=600): self.ttl=ttl; self.mem=load_db(MEMORY_FILE,[])
+    def add(self, role, content): self.mem.append({"role":role,"content":content,"time":time.time()}); self.mem = [m for m in self.mem if time.time() - m["time"] < self.ttl]; save_db(MEMORY_FILE,self.mem)
+    def get_context(self): return [{"role":m["role"],"content":m["content"]} for m in token_econ.compress_memory(self.mem)]
 chat_mem = ChatMemory()
 
 ### 7. HELPER FUNCTIONS ###
-def get_topics(s,l):
-    return THEORY_DB.get(s,{}).get(l,{}).get("topics",["General Topic"])
-def get_competency(s,l):
-    return THEORY_DB.get(s,{}).get(l,{}).get("competency","General")
-def get_practicals(s,l):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    return list(PRACTICALS_DB.get(s,{}).get(g,{}).keys()) or ["No Practicals"]
-def get_practical_obj(s,l,p):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    return PRACTICALS_DB.get(s,{}).get(g,{}).get(p,{}).get("objective","")
+def get_topics(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("topics",["General"])
+def get_competency(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("competency","General")
+def get_practicals(s,l): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return list(PRACTICALS_DB.get(s,{}).get(g,{}).keys()) or ["No Practicals"]
+def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return PRACTICALS_DB.get(s,{}).get(g,{}).get(p,{}).get("objective","")
 def get_related_practicals(s,l,topic):
-    g = "S1-S4" if int(l[1])<=4 else "S5-S6"
-    related = []
+    g = "S1-S4" if int(l[1])<=4 else "S5-S6"; related = []
     for p_name, p_data in PRACTICALS_DB.get(s,{}).get(g,{}).items():
-        if SequenceMatcher(None, topic.lower(), p_name.lower()).ratio() > 0.4 or topic.lower() in p_data["objective"].lower():
-            related.append(f"**{p_name}**: {p_data['objective']} | *Apparatus: {p_data['apparatus']}*")
+        if SequenceMatcher(None, topic.lower(), p_name.lower()).ratio() > 0.4: related.append(f"**{p_name}**: {p_data['objective']}")
     return "\n".join(related) if related else ""
 
 def detect_complexity(prompt):
     p = prompt.lower()
-    if any(x in p for x in ["define","what is","list"]):
-        return "S1", 300
-    if any(x in p for x in ["explain","how","why"]):
-        return "S4", 600
-    if any(x in p for x in ["derive","evaluate","research","design","exam","practical","10 sit"]):
-        return "S6", 1200
+    if any(x in p for x in ["define","what is","list"]): return "S1", 300
+    if any(x in p for x in ["derive","exam","practical"]): return "S6", 1200
     return "S4", 600
 
-def get_level_rules(level):
-    rules = {"S1": "Basic. 2-3 points.","S2": "Understanding. 3-4 points.","S3": "Skill Application. 4-5 points.","S4": "Scenario->Item->Task.","S5": "Analysis. Derivations.","S6": "Synthesis. Research."}
-    return rules.get(level, rules["S4"])
+def get_level_rules(level): return {"S1": "Basic.","S4": "Scenario->Item->Task.","S6": "Synthesis."}.get(level, "S4")
 
 def display_disclaimer():
-    st.markdown("""<div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;"><b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>Confirm all content with your <b>Head Teacher, DOS, Deputy, or Class Teacher</b>.</div>""", unsafe_allow_html=True)
+    st.markdown("""<div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px;"><b>⚠️ NDEJJE DISCLAIMER</b><br>Confirm with Head Teacher, DOS.</div>""", unsafe_allow_html=True)
 
 def display_preview(content,name,s,l,user="Guest"):
-    st.session_state.current_subject=s
-    st.session_state.current_level=l
-    st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}")
-    student_ans = st.text_area("✍️ Paste your answer for QC Marking", key=f"mark{name}")
-    student_flag = st.text_area("📝 Reason for Flagging - Optional", key=f"flag{name}")
-    c1,c2,c3=st.columns(3)
-    if c1.button("📥 Download",key=f"d{name}"):
-        st.download_button("Download",content.encode(),f"{name}.txt",key=f"dl{name}")
-    if c2.button("🔍 QC Mark My Answer",key=f"qc{name}") and student_ans:
+    st.session_state.current_subject=s; st.session_state.current_level=l
+    st.text_area("🤖 Tutor Output",content,height=400,key=f"p{name}")
+    student_ans = st.text_area("✍️ QC Marking", key=f"mark{name}")
+    if st.button("🔍 QC Mark",key=f"qc{name}") and student_ans:
         st.success(qc_examiner.mark_answer(student_ans, content, s, l))
-    if c3.button("🚩 Flag for Teacher Review",key=f"flagbtn{name}") and content:
-        q = st.session_state.get("current_q","N/A")
-        msg = teacher_review.flag_answer(q, content, student_flag, s, l, user)
-        st.warning(msg)
 
-### 8. FAISS DISABLED FOR NOW - NO CRASH ###
+### 8. RAG DISABLED FOR FAST BOOT ###
 class VectorRAG:
     def __init__(self):
         self.docs=load_db(DOCS_FILE,[])
+        st.sidebar.info("RAG/FAISS OFF. Bot loads in 3s")
     def add(self,texts,fn):
-        st.info("RAG disabled. Notes will not be saved to vector DB.")
+        st.info("RAG disabled. Upload will not save to vector DB.")
     def search(self,q,k=3):
         return []
 vector_rag=VectorRAG()
 
 def render_upload(key="d"):
-    st.info("Upload disabled while FAISS is off. Paste notes directly in chat.")
+    st.info("Upload disabled. Paste notes directly in chat while FAISS is OFF.")
 
-### 9. BRAIN - SMART BALANCING FIXED ###
-SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. Follow NCDC Syllabus. Use Ugandan examples. End with: Confirm with Head Teacher.\n{level_rules}"""
-SYSTEM_PROMPT_GENERATIVE="""You are NDEJJE SS AI TUTOR - INVENT MODE. NCDC 2026 {subject} {level}."""
+### 9. BRAIN - SMART BALANCING ###
+SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. Follow NCDC 2026 Syllabus and UNEB standards. Use Ugandan context only. Be a human teacher.\nCORE RULES: 1.NCDC LOCKED 2.ANTI-HALLUCINATION 3.HUMAN STYLE 4.SMART 5.GUIDANCE MODE\nMANDATORY CLOSING: Important: Confirm this with your Head Teacher, DOS, or class notes.\n{level_rules}"""
+SYSTEM_PROMPT_GENERATIVE="""You are NDEJJE SS AI TUTOR - INVENT MODE. NCDC 2026 {subject} {level}. Ugandan context only. Follow all 6 CORE RULES above."""
 
 def call_openrouter_api(messages, model, max_tokens):
     res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
@@ -410,13 +262,17 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
     competency = get_competency(subject, detected_level)
     level_rules = get_level_rules(detected_level)
     practical_link = get_related_practicals(subject, detected_level, prompt)
-    matched_topic = "General Topic"
+    matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
     style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
 
     sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
     compressed_sources, AI_MODEL, _ = token_econ.auto_quantize(sources, prompt, sys_prompt, mode)
 
-    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nTASK:{prompt}\n\nINSTRUCTION: If practical or S4-S6, give FULL procedure. Do not truncate."
+    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
+
+    cached=ai_cache.get(full_prompt+AI_MODEL)
+    if cached:
+        return f"[CACHED] {cached}", sources, detected_level
 
     if SYS_STATE["online"] and client:
         try:
@@ -424,20 +280,24 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
             ans = call_openrouter_api(messages, AI_MODEL, MAX_TOKENS)
             ans = teacher_style.format_answer(ans, subject, detected_level)
             chat_mem.add("assistant", ans)
-            return ans + f"\n\n**Proof**: DB {subject} {detected_level}\n**Level**: {detected_level}", sources, detected_level
+            src_line = f"**Proof**: DB {subject} {detected_level}"
+            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level}"
+            ai_cache.set(full_prompt+AI_MODEL,final_ans)
+            return final_ans, sources, detected_level
         except Exception as e:
             st.sidebar.error(f"Cloud failed: {e}")
-    return "[OFFLINE] No internet.", [], detected_level
+    return "[OFFLINE] No internet or API key. Set OPENROUTER_API_KEY.", [], detected_level
 
 ### 10. STUDENT + ADMIN + CONTROLLER PORTAL ###
 def show_student(user):
-    st.header("🧠 Digital Tutor V7.4.3 - STUDENT")
+    st.header("🧠 Digital Tutor V7.4.5 - STUDENT")
     display_disclaimer()
     if st.button("Logout", key="student_logout"):
         st.session_state.clear()
         st.rerun()
-    t1,t2,t3=st.tabs(["💬 Chat","📖 Learn","🧪 Practicals"])
+    t1,t2,t3,t4,t5=st.tabs(["💬 Chat","📖 Learn","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
     with t1:
+        render_upload("s1")
         s=st.selectbox("Subject",SUBJECTS,key="s1s")
         l=st.selectbox("Class",["Auto"]+CLASSES,key="s1l")
         q=st.text_area("Ask",key="s1q")
@@ -446,12 +306,22 @@ def show_student(user):
             a,src,lvl_out=tutor_brain(q,lvl,"smart",s, False, user)
             display_preview(a,"s1",s,lvl_out,user)
     with t2:
+        render_upload("s2")
         s=st.selectbox("Subject",SUBJECTS,key="s2s")
         l=st.selectbox("Class",CLASSES,key="s2l")
-        if st.button("📖 Notes",key="s2b"):
-            a,src,lvl=tutor_brain(f"Teach for {l} {s}",l,"notes",s, False, user)
+        t=st.selectbox("Topic",get_topics(s,l),key="s2t")
+        c1,c2,c3=st.columns(3)
+        if c1.button("📖 Notes",key="s2b"):
+            a,src,lvl=tutor_brain(f"Teach {t} for {l} {s}",l,"notes",s, False, user)
             display_preview(a,"s2",s,l,user)
+        if c2.button("❓ Quiz Me",key="s2q"):
+            a,src,lvl=tutor_brain(f"Quiz me on {t} for {l} {s}",l,"smart",s, False, user)
+            display_preview(a,"s2q",s,l,user)
+        if c3.button("📝 10 SIT Qns",key="s2sit"):
+            a,src,lvl=tutor_brain(ncdc_engine.generate_10_sit(s,l,t),l,"notes",s, False, user)
+            display_preview(a,"s2sit",s,l,user)
     with t3:
+        render_upload("s3")
         s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="s3s")
         l=st.selectbox("Class",CLASSES,key="s3l")
         p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
@@ -459,6 +329,22 @@ def show_student(user):
             obj=get_practical_obj(s,l,p)
             a,src,lvl=tutor_brain(f"Teach {p} practical for {l}. Objective: {obj}",l,"notes",s, False, user)
             display_preview(a,"s3",s,l,user)
+    with t4:
+        render_upload("s4")
+        s=st.selectbox("Subject",SUBJECTS,key="s4s")
+        l=st.selectbox("Class",CLASSES,key="s4l")
+        t=st.selectbox("Topic",get_topics(s,l),key="s4t")
+        if st.button("🖼️ Explain Diagram",key="s4b"):
+            a,src,lvl=tutor_brain(f"Explain diagram for {t} in {s} {l}",l,"smart",s, False, user)
+            display_preview(a,"s4",s,l,user)
+    with t5:
+        render_upload("s5")
+        s=st.selectbox("Subject",SUBJECTS,key="s5s")
+        l=st.selectbox("Class",CLASSES,key="s5l")
+        rq=st.text_area("Research Topic",key="s5rq")
+        if st.button("🔬 Research",key="s5rb") and rq:
+            a,src,lvl=tutor_brain(f"Research project on {rq} for {l} {s}",l,"research",s, False, user)
+            display_preview(a,"s5res",s,l,user)
 
 def show_admin(user):
     st.header("🏫 Admin Portal")
@@ -466,24 +352,82 @@ def show_admin(user):
     if st.button("Logout", key="admin_logout"):
         st.session_state.clear()
         st.rerun()
-    tabs=st.tabs(["📊 Analytics","📝 Exams","🎛️ Controller"])
+    tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams","🎛️ Controller"])
     with tabs[0]:
         q=st.text_area("Ask Analytics",key="aq")
         if st.button("🔍 Search"):
             a,src,lvl=tutor_brain(q,"S4","smart","General", False, user)
             display_preview(a,"a","General","S4",user)
     with tabs[1]:
+        s=st.selectbox("Subject",SUBJECTS,key="as")
+        l=st.selectbox("Class",CLASSES,key="al")
+        t=st.multiselect("Topics",get_topics(s,l), key="a1_topics")
+        if st.button("📅 Generate Scheme"):
+            a,src,lvl=tutor_brain(f"Scheme for {l} {s} {t}",l,"notes",s, False, user)
+            display_preview(a,"scheme",s,l,user)
+    with tabs[2]:
+        s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="ps")
+        l=st.selectbox("Class",CLASSES,key="pl")
+        p=st.selectbox("Practical",get_practicals(s,l)+["Invent"],key="pp")
+        if st.button("🔬 Lab Guide"):
+            a,src,lvl=tutor_brain(f"Lab manual for {p} {l} {s}",l,"notes",s, "Invent" in p, user)
+            display_preview(a,"pg",s,l,user)
+    with tabs[3]:
+        s=st.selectbox("Subject",SUBJECTS,key="bs")
+        l=st.selectbox("Class",CLASSES,key="bl")
+        t=st.multiselect("Topics",get_topics(s,l), key="a2_topics")
+        n=st.slider("Number of Qs",10,100,50)
+        if st.button("📤 Generate Bulk"):
+            a,src,lvl=tutor_brain(f"{n} NCDC Qs + Marking from {t} for {l} {s}",l,"notes",s, False, user)
+            display_preview(a,"bulk",s,l,user)
+    with tabs[4]:
+        st.metric("FAISS Status", "OFF - For Speed")
+        render_upload("a5")
+    with tabs[5]:
+        s=st.selectbox("Subject",SUBJECTS,key="ls")
+        l=st.selectbox("Class",CLASSES,key="ll")
+        t=st.selectbox("Topic",get_topics(s,l),key="lt")
+        if st.button("📝 Generate Lesson"):
+            a,src,lvl=tutor_brain(f"Lesson Plan {l} {s} {t}",l,"notes",s, False, user)
+            display_preview(a,"lesson",s,l,user)
+    with tabs[6]:
+        n=st.number_input("Number of Students",1,1000,100)
+        if st.button("📄 Generate Reports"):
+            a,src,lvl=tutor_brain(f"{n} Report Cards","S4","notes","General", False, user)
+            display_preview(a,"report","General","S4",user)
+    with tabs[7]:
+        q=st.text_area("Predictor Query",key="prq")
+        if st.button("📈 Predict"):
+            a,src,lvl=tutor_brain(q,"S4","smart","General", False, user)
+            display_preview(a,"pr","General","S4",user)
+    with tabs[8]:
         s=st.selectbox("Subject",SUBJECTS,key="exs")
         l=st.selectbox("Class",CLASSES,key="exl")
+        t=st.multiselect("Topics",get_topics(s,l), key="a3_topics")
         if st.button("📝 Full Exam"):
-            a,src,lvl=tutor_brain(f"Full NCDC exam for {l} {s}",l,"exam",s, False, user)
+            a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False, user)
             display_preview(a,"exam",s,l,user)
-    with tabs[2]:
+    with tabs[9]:
+        st.subheader("🎛️ HM/DOS/Deputy Controller Unit")
         st.metric("Total Queries Today", len(load_db(LOG_FILE,[])))
         st.metric("Flagged Items", len(load_db(FLAGS_FILE,[])))
+        st.divider()
+        st.write("**Activity Log**")
+        logs = load_db(LOG_FILE,[])[-50:]
+        st.dataframe(logs, use_container_width=True)
+        st.divider()
+        st.write("**Flagged for Review**")
+        flags = load_db(FLAGS_FILE,[])
+        if flags:
+            st.dataframe(flags, use_container_width=True)
+        else:
+            st.info("No flagged items yet")
+        if st.button("🗑️ Clear Cache"):
+            save_db(CACHE_FILE,{})
+            st.success("AI Cache Cleared")
 
 ### 11. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V7.4.3")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V7.4.5")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
