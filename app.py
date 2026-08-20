@@ -119,7 +119,56 @@ class UgandanTeacher:
             return f"TEACHING STYLE: DETAILED NCDC SCIENCE TEACHER\nRULE 1: FORMULA -> DEFINE -> SUBSTITUTE -> CALCULATE. Explain WHY scientifically.\nRULE 2: REAL APPLICATIONS: {apps}\nRULE 3: SECTORS YOU CAN HELP:\n{sectors}\nRULE 4: {sit}\nRULE 5: Use Ugandan context only."
         return f"TEACHING STYLE: NCDC HUMANITIES TEACHER\n1. Cause -> Effect -> Impact\n2. SECTORS:\n{sectors}\n3. {sit}"
     def format_answer(self, raw, subject, level):
-        return raw
+        text = raw
+        import re
+    
+    # 1. DICTIONARY OF ALL MATH SYMBOLS -> HUMAN
+    symbol_map = {
+        # Powers and roots
+        "sqrt": "√",
+        # Greek letters used in all sciences
+        "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ", 
+        "lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω",
+        # Operators
+        "*": " × ", "/": " ÷ ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ",
+        "->": " leads to ", "=>": " therefore ", "~": " ≈ ",
+        # Units
+        "m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³",
+        "kg/m^3": "kg/m³", "m/s^2": "m/s²"
+    }
+    
+    # 2. LOOP 1: CONVERT POWERS x^2, (a+b)^n -> x², (a+b)ⁿ
+    superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
+    def to_superscript(match):
+        base = match.group(1)
+        power = match.group(2)
+        sup = ''.join(superscripts.get(c,c) for c in power)
+        return f"{base}{sup}"
+    text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
+    
+    # 3. LOOP 2: CONVERT ROOTS sqrt(x) -> √x
+    text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
+    text = re.sub(r'sqrt\s+(\w+)', r'√\1', text, flags=re.IGNORECASE)
+    
+    # 4. LOOP 3: CONVERT ALL OTHER SYMBOLS FROM DICT
+    for old, new in symbol_map.items():
+        text = text.replace(old, new)
+    
+    # 5. LOOP 4: REMOVE COMPUTER JUNK
+    junk = ["$", "{", "}", "[", "]", "*"]
+    for j in junk:
+        text = text.replace(j, "")
+    
+    # 6. MAKE NCDC SECTIONS HUMAN FOR ALL SUBJECTS
+    human_rules = {
+        "SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:",
+        "DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values", 
+        "CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"
+    }
+    for old, new in human_rules.items():
+        text = text.replace(old, new)
+        
+    return text
 
 class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
