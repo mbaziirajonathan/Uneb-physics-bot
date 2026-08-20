@@ -1,4 +1,4 @@
-from difflib import SequenceMatcher 
+from difflib import SequenceMatcher
 import streamlit as st, os, io, json, re, time, requests, random, threading, psutil, socket, hashlib
 from dotenv import load_dotenv
 load_dotenv()
@@ -25,7 +25,7 @@ faiss = None
 SentenceTransformer = None
 
 st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 VDB", page_icon="🧠", layout="wide")
-st.sidebar.caption("Build: V7.3.7-NDEJJE-QC-HUMAN | FULL 18 SUBJECTS + NCDC LOCKED")
+st.sidebar.caption("Build: V7.4.0-NDEJJE-CONTROLLER | FULL 18 SUBJECTS + SEARCH EVERYWHERE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -37,6 +37,7 @@ os.makedirs("models", exist_ok=True)
 LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE, MEMORY_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json","chat_memory.json"]]
 MASTER_DB_FILE = f"{DATA_PATH}/ncdc_master_db.json"
 FAISS_FILE = "models/faiss.index"
+FLAGS_FILE = f"{DATA_PATH}/flagged_reviews.json"
 
 def save_db(f,d):
     with open(f,"w", encoding='utf-8') as file:
@@ -54,7 +55,7 @@ def load_db(f,default):
         save_db(f,default)
         return default
 
-for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[])]:
+for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[]),(FLAGS_FILE,[])]:
     load_db(f,d)
 
 ### 2. TOKEN ECONOMICS ENGINE ###
@@ -122,8 +123,6 @@ class UgandanTeacher:
     def format_answer(self, raw, subject, level):
         text = raw
         import re
-
-        # 1. CONVERT POWERS x^2, (a+b)^n -> x², (a+b)ⁿ
         superscripts = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','(':'⁽',')':'⁾','n':'ⁿ'}
         def to_superscript(match):
             base = match.group(1)
@@ -131,37 +130,17 @@ class UgandanTeacher:
             sup = ''.join(superscripts.get(c,c) for c in power)
             return f"{base}{sup}"
         text = re.sub(r'(\w|\))\^([\d\+\-\(\)n]+)', to_superscript, text)
-
-        # 2. CONVERT ROOTS sqrt(x) -> √x
         text = re.sub(r'sqrt\((.*?)\)', r'√(\1)', text, flags=re.IGNORECASE)
         text = re.sub(r'sqrt\s+(\w+)', r'√\1', text, flags=re.IGNORECASE)
-
-        # 3. CONVERT ALL OTHER SYMBOLS TO HUMAN
-        symbol_map = {
-            "sqrt": "√", "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ",
-            "lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω",
-            "*": " × ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ",
-            "->": " leads to ", "=>": " therefore ", "~": " ≈ ",
-            "m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³",
-            "kg/m^3": "kg/m³", "m/s^2": "m/s²"
-        }
+        symbol_map = {"sqrt": "√", "alpha": "α", "beta": "β", "gamma": "γ", "delta": "Δ", "theta": "θ","lambda": "λ", "mu": "μ", "sigma": "∑", "pi": "π", "omega": "Ω","*": " × ", ">=": " ≥ ", "<=": " ≤ ", "!=": " ≠ ","->": " leads to ", "=>": " therefore ", "~": " ≈ ","m^2": "m²", "m^3": "m³", "cm^2": "cm²", "cm^3": "cm³","kg/m^3": "kg/m³", "m/s^2": "m/s²"}
         for old, new in symbol_map.items():
             text = text.replace(old, new)
-
-        # 4. REMOVE COMPUTER JUNK BUT KEEP /
         junk = ["$", "{", "}", "[", "]"]
         for j in junk:
             text = text.replace(j, "")
-
-        # 5. MAKE NCDC SECTIONS HUMAN FOR ALL SUBJECTS
-        human_rules = {
-            "SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:",
-            "DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values",
-            "CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"
-        }
+        human_rules = {"SCENARIO:": "Scenario:", "ITEM:": "Item Given:", "TASK:": "Your Task:","DEFINE": "Step 1: Define", "SUBSTITUTE": "Step 2: Substitute values","CALCULATE": "Step 3: Calculate", "FORMULA": "Formula:"}
         for old, new in human_rules.items():
             text = text.replace(old, new)
-
         return text
 
 class QCExaminer:
@@ -190,11 +169,37 @@ class QCExaminer:
         else:
             return f"**NDEJJE SS QC MARK: {total}/10**\n**Grade**: {grade}\n**Feedback**: Excellent work. No errors."
 
+class TeacherReview:
+    def __init__(self):
+        self.file = FLAGS_FILE
+        self.excel = f"{DATA_PATH}/HOD_Review_Queue.xlsx"
+    def flag_answer(self, question, ai_answer, student_comment, subject, level, user):
+        data = load_db(self.file, [])
+        entry = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "subject": subject, "level": level, "question": question, "ai_answer": ai_answer[:500], "student_comment": student_comment, "status": "PENDING"}
+        data.append(entry)
+        save_db(self.file, data)
+        self.export_to_excel(data)
+        log_activity(user, f"Flagged answer in {subject} {level}")
+        return "✅ Flagged. Your Head Teacher/DOS will review this."
+    def export_to_excel(self, data):
+        try:
+            import pandas as pd
+            df = pd.DataFrame(data)
+            df.to_excel(self.excel, index=False)
+        except:
+            pass
+
+def log_activity(user, action):
+    logs = load_db(LOG_FILE, [])
+    logs.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "action": action})
+    save_db(LOG_FILE, logs[-1000:])
+
 ncdc_engine = NCDC2026Engine()
 teacher_style = UgandanTeacher()
 qc_examiner = QCExaminer()
+teacher_review = TeacherReview()
 
-### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS RESTORED ###
+### 3. LOAD MASTER DATABASE - FULL 18 SUBJECTS RESTORED - NO DATA LOST ###
 @st.cache_data
 def load_master_db():
     default_db = {
@@ -223,6 +228,7 @@ def load_master_db():
         "Agriculture": {"S1-S4": {"Farm Tools Identification": {"objective": "Identify and maintain farm tools", "apparatus": "Hoe, Panga"}, "Physical & Chemical Soil Testing": {"objective": "Determine soil pH and texture", "apparatus": "Soil sample, pH indicator"}, "Crop Agronomy (Nursery Bed Management)": {"objective": "Manage nursery bed", "apparatus": "Seeds, Watering can"}, "Livestock Management Exercises": {"objective": "Identify animal feeds and parasites", "apparatus": "Feed samples"}, "DIT Vocational Assessment Practice": {"objective": "Execute Level 1 husbandry", "apparatus": "Poultry equipment"}, "Activities of Integration (AOI)": {"objective": "Develop farm record keeping framework", "apparatus": "Book, Pen"}}, "S5-S6": {"Advanced Soil Science Analysis": {"objective": "Measure soil cation exchange capacity", "apparatus": "Soil, Reagents"}, "Agronomic Field Trials": {"objective": "Compare organic vs inorganic fertilizer", "apparatus": "Plot, Fertilizers"}, "Animal Nutrition & Feed Formulation": {"objective": "Formulate balanced rations", "apparatus": "Feed ingredients, Scale"}, "Agricultural Engineering & Mechanisation": {"objective": "Analyze tractor engine systems", "apparatus": "Tractor"}, "Farm Economics & Management Portfolio": {"objective": "Construct balance sheets", "apparatus": "Calculator, Records"}}}
       }
     }
+    save_db(MASTER_DB_FILE, default_db)
     return default_db
 
 class TTLSchoolCache:
@@ -339,28 +345,23 @@ def topic_exists_in_db(prompt, subject, level):
     return False, subject, level
 
 def display_disclaimer():
-    st.markdown("""
-    <div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;">
-    <b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>
-    This AI Tutor is a learning helper only. It follows the Uganda NCDC Syllabus and UNEB standards.<br><br>
-    <b>You MUST:</b><br>
-    1. Confirm all content with your <b>Head Teacher, Director of Studies, Deputy, or Class Teacher</b>.<br>
-    2. Refer to your <b>official class notes and textbooks</b> as the final authority.<br>
-    3. This tool <b>does NOT replace</b> your class teacher, school lessons, or school requirements.<br><br>
-    Use this assistant to fill learning gaps and practice. For final exams and school policy, follow your school.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="background:#fff3cd; border-left:5px solid #ff9800; padding:12px; margin-bottom:15px; border-radius:8px; font-size:14px;"><b>⚠️ NDEJJE SS OFFICIAL DISCLAIMER</b><br>This AI Tutor is a learning helper only. It follows the Uganda NCDC Syllabus and UNEB standards.<br><br><b>You MUST:</b><br>1. Confirm all content with your <b>Head Teacher, Director of Studies, Deputy, or Class Teacher</b>.<br>2. Refer to your <b>official class notes and textbooks</b> as the final authority.<br>3. This tool <b>does NOT replace</b> your class teacher, school lessons, or school requirements.<br><br>Use this assistant to fill learning gaps and practice. For final exams and school policy, follow your school.</div>""", unsafe_allow_html=True)
 
-def display_preview(content,name,s,l):
+def display_preview(content,name,s,l,user="Guest"):
     st.session_state.current_subject=s
     st.session_state.current_level=l
     st.text_area("🤖 Tutor Output",content,height=450,key=f"p{name}")
     student_ans = st.text_area("✍️ Paste your answer for QC Marking", key=f"mark{name}")
-    c1,c2,c3=st.columns(3)
+    student_flag = st.text_area("📝 Reason for Flagging - Optional", key=f"flag{name}")
+    c1,c2,c3,c4=st.columns(4)
     if c1.button("📥 Download",key=f"d{name}"):
         st.download_button("Download",content.encode(),f"{name}.txt",key=f"dl{name}")
     if c2.button("🔍 QC Mark My Answer",key=f"qc{name}") and student_ans:
         st.success(qc_examiner.mark_answer(student_ans, content, s, l))
+    if c3.button("🚩 Flag for Teacher Review",key=f"flagbtn{name}") and content:
+        q = st.session_state.get("current_q","N/A")
+        msg = teacher_review.flag_answer(q, content, student_flag, s, l, user)
+        st.warning(msg)
 
 ### 8. FAISS RAG ###
 class VectorRAG:
@@ -472,10 +473,12 @@ def call_openrouter_api(messages, model, max_tokens):
     res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
     return res.choices[0].message.content
 
-def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False):
+def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False, user="Guest"):
     global SYS_STATE
     SYS_STATE=system_check()
+    st.session_state.current_q = prompt
     chat_mem.add("user", prompt)
+    log_activity(user, f"Asked: {prompt[:50]}")
     detected_level, max_resp_tokens = detect_complexity(prompt) if level=="Auto" else (level, 600)
     sources=vector_rag.search(prompt,3)
     topic_exists, subject, detected_level = topic_exists_in_db(prompt, subject, detected_level)
@@ -506,9 +509,9 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
             st.sidebar.error(f"Cloud failed: {e}")
     return ("[OFFLINE] No internet. Upload notes.", [], detected_level)
 
-### 10. STUDENT + ADMIN PORTAL ###
-def show_student():
-    st.header("🧠 Digital Tutor V7.3.7 - NDEJJE QC")
+### 10. STUDENT + ADMIN + CONTROLLER PORTAL ###
+def show_student(user):
+    st.header("🧠 Digital Tutor V7.4.0 - STUDENT")
     display_disclaimer()
     if st.button("Logout", key="student_logout"):
         st.session_state.clear()
@@ -519,125 +522,140 @@ def show_student():
         s=st.selectbox("Subject",SUBJECTS,key="s1s")
         l=st.selectbox("Class",["Auto"]+CLASSES,key="s1l")
         q=st.text_area("Ask",key="s1q")
-        c1,c2=st.columns(2)
-        if c1.button("Ask Official",key="s1b") and q:
+        if st.button("🔍 Search",key="s1search") and q:
             lvl = "S4" if l=="Auto" else l
-            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, False)
-            display_preview(a,"s1",s,lvl_out)
-        if c2.button("Invent/Extend",key="s1gen") and q:
-            lvl = "S4" if l=="Auto" else l
-            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, True)
-            display_preview(a,"s1gen",s,lvl_out)
+            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, False, user)
+            display_preview(a,"s1",s,lvl_out,user)
     with t2:
         render_upload("s2")
         s=st.selectbox("Subject",SUBJECTS,key="s2s")
         l=st.selectbox("Class",CLASSES,key="s2l")
         t=st.selectbox("Topic",get_topics(s,l),key="s2t")
         c1,c2,c3=st.columns(3)
-        if c1.button("Notes From DB",key="s2b"):
-            a,src,lvl=tutor_brain(f"Teach {t} for {l} {s}",l,"notes",s, False)
-            display_preview(a,"s2",s,l)
-        if c2.button("Quiz Me",key="s2q"):
-            a,src,lvl=tutor_brain(f"Quiz me on {t} for {l} {s}",l,"smart",s, False)
-            display_preview(a,"s2q",s,l)
-        if c3.button("10 SIT Questions",key="s2sit"):
-            a,src,lvl=tutor_brain(ncdc_engine.generate_10_sit(s,l,t),l,"notes",s, False)
-            display_preview(a,"s2sit",s,l)
+        if c1.button("📖 Notes",key="s2b"):
+            a,src,lvl=tutor_brain(f"Teach {t} for {l} {s}",l,"notes",s, False, user)
+            display_preview(a,"s2",s,l,user)
+        if c2.button("❓ Quiz Me",key="s2q"):
+            a,src,lvl=tutor_brain(f"Quiz me on {t} for {l} {s}",l,"smart",s, False, user)
+            display_preview(a,"s2q",s,l,user)
+        if c3.button("📝 10 SIT Qns",key="s2sit"):
+            a,src,lvl=tutor_brain(ncdc_engine.generate_10_sit(s,l,t),l,"notes",s, False, user)
+            display_preview(a,"s2sit",s,l,user)
     with t3:
         render_upload("s3")
         s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="s3s")
         l=st.selectbox("Class",CLASSES,key="s3l")
         p=st.selectbox("Practical",get_practicals(s,l),key="s3p")
-        if st.button("Teach Practical",key="s3b"):
+        if st.button("🔬 Teach Practical",key="s3b"):
             obj=get_practical_obj(s,l,p)
-            a,src,lvl=tutor_brain(f"Teach {p} practical for {l}. Objective: {obj}",l,"notes",s, False)
-            display_preview(a,"s3",s,l)
+            a,src,lvl=tutor_brain(f"Teach {p} practical for {l}. Objective: {obj}",l,"notes",s, False, user)
+            display_preview(a,"s3",s,l,user)
     with t4:
         render_upload("s4")
         s=st.selectbox("Subject",SUBJECTS,key="s4s")
         l=st.selectbox("Class",CLASSES,key="s4l")
         t=st.selectbox("Topic",get_topics(s,l),key="s4t")
-        if st.button("Explain Diagram",key="s4b"):
-            a,src,lvl=tutor_brain(f"Explain diagram for {t} in {s} {l}",l,"smart",s, False)
-            display_preview(a,"s4",s,l)
+        if st.button("🖼️ Explain Diagram",key="s4b"):
+            a,src,lvl=tutor_brain(f"Explain diagram for {t} in {s} {l}",l,"smart",s, False, user)
+            display_preview(a,"s4",s,l,user)
     with t5:
         render_upload("s5")
         s=st.selectbox("Subject",SUBJECTS,key="s5s")
         l=st.selectbox("Class",CLASSES,key="s5l")
         rq=st.text_area("Research Topic",key="s5rq")
-        c1,c2=st.columns(2)
-        if c1.button("Research From DB",key="s5rb") and rq:
-            a,src,lvl=tutor_brain(f"Research project on {rq} for {l} {s}",l,"research",s, False)
-            display_preview(a,"s5res",s,l)
-        if c2.button("Invent Research Idea",key="s5gen") and rq:
-            a,src,lvl=tutor_brain(f"Invent new NCDC research topic related to {rq} for {l} {s}",l,"research",s, True)
-            display_preview(a,"s5gen",s,l)
+        if st.button("🔬 Research",key="s5rb") and rq:
+            a,src,lvl=tutor_brain(f"Research project on {rq} for {l} {s}",l,"research",s, False, user)
+            display_preview(a,"s5res",s,l,user)
 
-def show_admin():
+def show_admin(user):
     st.header("🏫 Admin Portal")
     display_disclaimer()
     if st.button("Logout", key="admin_logout"):
         st.session_state.clear()
         st.rerun()
-    tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams"])
+    tabs=st.tabs(["📊 Analytics","📖 Curriculum","🧪 Practicals","📤 Bulk","📚 RAG KB","📝 Lesson","📄 Reports","📈 Predictive","📝 Exams","🎛️ Controller"])
     with tabs[0]:
         q=st.text_area("Ask Analytics",key="aq")
-        if st.button("Ask"):
-            a,src,lvl=tutor_brain(q,"S4","smart","General", False)
-            display_preview(a,"a","General","S4")
+        if st.button("🔍 Search"):
+            a,src,lvl=tutor_brain(q,"S4","smart","General", False, user)
+            display_preview(a,"a","General","S4",user)
     with tabs[1]:
         s=st.selectbox("Subject",SUBJECTS,key="as")
         l=st.selectbox("Class",CLASSES,key="al")
         t=st.multiselect("Topics",get_topics(s,l), key="a1_topics")
-        if st.button("Scheme"):
-            a,src,lvl=tutor_brain(f"Scheme for {l} {s} {t}",l,"notes",s, False)
-            display_preview(a,"scheme",s,l)
+        if st.button("📅 Generate Scheme"):
+            a,src,lvl=tutor_brain(f"Scheme for {l} {s} {t}",l,"notes",s, False, user)
+            display_preview(a,"scheme",s,l,user)
     with tabs[2]:
         s=st.selectbox("Subject",list(PRACTICALS_DB.keys()),key="ps")
         l=st.selectbox("Class",CLASSES,key="pl")
         p=st.selectbox("Practical",get_practicals(s,l)+["Invent"],key="pp")
-        if st.button("Guide"):
-            a,src,lvl=tutor_brain(f"Lab manual for {p} {l} {s}",l,"notes",s, "Invent" in p)
-            display_preview(a,"pg",s,l)
+        if st.button("🔬 Lab Guide"):
+            a,src,lvl=tutor_brain(f"Lab manual for {p} {l} {s}",l,"notes",s, "Invent" in p, user)
+            display_preview(a,"pg",s,l,user)
     with tabs[3]:
         s=st.selectbox("Subject",SUBJECTS,key="bs")
         l=st.selectbox("Class",CLASSES,key="bl")
         t=st.multiselect("Topics",get_topics(s,l), key="a2_topics")
-        n=st.slider("Qs",10,100,50)
-        if st.button("Bulk"):
-            a,src,lvl=tutor_brain(f"{n} NCDC Qs + Marking from {t} for {l} {s}",l,"notes",s, False)
-            display_preview(a,"bulk",s,l)
+        n=st.slider("Number of Qs",10,100,50)
+        if st.button("📤 Generate Bulk"):
+            a,src,lvl=tutor_brain(f"{n} NCDC Qs + Marking from {t} for {l} {s}",l,"notes",s, False, user)
+            display_preview(a,"bulk",s,l,user)
     with tabs[4]:
         st.metric("FAISS Chunks",len(vector_rag.docs))
         render_upload("a5")
         q=st.text_area("Ask RAG",key="ragq")
-        if st.button("Ask RAG"):
-            a,src,lvl=tutor_brain(q,"S4","smart","General", False)
-            display_preview(a,"rag","General","S4")
+        if st.button("🔍 Search RAG"):
+            a,src,lvl=tutor_brain(q,"S4","smart","General", False, user)
+            display_preview(a,"rag","General","S4",user)
     with tabs[5]:
         s=st.selectbox("Subject",SUBJECTS,key="ls")
         l=st.selectbox("Class",CLASSES,key="ll")
         t=st.selectbox("Topic",get_topics(s,l),key="lt")
-        if st.button("Lesson"):
-            a,src,lvl=tutor_brain(f"Lesson Plan {l} {s} {t}",l,"notes",s, False)
-            display_preview(a,"lesson",s,l)
+        if st.button("📝 Generate Lesson"):
+            a,src,lvl=tutor_brain(f"Lesson Plan {l} {s} {t}",l,"notes",s, False, user)
+            display_preview(a,"lesson",s,l,user)
     with tabs[6]:
-        n=st.number_input("Students",1,1000,100)
-        if st.button("Reports"):
-            a,src,lvl=tutor_brain(f"{n} Report Cards","S4","notes","General", False)
-            display_preview(a,"report","General","S4")
+        n=st.number_input("Number of Students",1,1000,100)
+        if st.button("📄 Generate Reports"):
+            a,src,lvl=tutor_brain(f"{n} Report Cards","S4","notes","General", False, user)
+            display_preview(a,"report","General","S4",user)
     with tabs[7]:
-        q=st.text_area("Predictor",key="prq")
-        if st.button("Ask"):
-            a,src,lvl=tutor_brain(q,"S4","smart","General", False)
-            display_preview(a,"pr","General","S4")
+        q=st.text_area("Predictor Query",key="prq")
+        if st.button("📈 Predict"):
+            a,src,lvl=tutor_brain(q,"S4","smart","General", False, user)
+            display_preview(a,"pr","General","S4",user)
     with tabs[8]:
         s=st.selectbox("Subject",SUBJECTS,key="exs")
         l=st.selectbox("Class",CLASSES,key="exl")
         t=st.multiselect("Topics",get_topics(s,l), key="a3_topics")
-        if st.button("Full Exam"):
-            a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False)
-            display_preview(a,"exam",s,l)
+        if st.button("📝 Full Exam"):
+            a,src,lvl=tutor_brain(f"Full NCDC exam 100 marks for {l} {s} on {t}",l,"exam",s, False, user)
+            display_preview(a,"exam",s,l,user)
+    with tabs[9]: # CONTROLLER UNIT
+        st.subheader("🎛️ HM/DOS/Deputy Controller Unit")
+        st.metric("Total Users Active", "N/A")
+        st.metric("Total Queries Today", len(load_db(LOG_FILE,[])))
+        st.metric("Flagged Items", len(load_db(FLAGS_FILE,[])))
+
+        st.divider()
+        st.write("**Activity Log**")
+        logs = load_db(LOG_FILE,[])[-50:]
+        st.dataframe(logs, use_container_width=True)
+
+        st.divider()
+        st.write("**Flagged for Review**")
+        flags = load_db(FLAGS_FILE,[])
+        if flags:
+            st.dataframe(flags, use_container_width=True)
+            with open(f"{DATA_PATH}/HOD_Review_Queue.xlsx", "rb") as f:
+                st.download_button("📥 Download Excel Report", f, "HOD_Review_Queue.xlsx")
+        else:
+            st.info("No flagged items yet")
+
+        if st.button("🗑️ Clear Cache"):
+            save_db(CACHE_FILE,{})
+            st.success("AI Cache Cleared")
 
 ### 11. LOGIN ###
 st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC")
@@ -648,13 +666,16 @@ with st.sidebar:
     pw=st.text_input("Password",type="password", key="main_login_pw")
     if st.button("Student Login") and pw==STUDENT_PASSWORD:
         st.session_state.role="Student"
+        st.session_state.user="Student"
         st.rerun()
     if st.button("Admin Login") and pw==ADMIN_PASSWORD:
         st.session_state.role="Admin"
+        st.session_state.user="Admin"
         st.rerun()
 if st.session_state.get("role")=="Admin":
-    show_admin()
+    show_admin(st.session_state.user)
 elif st.session_state.get("role")=="Student":
-    show_student()
+    show_student(st.session_state.user)
 else:
     st.info("Login. Student=1234 Admin=admin123")
+         
