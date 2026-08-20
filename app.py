@@ -9,10 +9,10 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.2", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.2 FREE MODEL"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.3", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.3 FREE MODEL"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.2-FULLDB-18SUBJECTS | MODEL: llama-3.1-8b-free")
+st.sidebar.caption("Build: V8.7.3-FULLDB-18SUBJECTS | MODEL: qwen-2-7b-free")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -39,15 +39,15 @@ for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEM
     load_db(f,d)
 
 ### 2. TOKEN ECONOMIST + TEACHER ###
-FREE_MODEL_ID = "meta-llama/llama-3.1-8b-instruct:free" # LOCKED FREE MODEL
+FREE_MODEL_ID = "qwen/qwen-2-7b-instruct:free" # NEW FREE MODEL LOCKED
 
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1500
-        if "s6" in p or "s5" in p: return 1200
-        if "s4" in p or "s3" in p: return 1000
-        return 800
+        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1200
+        if "s6" in p or "s5" in p: return 1000
+        if "s4" in p or "s3" in p: return 800
+        return 600
     def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODEL_ID, self.detect_depth_needed(prompt)
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
@@ -169,19 +169,22 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
         return cached_answer + "\n\n*✅ Served from Cache*", [], level
 
-    model = FREE_MODEL_ID # LOCKED
+    model = FREE_MODEL_ID # LOCKED FREE
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
     messages = [{"role":"system","content":system}, {"role":"user","content":q}]
     if not client: return "Offline. Add OPENROUTER_API_KEY", [], level
-    resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
-    raw = resp.choices[0].message.content
+    try:
+        resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
+        raw = resp.choices[0].message.content
+    except Exception as e:
+        return f"AI Error: {e}. Try again.", [], level
     ans = teacher_style.format_answer(raw, subject, level)
     ai_cache.set(cache_key, ans)
     if user: log_activity(user["user"], f"Cached: {q[:20]}")
     return ans, [], level
 
-### 8. STUDENT PORTAL V8.7.2 ###
+### 8. STUDENT PORTAL V8.7.3 ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
@@ -255,7 +258,7 @@ def show_admin(user):
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
 ### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.2")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.3")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
