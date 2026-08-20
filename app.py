@@ -9,10 +9,10 @@ try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.1", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.1 FULL DB"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.2", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.2 FREE MODEL"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.1-FULLDB-18SUBJECTS | TTL CACHE ON | OPENROUTER FIX")
+st.sidebar.caption("Build: V8.7.2-FULLDB-18SUBJECTS | MODEL: llama-3.1-8b-free")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
@@ -39,14 +39,16 @@ for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEM
     load_db(f,d)
 
 ### 2. TOKEN ECONOMIST + TEACHER ###
+FREE_MODEL_ID = "meta-llama/llama-3.1-8b-instruct:free" # LOCKED FREE MODEL
+
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 2000
-        if "s6" in p or "s5" in p: return 1800
-        if "s4" in p or "s3" in p: return 1200
+        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1500
+        if "s6" in p or "s5" in p: return 1200
+        if "s4" in p or "s3" in p: return 1000
         return 800
-    def auto_quantize(self,sources,prompt,system,mode): return sources, st.session_state.get("ai_model", "qwen/qwen-2.5-14b-instruct"), self.detect_depth_needed(prompt)
+    def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODEL_ID, self.detect_depth_needed(prompt)
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
 
@@ -144,7 +146,7 @@ threading.Thread(target=keep_alive, daemon=True).start()
 def get_client(): return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
 SYS_STATE=system_check()
 client=get_client() if SYS_STATE["online"] else None
-mode_badge=f"☁️ CLOUD | RAM:{SYS_STATE['ram']:.0f}%" if SYS_STATE["online"] else f"📴 OFFLINE | RAM:{SYS_STATE['ram']:.0f}%"
+mode_badge=f"☁️ CLOUD FREE | RAM:{SYS_STATE['ram']:.0f}%" if SYS_STATE["online"] else f"📴 OFFLINE | RAM:{SYS_STATE['ram']:.0f}%"
 ai_cache = TTLSchoolCache()
 
 ### 6. HELPERS ###
@@ -167,11 +169,11 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
         return cached_answer + "\n\n*✅ Served from Cache*", [], level
 
-    model = st.session_state.get("ai_model", "qwen/qwen-2.5-14b-instruct") # FIXED
+    model = FREE_MODEL_ID # LOCKED
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
     messages = [{"role":"system","content":system}, {"role":"user","content":q}]
-    if not client: return "Offline. Add API Key", [], level
+    if not client: return "Offline. Add OPENROUTER_API_KEY", [], level
     resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
     raw = resp.choices[0].message.content
     ans = teacher_style.format_answer(raw, subject, level)
@@ -179,7 +181,7 @@ def tutor_brain(q, level, mode, subject, stream=True, user=None):
     if user: log_activity(user["user"], f"Cached: {q[:20]}")
     return ans, [], level
 
-### 8. STUDENT PORTAL V8.7.1 ###
+### 8. STUDENT PORTAL V8.7.2 ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
@@ -244,22 +246,16 @@ def show_admin(user):
     with tabs[1]: st.write(f"Total Subjects: {len(SUBJECTS)}")
     with tabs[2]: st.write("Scheme Generator")
     with tabs[3]: st.write("MOES Reports")
-    with tabs[4]: # FIXED INDENTATION
+    with tabs[4]:
         st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
         st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-        model = st.selectbox("AI Model", [
-            "qwen/qwen-2.5-14b-instruct - Cheap, Fast",
-            "meta-llama/llama-3.1-405b-instruct - Meta AI Level",
-            "openai/gpt-4o - ChatGPT Level",
-            "google/gemini-2.0-flash-exp - Fastest"
-        ])
-        st.session_state["ai_model"] = model.split(" - ")[0]
+        st.info(f"Model Locked: {FREE_MODEL_ID}")
         if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
     with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
 ### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.1")
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.2")
 display_disclaimer()
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
