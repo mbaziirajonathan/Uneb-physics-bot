@@ -98,27 +98,56 @@ class NCDC2026Engine:
     def generate_10_sit(self, subject, level, topics):
         return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**"
 
-### 8.7 TEACHER STYLE V2 - NCDC OUTPUT FORMATTER ###
-class TeacherStyle:
+### 8.7 UGANDAN TEACHER V3 - HUMAN MATH FOR S1-S6 ###
+class UgandanTeacher:
     def get_style_rules(self,subject,level,topic):
+        # Convert level to int safely
+        try: lvl = int(level.replace('S',''))
+        except: lvl = 4
+        
+        # SENSOR: Lower classes get zero latex
+        if lvl <= 4:
+            math_rule = "RULE MATH: NO $ $ NO LATEX. NO \\frac. Write: 'Force = Mass x Acceleration'. Use words first, then simple numbers. Explain like to a 12 year old."
+        else: # S5 S6
+            math_rule = "RULE MATH: NO $ NO LATEX. NO \\frac. Write formulas like: 'v = u + at' and 'E = h f'. Use ^ for power, / for divide. Explain every symbol in words."
+            
         return f"""
-        RULE 1: NCDC 2026 FORMAT. You are an S{level} teacher in Uganda.
-        RULE 2: STRUCTURE: 1. Intro 2. Key Points with bold + bullets 3. Ugandan Example 4. Formula if Science 5. Summary
-        RULE 3: LENGTH: Use all {self.detect_depth_needed(topic)} tokens. Do not stop early. Be thorough.
-        RULE 4: TONE: "Alright class, settle down!" Start like a real teacher. Use "we" and "you".
-        RULE 5: ENDING: Always add 3 'Check Your Understanding' follow-up questions at the end.
+        RULE 1: NCDC 2026 FORMAT. You are an S{level} teacher in Uganda. 
+        RULE 2: STRUCTURE: 1. Greeting "Alright class, settle down!" 2. Key Points with bold + bullets 3. Ugandan Example 4. Formula if Science in plain text 5. Summary
+        RULE 3: LENGTH: Use all {self.detect_depth_needed(topic)} tokens. Be thorough. Do not stop early.
+        RULE 4: TONE: Use "we" and "you". Use Ugandan examples like maize, boda, Umeme, UNEB.
+        RULE 5: {math_rule}
+        RULE 6: ENDING: Always add 3 'Check Your Understanding' follow-up questions at the end.
         """
     
     def format_answer(self,ans,subject,level):
-        # Force follow-up questions if AI forgot them
+        import re
+        # POST-PROCESSOR 1: KILL ALL LATEX $$
+        ans = ans.replace('$', '') 
+        ans = ans.replace('\\(', '').replace('\\)', '')
+        ans = ans.replace('\\[', '').replace('\\]', '')
+        ans = re.sub(r'\$.*?\$', '', ans) # delete anything between $$
+        
+        # POST-PROCESSOR 2: HUMAN CONVERSIONS
+        replacements = {
+            '\\frac{a}{b}': 'a / b', '\\cdot': ' x ', '\\times': ' x ',
+            '\\alpha': 'alpha', '\\beta': 'beta', '\\theta': 'theta', '\\pi': 'pi',
+            '^2': ' squared', '^3': ' cubed', '->': ' leads to ',
+            '\\geq': ' >= ', '\\leq': ' <= ', '\\neq': ' != ', '\\sqrt': 'square root of'
+        }
+        for k,v in replacements.items():
+            ans = ans.replace(k, v)
+            
+        # POST-PROCESSOR 3: Force follow-up questions
         if "Check Your Understanding" not in ans and "Question" not in ans[-200:]:
-            ans += f"\n\n---\n**Check Your Understanding:**\n1. State 2 other factors that affect {subject} besides what we discussed.\n2. Give one Ugandan example where this is important.\n3. Why is this topic important for UNEB?"
+            ans += f"\n\n---\n**Check Your Understanding:**\n1. Define the main idea in your own words.\n2. Give one Ugandan example of this.\n3. Why is this important for UNEB S{level}?"
+        
         return ans
     
     def detect_depth_needed(self,topic):
         return token_econ.detect_depth_needed(topic)
-teacher_style=TeacherStyle()
 
+teacher_style = UgandanTeacher()
 class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
         total=10; feedback=[]
@@ -304,6 +333,7 @@ def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=F
     style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
 
     sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
+    system = system + "\nCRITICAL: NEVER use $ or \\ or latex. Write all math in plain text like a chalkboard."
     compressed_sources, AI_MODEL, _ = token_econ.auto_quantize(sources, prompt, sys_prompt, mode)
 
     full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
