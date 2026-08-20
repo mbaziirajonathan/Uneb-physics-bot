@@ -272,6 +272,11 @@ class VectorRAG:
         if not self.faiss: return []
         # ... rest of your search code
 vector_rag=VectorRAG()
+def render_upload(key="d"):
+    """Dummy upload box. Does nothing when FAISS is OFF"""
+    with st.expander("📤 Upload Notes PDF/CSV/TXT - Disabled", expanded=False):
+        st.info("RAG/FAISS is OFF for speed. Paste notes directly in chat.")
+        st.file_uploader("Upload disabled", type=["pdf","txt","csv"], key=f"uploader_{key}", disabled=True)
 
 ### 9. BRAIN - SMART BALANCING ###
 SYSTEM_PROMPT_OFFICIAL="""You are NDEJJE SS AI TUTOR. Follow NCDC 2026 Syllabus and UNEB standards. Use Ugandan context only. Be a human teacher.\nCORE RULES: 1.NCDC LOCKED 2.ANTI-HALLUCINATION 3.HUMAN STYLE 4.SMART 5.GUIDANCE MODE\nMANDATORY CLOSING: Important: Confirm this with your Head Teacher, DOS, or class notes.\n{level_rules}"""
