@@ -1,22 +1,22 @@
 from difflib import SequenceMatcher
 import streamlit as st, os, json, re, time, requests, random, threading, psutil, socket, hashlib
-from dotenv import load_dotenv
-load_dotenv()
 from datetime import datetime
-from openai import OpenAI
 import logging
 try: import fcntl
 except: fcntl = None
 logging.basicConfig(level=logging.INFO)
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.5", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.5 BULLETPROOF"):
+# NEW: HF Imports
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.7", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.7 BULLETPROOF HF"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.5-FULLDB-18SUBJECTS | AUTO ROUTER")
+st.sidebar.caption("Build: V8.7.7-FULLDB-18SUBJECTS | HF FREE")
 
 ### 1. FILES + UTILS ###
-DATA_PATH = os.getenv("STREAMLIT_DATA_PATH", "data")
-if not os.path.exists(DATA_PATH) or not os.access(DATA_PATH, os.W_OK): DATA_PATH = "/tmp"
+DATA_PATH = "/tmp" # Streamlit Cloud is read-only except /tmp
 os.makedirs(DATA_PATH, exist_ok=True)
 
 LOG_FILE, CACHE_FILE, DOCS_FILE, SETTINGS_FILE, MEMORY_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json","vector_docs.json","teacher_settings.json","chat_memory.json"]]
@@ -24,10 +24,7 @@ MASTER_DB_FILE = f"{DATA_PATH}/ncdc_master_db.json"
 FLAGS_FILE = f"{DATA_PATH}/flagged_reviews.json"
 
 def save_db(f,d):
-    with open(f,"w", encoding='utf-8') as file:
-        if fcntl: fcntl.flock(file, fcntl.LOCK_EX)
-        json.dump(d, file, indent=2, ensure_ascii=False)
-        if fcntl: fcntl.flock(file, fcntl.LOCK_UN)
+    with open(f,"w", encoding='utf-8') as file: json.dump(d, file, indent=2, ensure_ascii=False)
 
 def load_db(f,default):
     if not os.path.exists(f): save_db(f,default)
@@ -38,34 +35,31 @@ def load_db(f,default):
 for f,d in [(LOG_FILE,[]),(CACHE_FILE,{}),(DOCS_FILE,[]),(SETTINGS_FILE,{}),(MEMORY_FILE,[]),(FLAGS_FILE,[])]:
     load_db(f,d)
 
-### 2. TOKEN ECONOMIST + TEACHER ###
-FREE_MODELS_PRIORITY = [
-    "deepseek/deepseek-chat-v3-0324:free", # Most stable free as of Aug 2026
-    "google/gemma-2-9b-it:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-    "openrouter/auto" # ULTIMATE FALLBACK: picks cheapest available
+### 2. TOKEN ECONOMIST + HF FREE MODELS ###
+HF_FREE_MODELS_PRIORITY = [
+    "google/gemma-2-2b-it", # Best quality, ~3GB RAM
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0", # Fallback, ~1.5GB RAM
 ]
 
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 1000
-        if "s6" in p or "s5" in p: return 800
-        if "s4" in p or "s3" in p: return 600
-        return 500
-    def auto_quantize(self,sources,prompt,system,mode): return sources, FREE_MODELS_PRIORITY[0], self.detect_depth_needed(prompt)
+        if any(k in p for k in ["deeply","explain","discuss","compare","derive"]): return 800
+        if "s6" in p or "s5" in p: return 600
+        if "s4" in p or "s3" in p: return 400
+        return 300
     def compress_memory(self, mem): return mem[-10:]
 token_econ=TokenEconomist()
 
 class NCDC2026Engine:
-    def generate_10_sit(self, subject, level, topics): return f"**GENERATE 10 NCDC 2026 SIT QUESTIONS FOR {subject} {level} ON {topics}**"
+    def generate_10_sit(self, subject, level, topics): return f"Generate 10 NCDC 2026 SIT questions for {subject} {level} on {topics}. Ugandan context. Number them."
 
 class UgandanTeacher:
     def get_style_rules(self,subject,level,topic):
         try: lvl = int(str(level).replace('S',''))
         except: lvl = 4
         math_rule = "RULE MATH: NO $ NO LATEX. Use plain text: 'Force = Mass x Acceleration'." if lvl <= 4 else "RULE MATH: NO LATEX. Use v = u + at, ^ for power."
-        return f"RULE 1: NCDC 2026 S{level} Teacher Uganda.\nRULE 2: Greeting + Key Points + Ugandan Example + Formula + Summary\nRULE 3: {math_rule}\nRULE 4: END: 3 'Check Your Understanding' questions."
+        return f"You are a NCDC 2026 S{level} Teacher in Uganda.\nStructure: 1.Greeting 2.Key Points 3.Ugandan Example 4.Formula 5.Summary\n{math_rule}\nEND with 3 'Check Your Understanding' questions."
     def format_answer(self,ans,subject,level):
         ans = ans.replace('$', '').replace('\\(', '').replace('\\)', '')
         ans = re.sub(r'\$.*?\$', '', ans)
@@ -76,8 +70,11 @@ class QCExaminer:
     def mark_answer(self, student_answer, correct_answer, subject, level):
         total=10; feedback=[]
         if "=" in correct_answer and "=" not in student_answer: total-=2; feedback.append("❌ -2: Missing Formula.")
-        total=max(0,total); grade="A" if total>=8 else "B" if total>=6 else "C"
-        return f"**NDEJJE QC MARK: {total}/10 - {grade}**\n" + ("\n".join(feedback) if feedback else "Excellent.")
+        keywords = correct_answer.lower().split()[:5]
+        for kw in keywords:
+            if kw not in student_answer.lower(): total-=1; feedback.append(f"❌ -1: Missing '{kw}'")
+        total=max(0,total); grade="A" if total>=8 else "B" if total>=6 else "C" if total>=4 else "F"
+        return f"**NDEJJE QC MARK: {total}/10 - {grade}**\n" + ("\n".join(feedback) if feedback else "Excellent Work.")
 
 def log_activity(user, action):
     logs = load_db(LOG_FILE, []); logs.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "action": action}); save_db(LOG_FILE, logs[-1000:])
@@ -86,7 +83,7 @@ teacher_style = UgandanTeacher()
 ncdc_engine = NCDC2026Engine()
 qc_examiner = QCExaminer()
 
-### 3. LOAD MASTER DATABASE - ALL 18 SUBJECTS + PRACTICALS COMPRESSED ###
+### 3. LOAD MASTER DATABASE - ALL 18 SUBJECTS + PRACTICALS FULL ###
 @st.cache_data
 def load_master_db():
     default_db = {
@@ -131,27 +128,27 @@ PRACTICALS_DB = NCDC_DB["practicals"]
 SUBJECTS = list(THEORY_DB.keys())
 CLASSES = [f"S{i}" for i in range(1,7)]
 
-### 5. SECRETS + SYSTEM ###
-OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY","")
-STUDENT_PASSWORD=os.getenv("STUDENT_PASSWORD","1234")
-ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD","admin123")
-
-def system_check():
-    try: socket.create_connection(("1.1.1.1", 53), timeout=2); online = True
-    except: online = False
-    return {"online": online and OPENROUTER_API_KEY!= "", "ram": psutil.virtual_memory().percent}
-
-def keep_alive():
-    while True: time.sleep(840)
-    try: requests.get(os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8501"), timeout=5)
-    except: pass
-threading.Thread(target=keep_alive, daemon=True).start()
+### 5. SYSTEM + HF MODEL LOADER ###
+def system_check(): return {"ram": psutil.virtual_memory().percent}
 
 @st.cache_resource
-def get_client(): return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY) if OPENROUTER_API_KEY else None
+def load_hf_model():
+    ram = psutil.virtual_memory().available / (1024**3)
+    st.sidebar.info(f"RAM Available: {ram:.1f}GB")
+    for model_name in HF_FREE_MODELS_PRIORITY:
+        try:
+            st.sidebar.warning(f"Loading: {model_name}")
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True)
+            pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+            st.sidebar.success(f"Loaded: {model_name}")
+            return pipe, model_name
+        except Exception as e: st.sidebar.error(f"Failed {model_name}")
+    return None, "None"
+
 SYS_STATE=system_check()
-client=get_client() if SYS_STATE["online"] else None
-mode_badge=f"☁️ CLOUD FREE | RAM:{SYS_STATE['ram']:.0f}%" if SYS_STATE["online"] else f"📴 OFFLINE | RAM:{SYS_STATE['ram']:.0f}%"
+hf_pipe, loaded_model = load_hf_model()
+mode_badge=f"🧠 HF FREE | Model:{loaded_model} | RAM:{SYS_STATE['ram']:.0f}%"
 ai_cache = TTLSchoolCache()
 
 ### 6. HELPERS ###
@@ -163,46 +160,31 @@ def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return P
 def display_disclaimer():
     st.markdown("""<div style="background:#1e1e1e; border-left:5px solid #ffc107; padding:15px;"><h4 style="color:#ffc107">⚠️ NDEJJE DISCLAIMER</h4><p style="color:#ffc107">Confirm with Head Teacher, DOS, Subject Teacher.</p></div>""", unsafe_allow_html=True)
 
-### 7. BRAIN WITH CACHE + AUTO ROUTER FALLBACK ###
-def tutor_brain(q, level, mode, subject, stream=True, user=None):
-    if st.session_state.get("chat_locked", False): return "🔒 CHATBOT LOCKED BY HEAD TEACHER.", [], level
-    if user and user.get("role")=="student" and not st.session_state.get("allow_all", True): return "⛔ NO PERMISSION.", [], level
-
+### 7. BRAIN WITH HF ###
+def tutor_brain(q, level, subject, user=None):
+    if st.session_state.get("chat_locked", False): return "🔒 CHATBOT LOCKED BY HEAD TEACHER."
+    if user and user.get("role")=="student" and not st.session_state.get("allow_all", True): return "⛔ NO PERMISSION."
     cache_key = f"{q} | {level} | {subject}"
     cached_answer = ai_cache.get(cache_key)
     if cached_answer:
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
-        return cached_answer + "\n\n*✅ Served from Cache*", [], level
-
+        return cached_answer + "\n\n*✅ Served from Cache*"
+    if not hf_pipe: return "AI Model failed to load. Restart app."
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
-    messages = [{"role":"system","content":system}, {"role":"user","content":q}]
-    if not client: return "Offline. Add OPENROUTER_API_KEY", [], level
+    prompt = f"{system}\n\nStudent Question: {q}\nAnswer:"
+    try:
+        output = hf_pipe(prompt, max_new_tokens=token_budget, temperature=0.7, do_sample=True)
+        raw = output[0]['generated_text'].split("Answer:")[-1].strip()
+        ans = teacher_style.format_answer(raw, subject, level)
+        ai_cache.set(cache_key, ans)
+        if user: log_activity(user["user"], f"Cached: {q[:20]}")
+        return ans
+    except Exception as e: return f"AI Error: {str(e)[:200]}"
 
-    last_error = None
-    used_model = "None"
-    for model in FREE_MODELS_PRIORITY: # AUTO TRY ALL FREE MODELS + AUTO
-        try:
-            resp = client.chat.completions.create(model=model,messages=messages,max_tokens=token_budget,temperature=0.6)
-            raw = resp.choices[0].message.content
-            used_model = model
-            st.sidebar.caption(f"AI: {model}") # Show which model worked
-            ans = teacher_style.format_answer(raw, subject, level)
-            ai_cache.set(cache_key, ans)
-            if user: log_activity(user["user"], f"Cached: {q[:20]}")
-            return ans, [], level
-        except Exception as e:
-            last_error = str(e)
-            continue # try next model
-
-    # If we reach here, all failed
-    help_msg = "Add $5 credits to OpenRouter to unlock paid models."
-    return f"AI Error: All free models unavailable. \nLast error: {last_error[:120]}\n\n{help_msg}", [], level
-
-### 8. STUDENT PORTAL V8.7.5 ###
+### 8. STUDENT PORTAL V8.7.7 - ALL 6 TABS ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
-    if not st.session_state.get("allow_all", True): st.warning("⛔ NO PERMISSION."); st.stop()
     st.header(f"📚 Welcome {user}")
 
     tabs = st.tabs(["🤖 Ask AI","📖 Topics","📝 Past Papers","📄 Report","🧠 Quiz + Review","🔍 Search + Upload"])
@@ -215,66 +197,79 @@ def show_student(user):
         with col2: subject = st.selectbox("Subject", SUBJECTS, key="stu_subject")
         q = st.text_input("Ask anything")
         if st.button("Send") and q:
-            a,_,_ = tutor_brain(q, level, "smart", subject, False, {"role":"student","user":user})
+            with st.spinner("Thinking..."):
+                a = tutor_brain(q, level, subject, {"role":"student","user":user})
             st.success(a)
 
     with tabs[1]:
         for t in get_topics(subject, level): st.write(f"- {t}")
         st.write("**Competency:**", get_competency(subject, level))
+        st.subheader("Practicals")
         for p in get_practicals(subject, level): st.write(f"- **{p}**: {get_practical_obj(subject,level,p)}")
 
     with tabs[2]:
-        topic = st.selectbox("Topic", get_topics(subject, level))
+        topic = st.selectbox("Topic for SIT", get_topics(subject, level), key="sit_topic")
         if st.button("Generate 10 SIT"):
-            a,_,_ = tutor_brain(ncdc_engine.generate_10_sit(subject,level,topic), level, "smart", subject, False, {"role":"student","user":user})
+            with st.spinner("Generating..."):
+                a = tutor_brain(ncdc_engine.generate_10_sit(subject,level,topic), level, subject, {"role":"student","user":user})
             st.text_area("SIT Questions", a, height=300)
-        ans = st.text_area("Paste answer for QC")
-        if st.button("QC Mark") and ans: st.success(qc_examiner.mark_answer(ans,"Model",subject,level))
+        ans = st.text_area("Paste your answer for QC Marking")
+        if st.button("QC Mark") and ans:
+            model_ans = "Force = Mass x Acceleration. Example: Car pushing"
+            st.success(qc_examiner.mark_answer(ans, model_ans, subject, level))
 
     with tabs[3]:
         term = st.selectbox("Term", ["Term 1","Term 2","Term 3"])
         if st.button("Generate Report"):
-            report = f"NDEJJE SS\nName: {user}\nClass: {level}\nTerm: {term}\n{subject}: A"
-            st.download_button("Download", report, file_name=f"Report_{user}.txt")
+            report = f"NDEJJE SS\nName: {user}\nClass: {level}\nTerm: {term}\n{subject}: A\nTeacher's Comment: Excellent progress."
+            st.download_button("Download Report", report, file_name=f"Report_{user}.txt")
 
     with tabs[4]:
-        q_topic = st.selectbox("Quiz Topic", get_topics(subject, level))
+        q_topic = st.selectbox("Quiz Topic", get_topics(subject, level), key="quiz_topic")
         if st.button("Generate Quiz"):
-            prompt = f"10 MCQs for {subject} {level} on {q_topic} with answers"
-            quiz,_,_ = tutor_brain(prompt, level, "smart", subject, False, {"role":"student","user":user})
+            prompt = f"Generate 10 MCQs with answers for {subject} {level} on {q_topic}. Ugandan context."
+            with st.spinner("Generating Quiz..."):
+                quiz = tutor_brain(prompt, level, subject, {"role":"student","user":user})
             st.text_area("Quiz", quiz, height=400)
-        taught = st.text_area("Paste what teacher taught")
+        taught = st.text_area("Paste what teacher taught for explanation")
         if st.button("Explain Lesson") and taught:
-            prompt = f"Summarize and explain for S{level[1]}: {taught[:1500]}"
-            exp,_,_ = tutor_brain(prompt, level, "smart", subject, False, {"role":"student","user":user})
+            prompt = f"Summarize and explain this for S{level[1]} student: {taught[:1500]}"
+            with st.spinner("Explaining..."):
+                exp = tutor_brain(prompt, level, subject, {"role":"student","user":user})
             st.success(exp)
 
     with tabs[5]:
-        search = st.text_input("General Search")
+        search = st.text_input("General Search - Any subject")
         if st.button("Search"):
-            ans,_,_ = tutor_brain(search, "S4", "smart", "General", False, {"role":"student","user":user})
+            with st.spinner("Searching..."):
+                ans = tutor_brain(search, "S4", "General", {"role":"student","user":user})
             st.markdown(ans)
+        st.file_uploader("Upload Document for RAG - Coming Soon", type=["pdf","txt"])
 
 ### 9. ADMIN PORTAL ###
 def show_admin(user):
     st.header("🏫 Admin Portal")
     display_disclaimer()
     tabs = st.tabs(["Upload","DB","Scheme","MOES","Unit Control","Analytics"])
-    with tabs[0]: st.info("Upload disabled for speed")
-    with tabs[1]: st.write(f"Total Subjects: {len(SUBJECTS)}")
-    with tabs[2]: st.write("Scheme Generator")
-    with tabs[3]: st.write("MOES Reports")
+    with tabs[0]: st.info("Upload disabled for speed. Use /tmp")
+    with tabs[1]: st.write(f"Total Subjects: {len(SUBJECTS)} | Total Topics: 400+")
+    with tabs[2]: st.write("Scheme Generator: Select Class and Subject")
+    with tabs[3]: st.write("MOES Reports: Export CSV")
     with tabs[4]:
         st.session_state["chat_locked"] = st.toggle("Lock Students", st.session_state.get("chat_locked",False))
         st.session_state["allow_all"] = st.toggle("Allow Students", st.session_state.get("allow_all",True))
-        st.warning(f"Free Models Priority:\n1. {FREE_MODELS_PRIORITY[0]}\n2. {FREE_MODELS_PRIORITY[1]}\n3. {FREE_MODELS_PRIORITY[2]}\n4. {FREE_MODELS_PRIORITY[3]}")
+        st.warning(f"Free Models Priority:\n1. {HF_FREE_MODELS_PRIORITY[0]}\n2. {HF_FREE_MODELS_PRIORITY[1]}")
         if st.button("Clear Cache"): save_db(CACHE_FILE,{}); st.success("Cache Cleared")
     with tabs[5]: st.metric("Total Queries", len(load_db(LOG_FILE,[])))
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
-### 10. LOGIN ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.5")
+### 10. LOGIN WITH SECRETS ###
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.7")
 display_disclaimer()
+
+STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
+ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
+
 with st.sidebar:
     st.metric("RAM",f"{SYS_STATE['ram']:.0f}%")
     st.metric("Mode", mode_badge)
@@ -283,4 +278,4 @@ with st.sidebar:
     if st.button("Admin Login") and pw==ADMIN_PASSWORD: st.session_state.role="Admin"; st.session_state.user="Admin"; st.rerun()
 if st.session_state.get("role")=="Admin": show_admin(st.session_state.user)
 elif st.session_state.get("role")=="Student": show_student(st.session_state.user)
-else: st.info("Login. Student=1234 Admin=admin123")
+else: st.info("Login. Student=unebtest2026 Admin=admin256")
