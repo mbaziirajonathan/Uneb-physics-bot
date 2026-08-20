@@ -317,62 +317,65 @@ def call_openrouter_api(messages, model, max_tokens):
     res=client.chat.completions.create(model=model,messages=messages,max_tokens=max_tokens,temperature=0.2)
     return res.choices[0].message.content
 
-def tutor_brain(prompt,level="S4",mode="smart",subject="General", allow_invent=False, user="Guest"):
-    global SYS_STATE
-    SYS_STATE=system_check()
-    st.session_state.current_q = prompt
-    chat_mem.add("user", prompt)
-    log_activity(user, f"Asked: {prompt[:50]}")
+def tutor_brain(q, level, mode, subject, stream=True, user=None):
+    # 1. GET SOURCES
+    if user and user.get("role")=="student":
+        sources = rag.retrieve(q, k=6)
+    else:
+        sources = []
 
-    detected_level, MAX_TOKENS = detect_complexity(prompt) if level=="Auto" else (level, token_econ.detect_depth_needed(prompt))
-    sources=vector_rag.search(prompt,3)
-    competency = get_competency(subject, detected_level)
-    level_rules = get_level_rules(detected_level)
-    practical_link = get_related_practicals(subject, detected_level, prompt)
-    matched_topic = next((t for t in get_topics(subject, detected_level) if t.lower() in prompt.lower()), "General Topic")
-    style_rules = teacher_style.get_style_rules(subject, detected_level, matched_topic)
+    # 2. TOKEN BUDGET
+    token_budget = token_econ.detect_depth_needed(q)
+    sources, model, token_budget = token_econ.auto_quantize(sources, q, "", mode)
 
-    sys_prompt = SYSTEM_PROMPT_GENERATIVE.format(level_rules=level_rules, subject=subject, level=detected_level) if allow_invent else SYSTEM_PROMPT_OFFICIAL.format(level_rules=level_rules)
+    # 3. BUILD SYSTEM PROMPT - THIS WAS MISSING
+    subj = subject if subject else "General"
+    system = teacher_style.get_style_rules(subj, level, q)
     system = system + "\nCRITICAL: NEVER use $ or \\ or latex. Write all math in plain text like a chalkboard."
-    compressed_sources, AI_MODEL, _ = token_econ.auto_quantize(sources, prompt, sys_prompt, mode)
+    system = system + f"\nSOURCES: {len(sources)} notes loaded from your PDFs."
 
-    full_prompt = f"{sys_prompt}\n{style_rules}\nLEVEL:{detected_level}\nSUBJECT:{subject}\nCOMPETENCY:{competency}\nPRACTICAL:{practical_link}\nTASK:{prompt}\n\nINSTRUCTION: If this is a practical or S4-S6 question, give FULL 8-step procedure, table, graph instructions, and precautions. Do not truncate."
+    # 4. BUILD MESSAGES
+    messages = [{"role":"system","content":system}]
+    if sources:
+        context = "\n\n".join([f"[Source {i+1}]: {s}" for i,s in enumerate(sources[:3])])
+        messages.append({"role":"user","content":f"Use these sources to answer:\n{context}\n\nQuestion: {q}"})
+    else:
+        messages.append({"role":"user","content":q})
 
-    cached=ai_cache.get(full_prompt+AI_MODEL)
-    if cached:
-        return f"[CACHED] {cached}", sources, detected_level
+    # 5. CALL OLLAMA
+    resp = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=token_budget,
+        temperature=0.6,
+        stream=False
+    )
+    raw = resp.choices[0].message.content
 
-    if SYS_STATE["online"] and client:
-        try:
-            messages = chat_mem.get_context() + [{"role":"user","content":full_prompt}]
-            ans = call_openrouter_api(messages, AI_MODEL, MAX_TOKENS)
-            ans = teacher_style.format_answer(ans, subject, detected_level)
-            chat_mem.add("assistant", ans)
-            src_line = f"**Proof**: DB {subject} {detected_level}"
-            final_ans = ans + f"\n\n{src_line}\n**Level**: {detected_level}"
-            ai_cache.set(full_prompt+AI_MODEL,final_ans)
-            return final_ans, sources, detected_level
-        except Exception as e:
-            st.sidebar.error(f"Cloud failed: {e}")
-    return "[OFFLINE] No internet or API key. Set OPENROUTER_API_KEY.", [], detected_level
+    # 6. POST PROCESS
+    ans = teacher_style.format_answer(raw, subj, level)
+    return ans, sources, level
 
 ### 10. STUDENT + ADMIN + CONTROLLER PORTAL ###
-def show_student(user):
-    st.header("🧠 Digital Tutor V7.4.5 - STUDENT")
-    display_disclaimer()
-    if st.button("Logout", key="student_logout"):
-        st.session_state.clear()
+ def show_student(user):
+    st.header(f"Welcome {user['name']} - S{user['level']}")
+
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
+
+    q = st.text_input("Ask your tutor anything:", key="student_input")
+    if st.button("Send") and q:
+        with st.spinner("Thinking..."):
+            # FIX: tutor_brain returns 3 things: a, src, lvl_out
+            a, src, lvl_out = tutor_brain(q, user['level'], "smart", user['subject'], False, user)
+
+        st.session_state.chat.append({"role":"user","content":q})
+        st.session_state.chat.append({"role":"assistant","content":a})
         st.rerun()
-    t1,t2,t3,t4,t5=st.tabs(["💬 Chat","📖 Learn","🧪 Practicals","🖼️ Diagrams","🔬 Research"])
-    with t1:
-        render_upload("s1")
-        s=st.selectbox("Subject",SUBJECTS,key="s1s")
-        l=st.selectbox("Class",["Auto"]+CLASSES,key="s1l")
-        q=st.text_area("Ask",key="s1q")
-        if st.button("🔍 Search",key="s1search") and q:
-            lvl = "S4" if l=="Auto" else l
-            a,src,lvl_out=tutor_brain(q,lvl,"smart",s, False, user)
-            display_preview(a,"s1",s,lvl_out,user)
+
+    for m in st.session_state.chat:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
     with t2:
         render_upload("s2")
         s=st.selectbox("Subject",SUBJECTS,key="s2s")
