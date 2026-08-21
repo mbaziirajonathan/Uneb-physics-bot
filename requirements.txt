@@ -1,8 +1,8 @@
 streamlit
 torch
 torchvision
-transformers
-accelerate
+transformers>=4.40.0
+accelerate>=0.28.0
 sentencepiece
 protobuf
 psutil
@@ -13,3 +13,4 @@ python-docx
 pypdf
 requests
 python-dotenv
+bitsandbytes
