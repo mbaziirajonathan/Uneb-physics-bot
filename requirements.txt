@@ -1,16 +1,9 @@
 streamlit
-torch
-torchvision
-transformers>=4.40.0
-accelerate>=0.28.0
-sentencepiece
-protobuf
+requests
 psutil
 pandas
 numpy
 pillow
 python-docx
 pypdf
-requests
 python-dotenv
-bitsandbytes
