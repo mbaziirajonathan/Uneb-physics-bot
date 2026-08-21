@@ -5,13 +5,13 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+# REMOVED: import torch
+# REMOVED: from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
-st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.7.9", page_icon="🧠", layout="wide")
-with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.7.9 SPEED MODE"):
+st.set_page_config(page_title="DIGITAL UNEB TUTOR 2026 V8.9.3 API", page_icon="🧠", layout="wide")
+with st.spinner("🚀 Booting NDEJJE AI Tutor... V8.9.3 API MODE"):
     time.sleep(0.1)
-st.sidebar.caption("Build: V8.7.9-FULLDB-SPEED | HF FREE")
+st.sidebar.caption("Build: V8.9.3-API-SPEED | HF FREE")
 
 ### 1. FILES + UTILS ###
 DATA_PATH = "/tmp"
@@ -20,11 +20,11 @@ os.makedirs(DATA_PATH, exist_ok=True)
 LOG_FILE, CACHE_FILE = [f"{DATA_PATH}/{x}" for x in ["usage_log.json","ai_cache.json"]]
 MASTER_DB_FILE = f"{DATA_PATH}/ncdc_master_db.json"
 
-def save_db(f,d): 
+def save_db(f,d):
     with open(f,"w", encoding='utf-8') as file: json.dump(d, file, indent=2, ensure_ascii=False)
 def load_db(f,default):
     if not os.path.exists(f): save_db(f,default)
-    try: 
+    try:
         with open(f,"r", encoding='utf-8') as file: return json.load(file)
     except: save_db(f,default); return default
 
@@ -33,19 +33,36 @@ load_db(LOG_FILE,[]); load_db(CACHE_FILE,{})
 def log_activity(user, action):
     logs = load_db(LOG_FILE, []); logs.append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "user": user, "action": action}); save_db(LOG_FILE, logs[-1000:])
 
-### 2. SPEED ENGINE + HF FREE MODELS ###
-HF_FREE_MODELS_PRIORITY = [
-    "google/gemma-2-2b-it", # Best quality, ~3GB
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0", # Fastest, ~1.5GB
-]
+### 2. HF API CONFIG ###
+HF_TOKEN = os.environ.get("HF_TOKEN")
+HF_MODEL = "google/gemma-2-9b-it"
+HF_API_URL = "https://router.huggingface.co/v1/chat/completions"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"}
 
+def call_gemma_api(prompt, system_prompt):
+    if not HF_TOKEN:
+        return "ERROR: HF_TOKEN missing. Add in Space Settings > Variables and secrets"
+    payload = {
+        "model": HF_MODEL,
+        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+        "max_tokens": 2000, "temperature": 0.6
+    }
+    try:
+        r = requests.post(HF_API_URL, headers=HEADERS, json=payload, timeout=90)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"API Error: {e}")
+        return f"API Error: {e}"
+
+### 3. SPEED ENGINE + HF FREE MODELS ###
 class TokenEconomist:
     def detect_depth_needed(self, prompt):
         p = prompt.lower()
-        if any(k in p for k in ["deeply","explain","discuss","compare","derive","10"]): return 400 # Lowered for speed
+        if any(k in p for k in ["deeply","explain","discuss","compare","derive","10"]): return 400
         if "s6" in p or "s5" in p: return 350
-        return 250 # SPEED: Shorter answers
-    def compress_memory(self, mem): return mem[-5:] # SPEED: Less memory
+        return 250
+    def compress_memory(self, mem): return mem[-5:]
 
 class NCDC2026Engine:
     def generate_10_sit(self, subject, level, topics): return f"Generate 10 NCDC 2026 SIT questions for {subject} {level} on {topics}. Be brief. Ugandan context."
@@ -70,7 +87,7 @@ teacher_style = UgandanTeacher()
 ncdc_engine = NCDC2026Engine()
 qc_examiner = QCExaminer()
 
-### 3. LOAD MASTER DATABASE - ALL 18 SUBJECTS + PRACTICALS FULL ###
+### 4. LOAD MASTER DATABASE - ALL 18 SUBJECTS + PRACTICALS FULL ###
 @st.cache_data
 def load_master_db():
     default_db = {
@@ -103,17 +120,17 @@ def load_master_db():
     if not os.path.exists(MASTER_DB_FILE): save_db(MASTER_DB_FILE, default_db)
     return load_db(MASTER_DB_FILE, default_db)
 
-### 4. TTL CACHE ###
+### 5. TTL CACHE ###
 class TTLSchoolCache:
     def __init__(self, ttl=7200): self.ttl=ttl; self.cache=load_db(CACHE_FILE,{})
-    def get(self,q): 
+    def get(self,q):
         k=hashlib.sha256(q.encode()).hexdigest()
         if k in self.cache and time.time()<self.cache[k][1]:
             logger.info(f"CACHE HIT: {q[:30]}")
             return self.cache[k][0]
         logger.info(f"CACHE MISS: {q[:30]}")
         return None
-    def set(self,q,a): 
+    def set(self,q,a):
         self.cache[hashlib.sha256(q.encode()).hexdigest()] = [a, time.time()+self.ttl]; save_db(CACHE_FILE,self.cache)
 
 NCDC_DB = load_master_db()
@@ -122,38 +139,14 @@ PRACTICALS_DB = NCDC_DB["practicals"]
 SUBJECTS = list(THEORY_DB.keys())
 CLASSES = [f"S{i}" for i in range(1,7)]
 
-### 5. SYSTEM + HF MODEL LOADER WITH SPEED LOGIC ###
+### 6. SYSTEM + HF API LOADER ###
 def system_check(): return {"ram": psutil.virtual_memory().percent}
-
-@st.cache_resource(show_spinner="Downloading AI Model... 3-4min first time only")
-def load_hf_model():
-    ram_gb = psutil.virtual_memory().available / (1024**3)
-    logger.info(f"RAM Available: {ram_gb:.2f}GB")
-    
-    models_to_try = HF_FREE_MODELS_PRIORITY
-    if ram_gb < 2.5: # SPEED: Force TinyLlama on low RAM
-        logger.warning("LOW RAM. Using TinyLlama only for speed")
-        models_to_try = [HF_FREE_MODELS_PRIORITY[1]]
-
-    for model_name in models_to_try:
-        try:
-            logger.info(f"Loading: {model_name}")
-            start = time.time()
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True)
-            pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-            logger.info(f"Loaded {model_name} in {time.time()-start:.1f}s")
-            return pipe, model_name
-        except Exception as e: logger.error(f"Failed {model_name}: {e}")
-    return None, "None"
-
 SYS_STATE=system_check()
-hf_pipe, loaded_model = load_hf_model()
-mode_badge=f"🧠 {loaded_model} | RAM:{SYS_STATE['ram']:.0f}%"
+mode_badge=f"🧠 Gemma-2-9B-API | RAM:{SYS_STATE['ram']:.0f}%"
 ai_cache = TTLSchoolCache()
 token_econ = TokenEconomist()
 
-### 6. HELPERS ###
+### 7. HELPERS ###
 def get_topics(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("topics",["General"])
 def get_competency(s,l): return THEORY_DB.get(s,{}).get(l,{}).get("competency","General")
 def get_practicals(s,l): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return list(PRACTICALS_DB.get(s,{}).get(g,{}).keys()) or ["No Practicals"]
@@ -162,11 +155,11 @@ def get_practical_obj(s,l,p): g = "S1-S4" if int(l[1])<=4 else "S5-S6"; return P
 def display_disclaimer():
     st.markdown("""<div style="background:#1e1e1e; border-left:5px solid #ffc107; padding:15px;"><h4 style="color:#ffc107">⚠️ NDEJJE DISCLAIMER</h4><p style="color:#ffc107">Confirm with Head Teacher, DOS, Subject Teacher.</p></div>""", unsafe_allow_html=True)
 
-### 7. BRAIN WITH SPEED + LOGS ###
+### 8. BRAIN WITH SPEED + LOGS ###
 def tutor_brain(q, level, subject, user=None):
     if st.session_state.get("chat_locked", False): return "🔒 CHATBOT LOCKED BY HEAD TEACHER."
     if user and user.get("role")=="student" and not st.session_state.get("allow_all", True): return "⛔ NO PERMISSION."
-    
+
     start_total = time.time()
     cache_key = f"{q} | {level} | {subject}"
     cached_answer = ai_cache.get(cache_key)
@@ -174,29 +167,26 @@ def tutor_brain(q, level, subject, user=None):
         if user: log_activity(user["user"], f"Cache: {q[:20]}")
         return cached_answer + "\n\n*✅ Served from Cache*"
 
-    if not hf_pipe: return "AI Model failed to load. Restart app."
-    
     logger.info(f"Generating for: {q[:50]}")
     token_budget = token_econ.detect_depth_needed(q)
     system = teacher_style.get_style_rules(subject, level, q)
-    prompt = f"{system}\n\nQuestion: {q}\nAnswer:"
-    
+    prompt = f"{system}\n\nQuestion: {q}\nAnswer in {token_budget} words max."
+
     try:
         gen_start = time.time()
-        output = hf_pipe(prompt, max_new_tokens=token_budget, temperature=0.6, do_sample=True)
+        raw = call_gemma_api(prompt, system)
         logger.info(f"Generation took {time.time()-gen_start:.1f}s")
-        
-        raw = output[0]['generated_text'].split("Answer:")[-1].strip()
+
         ans = teacher_style.format_answer(raw, subject, level)
         ai_cache.set(cache_key, ans)
         if user: log_activity(user["user"], f"Cached: {q[:20]}")
         logger.info(f"Total request took {time.time()-start_total:.1f}s")
         return ans
-    except Exception as e: 
+    except Exception as e:
         logger.error(f"Generation Error: {e}")
         return f"AI Error: {str(e)[:200]}"
 
-### 8. STUDENT PORTAL V8.7.9 - ALL 6 TABS ###
+### 9. STUDENT PORTAL V8.9.3 - ALL 6 TABS ###
 def show_student(user):
     if st.session_state.get("chat_locked", False): st.error("🔒 CHATBOT LOCKED BY HEAD TEACHER."); st.stop()
     st.header(f"📚 Welcome {user}")
@@ -211,7 +201,7 @@ def show_student(user):
         with col2: subject = st.selectbox("Subject", SUBJECTS, key="stu_subject")
         q = st.text_input("Ask anything")
         if st.button("Send") and q:
-            with st.spinner("Thinking..."):
+            with st.spinner("Gemma-9B Thinking... 4-8s"):
                 a = tutor_brain(q, level, subject, {"role":"student","user":user})
             st.success(a)
 
@@ -260,7 +250,7 @@ def show_student(user):
             st.markdown(ans)
         st.file_uploader("Upload Document for RAG - Coming Soon", type=["pdf","txt"])
 
-### 9. ADMIN PORTAL WITH WARMUP ###
+### 10. ADMIN PORTAL WITH WARMUP ###
 def show_admin(user):
     st.header("🏫 Admin Portal")
     display_disclaimer()
@@ -277,14 +267,14 @@ def show_admin(user):
     with tabs[6]:
         st.warning("Preload 20 common S4 questions to make demo instant")
         if st.button("WARMUP CACHE NOW"):
-            with st.spinner("Preloading... 2 min"):
+            with st.spinner("Preloading... 30s"):
                 common_q = ["Define density", "State Newton's 3 laws", "What is osmosis", "Balance equation: H2 + O2", "Solve: 2x+3=11"]
                 for q in common_q: tutor_brain(q, "S4", "Physics")
             st.success("Cache Warm. Demo will be instant")
     if st.button("Logout"): st.session_state.clear(); st.rerun()
 
-### 10. LOGIN WITH SECRETS ###
-st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.7.9")
+### 11. LOGIN WITH SECRETS ###
+st.title("🧠 DIGITAL UNEB TUTOR 2026 - NDEJJE QC V8.9.3 API")
 display_disclaimer()
 
 STUDENT_PASSWORD = st.secrets["STUDENT_PASSWORD"]
